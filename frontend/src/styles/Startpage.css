@@ -1,0 +1,146 @@
+/* รีเซ็ตและค่าพื้นฐาน */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column; /* จัด Header ไว้บน Content */
+  font-family: 'Inria Serif', serif;
+  overflow: hidden;
+}
+
+/* Header เหมือนเดิม (สีดำทึบ) */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 5%;
+  background-color: black; /* สีดำตามดีไซน์เดิม */
+  height: 70px; /* กำหนดความสูงที่แน่นอน */
+  z-index: 10;
+}
+
+.logo {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 35px;
+}
+
+.btn-outline {
+  border: 1px solid white;
+  padding: 10px 24px;
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+  font-family: 'Inria Serif', serif;
+  transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+  background-color: white;
+  color: black;
+}
+
+.link-text {
+  color: white;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-size: 14px;
+  font-family: 'Inria Serif', serif;
+}
+
+.split-container {
+  display: flex;
+  flex: 1;
+  width: 100%;
+}
+
+.side {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  cursor: pointer;
+}
+
+.left-side {
+  background: linear-gradient(180deg, #001856 0%, #001342 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.right-side {
+  background: linear-gradient(180deg, #001342 0%, #000D2D 100%);
+}
+
+.side:hover {
+  flex: 1.15;
+  filter: brightness(1.1);
+}
+
+.content {
+  text-align: center;
+  color: white;
+}
+
+.content h1 {
+  font-size: 3rem;
+  margin-bottom: 2rem;
+}
+
+.cta-button {
+  display: inline-block;
+  padding: 12px 35px;
+  margin-top: 10px;
+  border: 1px solid white;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+  background: white;
+  color: #000D2D;
+  transform: translateY(-3px);
+}
+
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 2.5rem;
+  text-align: left;
+  display: inline-block;
+}
+
+.features-list li {
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+
+
+.content h1 {
+  font-size: 3.2rem;
+  margin-bottom: 1.5rem;
+  letter-spacing: 1px;
+}
+
+.content p, .features-list li {
+    font-family: 'IBM Plex Sans Thai', 'Inria Serif', sans-serif;
+}
