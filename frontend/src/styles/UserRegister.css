@@ -1,0 +1,191 @@
+.reg-page-wrapper {
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(180deg, #001856 0%, #000D2D 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'IBM Plex Sans Thai', sans-serif;
+  color: white;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.reg-back-btn {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+.reg-back-btn:hover { background: #fff; color: #000; }
+
+/* การ์ดหลัก */
+.reg-main-card {
+  width: 1200px; /* กว้างกว่าหน้า Login นิดหน่อยเพราะฟิลด์เยอะกว่า */
+  background: rgba(255, 255, 255, 0.03);
+  padding: 15px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 50px 100px rgba(0,0,0,0.5);
+}
+
+.reg-split-layout {
+  display: grid !important;
+  grid-template-columns: 1fr 1px 1.2fr !important;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+/* ฝั่งซ้าย */
+.reg-side-left {
+  padding: 50px 40px;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+}
+
+.reg-info-content h3 { font-size: 1.6rem; margin-bottom: 15px; }
+.reg-info-content p { color: rgba(255,255,255,0.5); margin-bottom: 30px; font-size: 0.95rem; }
+
+.benefits-list {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 40px;
+  text-align: left;
+}
+
+.benefits-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.check-icon { color: #0046ff; font-size: 1.2rem; }
+
+/* เส้นกลาง */
+.reg-divider {
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.reg-divider span {
+  position: absolute;
+  background: #001342;
+  color: rgba(255,255,255,0.3);
+  padding: 8px;
+  font-size: 10px;
+  border-radius: 50%;
+}
+
+/* ฝั่งขวา */
+.reg-side-right { padding: 40px 50px; display: flex; flex-direction: column; justify-content: center; }
+.reg-header h1 { font-size: 2rem; margin-bottom: 5px; }
+.reg-header p { color: rgba(255, 255, 255, 0.4); font-size: 0.85rem; margin-bottom: 30px; }
+
+/* Input Group & Hover */
+.reg-input-group { position: relative; margin-bottom: 15px; }
+.reg-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.4); }
+
+.reg-input-group input {
+  width: 100%;
+  padding: 14px 15px 14px 45px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  outline: none;
+  font-family: 'IBM Plex Sans Thai', sans-serif;
+  transition: 0.3s;
+}
+
+.reg-input-group input:focus {
+  border-color: #0046ff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 70, 255, 0.2);
+}
+
+.reg-primary-btn {
+  width: 100%;
+  padding: 15px;
+  background: #0046ff;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: 0.3s;
+  font-family: 'IBM Plex Sans Thai', sans-serif;
+}
+
+.reg-primary-btn:hover {
+  background: #0036cc;
+  transform: scale(1.02);
+  box-shadow: 0 10px 20px rgba(0, 70, 255, 0.3);
+}
+
+.reg-social-gap { display: flex; flex-direction: column; gap: 12px; }
+.reg-social-btn {
+  width: 100%;
+  padding: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; color: #fff; cursor: pointer; transition: 0.3s;
+}
+.reg-social-btn:hover { background: rgba(255,255,255,0.1); }
+
+/* Footer */
+.reg-footer-area { 
+  margin-top: 35px;
+  padding-top: 25px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.reg-footer-area p {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+  margin-bottom: 15px;
+}
+
+.reg-login-btn-outline {
+  display: block;
+  width: 100%; 
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2); 
+  color: white;
+  text-decoration: none;
+  border-radius: 12px; 
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.reg-login-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.1); 
+  border-color: white; 
+  transform: scale(1.01); 
+}
