@@ -1,0 +1,224 @@
+/* บังคับ Layout ให้คงที่ ไม่ปรับตามหน้าจอ */
+.login-page-wrapper {
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(180deg, #001856 0%, #000D2D 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'IBM Plex Sans Thai', sans-serif;
+  color: white;
+  overflow: hidden;
+}
+
+.back-to-home-btn {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+/* การ์ดชั้นนอก - ล็อคความกว้างตายตัว */
+.main-login-card {
+  width: 1100px; 
+  background: rgba(255, 255, 255, 0.03);
+  padding: 15px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 50px 100px rgba(0,0,0,0.5);
+}
+
+/* บล็อกแบ่งซ้ายขวา - บังคับ Grid 2 ฝั่งถาวร */
+.split-layout-inner {
+  display: grid !important;
+  grid-template-columns: 1fr 1px 1.2fr !important;
+  background: rgba(255, 255, 255, 0.05);
+  -webkit-backdrop-filter: blur(25px);
+  backdrop-filter: blur(25px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  min-height: 520px;
+}
+
+/* ฝั่งซ้าย (Social) */
+.left-social-side {
+  padding: 50px 40px;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.left-social-side h3 {
+  margin-bottom: 30px;
+  font-size: 1.4rem;
+}
+
+/* เส้นคั่นกลาง OR */
+.center-divider {
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.center-divider span {
+  position: absolute;
+  background: #001342;
+  color: rgba(255,255,255,0.3);
+  padding: 8px;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ฝั่งขวา (Email Form) */
+.right-form-side {
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.helper-text {
+  color: rgba(255, 255, 255, 0.4); /* สีขาวจางๆ */
+  font-size: 0.85rem;
+  font-style: italic; /* ตัวเอียงตามรูป */
+  margin-top: 25px;   /* เว้นระยะห่างจากปุ่มด้านบน */
+  text-align: center;
+}
+
+.header-text h1 { font-size: 2.2rem; margin-bottom: 8px; color: white; }
+.header-text p { color: rgba(255, 255, 255, 0.5); font-size: 0.9rem; margin-bottom: 35px; }
+
+.input-field-wrapper {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.field-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.input-field-wrapper input {
+  width: 100%;
+  padding: 15px 15px 15px 45px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.input-field-wrapper input:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.input-field-wrapper input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #0046ff; /* เปลี่ยนขอบเป็นสีน้ำเงินสว่าง */
+  box-shadow: 0 0 15px rgba(0, 70, 255, 0.2); /* เพิ่มแสงฟุ้งรอบๆ */
+  outline: none;
+}
+
+.forgot-pw-link {
+  text-align: right;
+  margin-bottom: 25px;
+}
+
+.forgot-pw-link a {
+  color: #0046ff;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.primary-login-btn {
+  width: 100%;
+  padding: 15px;
+  background: #0046ff;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.primary-login-btn:hover {
+  background: #0036cc; 
+  transform: scale(1.02); /* ขยายขนาดขึ้น 2% แทนการลอย */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); /* ใช้เงาสีเข้มตัดกับปุ่มที่สว่าง */
+  letter-spacing: 0.5px; /* ขยับตัวอักษรให้ออกห่างกันนิดหน่อยให้ดูเท่ */
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* เพิ่มจังหวะเด้งตอน Hover */
+}
+
+.primary-login-btn:active {
+  transform: translateY(0) scale(0.98); /* พอกดแล้วปุ่มจะยุบลงและเล็กลงนิดนึง */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: 0.1s; /* จังหวะกดต้องเร็ว */
+}
+
+
+/* Social Buttons */
+.social-links-gap { display: flex; flex-direction: column; gap: 15px; width: 100%; }
+.social-entry-btn {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.social-entry-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.02); /* ขยายขึ้น 2% */
+}
+
+
+/* ส่วนสมัครสมาชิกด้านล่าง */
+.bottom-register-area {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.reg-text {
+  color: rgba(255,255,255,0.4); 
+  font-size: 0.85rem;
+}
+
+.outline-reg-btn {
+  display: block;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: #fff;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+

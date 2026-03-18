@@ -73,6 +73,17 @@
   align-items: center;
   transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
   cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+.content {
+ text-align: center;
+  color: white;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+  width: 100%;       /* ให้คอนเทนต์ขยายเต็มพื้นที่ .side */
+  max-width: 650px; /* จำกัดความกว้างไม่ให้บรรทัดยาวเกินไป */
+  padding: 20px;
 }
 
 .left-side {
@@ -89,10 +100,7 @@
   filter: brightness(1.1);
 }
 
-.content {
-  text-align: center;
-  color: white;
-}
+
 
 .content h1 {
   font-size: 3rem;
@@ -125,7 +133,7 @@
 }
 
 .features-list li {
-  font-size: 1.3rem;
+  font-size: 1rem;
   margin-bottom: 12px;
   color: rgba(255, 255, 255, 0.9);
   display: flex;
@@ -135,8 +143,8 @@
 
 
 
-.content h1 {
-  font-size: 3.2rem;
+.content h2 {
+  font-size: 2.5rem;
   margin-bottom: 1.5rem;
   letter-spacing: 1px;
 }

@@ -1,0 +1,160 @@
+/* ล็อคโครงสร้าง 2 ฝั่งตายตัว */
+.hr-login-wrapper {
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%); /* โทนม่วงเข้ม-น้ำเงินดำ */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  font-family: 'IBM Plex Sans Thai', sans-serif;
+  color: white;
+  position: relative;
+}
+
+.hr-back-btn {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+.hr-back-btn:hover { background: #fff; color: #000; }
+
+/* การ์ดหลัก */
+.hr-main-card {
+  width: 850px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 15px;
+  border-radius: 30px;
+  border: 1px solid rgba(168, 85, 247, 0.2); /* ขอบม่วงจางๆ */
+  box-shadow: 0 50px 100px rgba(0,0,0,0.6);
+}
+
+/* แบ่ง Gird ซ้ายขวาตายตัว */
+.hr-split-layout {
+  display: grid !important;
+  grid-template-columns: 1fr 1px 1.2fr !important;
+  background: rgba(255, 255, 255, 0.03);
+  -webkit-backdrop-filter: blur(25px);
+  backdrop-filter: blur(25px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  min-height: 520px;
+}
+
+/* ฝั่งซ้าย */
+.hr-side-left {
+  padding: 50px 40px;
+  background: rgba(88, 28, 135, 0.15); /* พื้นหลังม่วงใส */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hr-info-content h3 { margin: 20px 0 10px; font-size: 1.5rem; }
+.hr-info-content p { color: rgba(255,255,255,0.5); font-size: 0.9rem; line-height: 1.6; }
+
+/* เส้นกลาง */
+.hr-divider {
+  background: rgba(168, 85, 247, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.hr-divider span {
+  position: absolute;
+  background: #1e1b4b;
+  color: #a855f7;
+  padding: 8px;
+  font-size: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+/* ฝั่งขวา */
+.hr-side-right { padding: 50px; display: flex; flex-direction: column; justify-content: center; }
+.hr-header h1 { font-size: 2.2rem; margin-bottom: 8px; color: #fff; }
+.hr-header p { color: rgba(255, 255, 255, 0.4); font-size: 0.85rem; margin-bottom: 30px; }
+
+/* Input & Hover/Focus */
+.hr-input-group { position: relative; margin-bottom: 18px; }
+.hr-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #a855f7; }
+
+.hr-input-group input {
+  width: 100%;
+  padding: 15px 15px 15px 45px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.hr-input-group input:focus {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.05);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+}
+
+.hr-forgot-link { text-align: right; margin-bottom: 25px; }
+.hr-forgot-link a { color: #a855f7; text-decoration: none; font-size: 0.8rem; }
+
+/* ปุ่ม Login */
+.hr-primary-btn {
+  width: 100%;
+  padding: 15px;
+  background: #7e22ce; /* สีม่วงหลัก */
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.hr-primary-btn:hover {
+  background: #9333ea;
+  transform: scale(1.02);
+  box-shadow: 0 10px 20px rgba(126, 34, 206, 0.4);
+}
+
+/* ปุ่ม Social */
+.hr-social-gap { margin: 25px 0; }
+.hr-social-btn {
+  width: 100%;
+  padding: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; color: #fff; cursor: pointer; transition: 0.3s;
+}
+.hr-social-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+
+.hr-helper-text { font-size: 0.75rem; color: rgba(255,255,255,0.3); font-style: italic; }
+
+/* Register Area */
+.hr-register-area { margin-top: 40px; padding-top: 25px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; }
+.hr-register-area p { font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+
+.hr-outline-btn {
+  display: block; margin-top: 12px; padding: 12px;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 12px; color: #fff; text-decoration: none; transition: 0.3s;
+}
+.hr-outline-btn:hover { background: rgba(168, 85, 247, 0.1); border-color: #a855f7; }
