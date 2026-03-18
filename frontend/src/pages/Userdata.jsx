@@ -2,8 +2,11 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   LuUser, LuMail, LuPhone, LuMapPin, LuGraduationCap, 
-  LuBriefcase, LuWrench, LuPlus, LuChevronRight, LuChevronLeft, LuCheck 
+  LuBriefcase, LuWrench, LuPlus, LuChevronRight, LuChevronLeft, LuCheck,
+  LuBuilding
 } from "react-icons/lu";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import "../styles/Userdata.css";
 
 function Userdata() {
@@ -12,6 +15,9 @@ function Userdata() {
 
   const nextStep = () => setStep(step + 1);
   const prevStep = () => setStep(step - 1);
+
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
 
   return (
     <div className="userdata-wrapper">
@@ -40,8 +46,10 @@ function Userdata() {
                 <p>กรุณากรอกข้อมูลพื้นฐานสำหรับการติดต่อ</p>
               </div>
               <div className="input-grid">
-                <div className="input-box"><label>ชื่อ-นามสกุล (EN)</label><input type="text" placeholder="John Doe" /></div>
+                <div className="input-box"><label>ชื่อ-นามสกุล (TH)</label><input type="text" placeholder="" /></div>
+                <div className="input-box"><label>ชื่อ-นามสกุล (EN)</label><input type="text" placeholder="" /></div>
                 <div className="input-box"><label>เบอร์โทรศัพท์</label><input type="tel" placeholder="090-xxx-xxxx" /></div>
+                <div className="input-box"><label>Email</label><input type="email" placeholder="example@gmail.com" /></div>
                 <div className="input-box full"><label>ที่อยู่ปัจจุบัน</label><input type="text" placeholder="Bangkok, Thailand" /></div>
                 <div className="input-box full"><label>แนะนำตัวสั้นๆ</label><textarea placeholder="จุดเด่นของคุณ..."></textarea></div>
               </div>
@@ -52,18 +60,58 @@ function Userdata() {
           {step === 2 && (
             <div className="step-content fade-in">
               <div className="section-header">
-                <h2>การศึกษาและทักษะ</h2>
-                <p>ระบุประวัติการเรียนและทักษะที่ถนัด</p>
+                <h2>ประวัติการศึกษา</h2>
+                <p>ระบุรายละเอียดวุฒิการศึกษาและทักษะของคุณ</p>
               </div>
               <div className="dynamic-section">
-                <div className="input-box full"><label>มหาวิทยาลัย / โรงเรียน</label><input type="text" placeholder="ชื่อสถานศึกษา" /></div>
-                <div className="input-grid">
-                  <input type="text" placeholder="สาขาวิชา" />
-                  <input type="text" placeholder="ปีที่จบการศึกษา" />
+                <div className="input-box full">
+                  <label>ชื่อสถานศึกษา (School Name)</label>
+                  <input type="text" placeholder="เช่น มหาวิทยาลัยเกษตรศาสตร์" />
                 </div>
-                <div className="skill-input-area" style={{marginTop: '20px'}}>
-                  <label>ทักษะ (เช่น React, SQL, Figma)</label>
-                  <input type="text" placeholder="คั่นด้วยเครื่องหมายจุลภาค ," />
+                <div className="input-grid">
+                  <div className="input-box">
+                    <label>คณะ (Faculty)</label>
+                    <input type="text" placeholder="เช่น วิศวกรรมศาสตร์" />
+                  </div>
+                  <div className="input-box">
+                    <label>สาขาวิชา (Major / Field of Study)</label>
+                    <input type="text" placeholder="เช่น วิศวกรรมซอฟต์แวร์" />
+                  </div>
+                </div>
+                <div className="input-box full">
+                  <label>วุฒิการศึกษา (Degree)</label>
+                  <input type="text" placeholder="เช่น ปริญญาตรี (B.Eng.)" />
+                </div>
+                <div className="input-grid">
+                  <div className="input-box">
+                    <label>วันที่เริ่มการศึกษา (Start Date)</label>
+                    <DatePicker 
+                      selected={startDate} 
+                      onChange={(date) => setStartDate(date)} 
+                      className="custom-datepicker-input" // ใช้ Class CSS ของเราเอง
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="เลือกวันที่"
+                    />
+                  </div>
+                  <div className="input-box">
+                    <label>วันที่คาดว่าจะจบ (End Date)</label>
+                    <DatePicker 
+                      selected={endDate} 
+                      onChange={(date) => setEndDate(date)} 
+                      className="custom-datepicker-input" // ใช้ Class CSS ของเราเอง
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="เลือกวันที่"
+                    />
+                  </div>
+                </div>
+                <div className="skill-section" style={{marginTop: '35px', paddingTop: '25px', borderTop: '1px solid rgba(255,255,255,0.05)'}}>
+                  <label style={{fontSize: '1rem', color: '#0046ff', fontWeight: 'bold', marginBottom: '15px', display: 'block'}}>
+                    ทักษะและความสามารถ (Skills)
+                  </label>
+                  <div className="input-box full">
+                    <input type="text" placeholder="ระบุทักษะ เช่น React, SQL, Figma (คั่นด้วยเครื่องหมายจุลภาค , )" />
+                    <p className="input-hint">ทักษะเหล่านี้จะช่วยให้บริษัทค้นหาโปรไฟล์ของคุณได้ง่ายขึ้น</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -74,15 +122,54 @@ function Userdata() {
             <div className="step-content fade-in">
               <div className="section-header">
                 <h2>ประสบการณ์ทำงาน</h2>
-                <p>ระบุที่ทำงานล่าสุดหรือโปรเจกต์ที่เคยทำ</p>
+                <p>ระบุประวัติการทำงานหรือฝึกงานที่ผ่านมา</p>
               </div>
-              <div className="input-box full"><label>ชื่อบริษัท / โปรเจกต์</label><input type="text" placeholder="Company Name" /></div>
-              <div className="input-box full"><label>ตำแหน่งงาน</label><input type="text" placeholder="Position" /></div>
-              <div className="input-box full"><label>หน้าที่ความรับผิดชอบ</label><textarea placeholder="เล่าสั้นๆ ว่าทำอะไรบ้าง..."></textarea></div>
+              <div className="dynamic-section">
+                <div className="input-box full">
+                  <label>ชื่อบริษัท / องค์กร (Company Name)</label>
+                  <div className="input-field">
+                    <LuBuilding className="field-icon" />
+                    <input type="text" placeholder="เช่น บริษัท เอบีซี จำกัด" />
+                  </div>
+                </div>
+                <div className="input-box full">
+                  <label>ตำแหน่งงาน (Job Title / Position)</label>
+                  <div className="input-field">
+                    <LuBriefcase className="field-icon" />
+                    <input type="text" placeholder="เช่น Frontend Developer Intern" />
+                  </div>
+                </div>
+                <div className="input-grid">
+                  <div className="input-box">
+                    <label>วันที่เริ่มงาน (Start Date)</label>
+                    <DatePicker 
+                      selected={startDate} 
+                      onChange={(date) => setStartDate(date)} 
+                      className="custom-datepicker-input" // ใช้ Class CSS ของเราเอง
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="เลือกวันที่"
+                    />
+                  </div>
+                  <div className="input-box">
+                    <label>วันที่สิ้นสุดงาน (End Date)</label>
+                    <DatePicker 
+                      selected={endDate} 
+                      onChange={(date) => setEndDate(date)} 
+                      className="custom-datepicker-input" // ใช้ Class CSS ของเราเอง
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="เลือกวันที่"
+                    />
+                  </div>
+                </div>
+                <div className="input-box full">
+                  <label>หน้าที่ความรับผิดชอบ (Job Description)</label>
+                  <textarea placeholder="อธิบายสิ่งที่คุณทำ..." rows="5"></textarea>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Navigation Buttons */}
+          {/* 2. เพิ่มส่วนปุ่มควบคุมด้านล่างฟอร์ม (สำคัญมาก!) */}
           <div className="step-navigation">
             {step > 1 && (
               <button type="button" className="btn-back" onClick={prevStep}>
@@ -100,7 +187,6 @@ function Userdata() {
               </button>
             )}
           </div>
-
         </form>
       </div>
     </div>

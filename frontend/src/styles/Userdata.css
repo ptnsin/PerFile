@@ -1,26 +1,34 @@
+/* =========================================
+   1. โครงสร้างหลักและพื้นหลัง (Layout)
+   ========================================= */
 .userdata-wrapper {
   min-height: 100vh;
+  width: 100%;
   background: linear-gradient(180deg, #001856 0%, #000D2D 100%);
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 40px 20px;
   font-family: 'IBM Plex Sans Thai', sans-serif;
+  color: white;
+  overflow-x: hidden;
+  position: relative;
 }
 
 .userdata-container {
   width: 100%;
   max-width: 650px;
-  background: rgba(255, 255, 255, 0.03);
-  -webkit-backdrop-filter: blur(25px);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(25px);
   border-radius: 24px;
   padding: 40px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 50px 100px rgba(0,0,0,0.5);
+  box-shadow: 0 50px 100px rgba(0, 0, 0, 0.5);
 }
 
-/* Progress Stepper */
+/* =========================================
+   2. ส่วนแสดงความคืบหน้า (Progress Stepper)
+   ========================================= */
 .progress-stepper {
   display: flex;
   justify-content: space-between;
@@ -40,14 +48,14 @@
 .step-number {
   width: 35px;
   height: 35px;
-  background: #1a1a1a;
-  border: 2px solid rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.5);
   margin-bottom: 8px;
   transition: 0.3s;
 }
@@ -60,12 +68,12 @@
 }
 
 .step-item.completed .step-number {
-  background: #4dff4d;
-  border-color: #4dff4d;
+  background: #0ac50a;
+  border-color: #0ac50a;
   color: black;
 }
 
-.step-label { font-size: 0.75rem; color: rgba(255,255,255,0.4); }
+.step-label { font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); }
 .step-item.active .step-label { color: white; }
 
 .step-line {
@@ -74,73 +82,148 @@
   left: calc(50% + 20px);
   width: calc(100% - 40px);
   height: 2px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   z-index: -1;
 }
 
 .step-item.completed .step-line { background: #4dff4d; }
 
-/* Content & Form */
+/* =========================================
+   3. หัวข้อและตัวหนังสือ (Typography)
+   ========================================= */
 .section-header { text-align: center; margin-bottom: 30px; }
-.section-header h2 { font-size: 1.5rem; margin-bottom: 5px; }
-.section-header p { color: rgba(255,255,255,0.4); font-size: 0.85rem; }
+.section-header h2 { font-size: 1.6rem; margin-bottom: 8px; color: #ffffff; }
+.section-header p { color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; }
 
-.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.input-box { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
-.input-box.full { grid-column: span 2; }
-
-label { font-size: 0.8rem; color: rgba(255,255,255,0.6); }
-
-input, textarea {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 12px;
-  border-radius: 10px;
-  color: white;
-  outline: none;
+label { 
+  font-size: 0.85rem; 
+  color: rgba(255, 255, 255, 0.9); 
+  font-weight: 500;
+  display: block;
+  margin-bottom: 5px;
 }
 
-input:focus, textarea:focus { border-color: #0046ff; background: rgba(255,255,255,0.1); }
+.input-hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 8px;
+  font-style: italic;
+}
 
-/* Navigation Buttons */
+/* =========================================
+   4. ช่องกรอกข้อมูล (Inputs & DatePicker)
+   ========================================= */
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.input-box { display: flex; flex-direction: column; margin-bottom: 20px; }
+.input-box.full { grid-column: span 2; }
+
+/* จัดการช่อง input ทั้งหมดรวมถึง DatePicker */
+input, textarea, .react-datepicker-wrapper input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 14px;
+  border-radius: 12px;
+  color: #ffffff;
+  outline: none;
+  font-family: inherit;
+  transition: 0.3s;
+}
+
+input:focus, textarea:focus, .react-datepicker-wrapper input:focus { 
+  border-color: #0046ff; 
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 10px rgba(0, 70, 255, 0.2);
+}
+
+input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+/* =========================================
+   5. ปรับแต่งปฏิทิน (React DatePicker Theme)
+   ========================================= */
+.react-datepicker {
+  background-color: #001f6d !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4) !important;
+}
+
+.react-datepicker__header {
+  background-color: #000c28 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+}
+
+.react-datepicker__current-month, .react-datepicker__day-name {
+  color: white !important;
+}
+
+.react-datepicker__day {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #0046ff !important;
+  color: white !important;
+  border-radius: 50% !important;
+}
+
+.react-datepicker__day--selected {
+  background-color: #1c99ff !important; /* สีเขียวสว่างตามรูปที่คุณส่งมา */
+  color: black !important;
+  font-weight: bold !important;
+  border-radius: 50% !important;
+}
+
+/* =========================================
+   6. ปุ่มกด (Buttons)
+   ========================================= */
 .step-navigation {
   display: flex;
   justify-content: space-between;
   margin-top: 30px;
   padding-top: 25px;
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-next, .btn-save {
   background: #0046ff;
   color: white;
   border: none;
-  padding: 12px 25px;
-  border-radius: 10px;
+  padding: 12px 30px;
+  border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   margin-left: auto;
+  transition: 0.3s;
+}
+
+.btn-save { background: #01b101; color: black; }
+
+.btn-next:hover, .btn-save:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
 }
 
 .btn-back {
   background: transparent;
-  color: rgba(255,255,255,0.6);
-  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 12px 20px;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.fade-in {
-  animation: fadeIn 0.4s ease-in-out;
-}
-
+/* Animation */
+.fade-in { animation: fadeIn 0.4s ease-in-out; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
