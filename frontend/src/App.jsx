@@ -6,6 +6,7 @@ import UsersLogin from "./pages/usersLogin";
 import HrLogin from "./pages/hrLogin"
 import UserRegister from "./pages/UserRegister"
 import HrRegister from "./pages/HrRegister";
+import UsersFeed from "./pages/UsersFeed";
 
 function App() {
   
@@ -19,6 +20,7 @@ function App() {
           <Route path="/hr-login" element={<HrLogin />} />
           <Route path="/register" element={<UserRegister />} />
           <Route path="/hr-register" element={<HrRegister />} />
+          <Route path="/feed" element={<UsersFeed />} />
         </Routes>
       </Router>
     </>
