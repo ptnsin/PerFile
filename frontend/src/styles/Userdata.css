@@ -1,0 +1,147 @@
+.userdata-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #001856 0%, #000D2D 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  font-family: 'IBM Plex Sans Thai', sans-serif;
+}
+
+.userdata-container {
+  width: 100%;
+  max-width: 650px;
+  background: rgba(255, 255, 255, 0.03);
+  -webkit-backdrop-filter: blur(25px);
+  backdrop-filter: blur(25px);
+  border-radius: 24px;
+  padding: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 50px 100px rgba(0,0,0,0.5);
+}
+
+/* Progress Stepper */
+.progress-stepper {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 50px;
+  position: relative;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.step-number {
+  width: 35px;
+  height: 35px;
+  background: #1a1a1a;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 8px;
+  transition: 0.3s;
+}
+
+.step-item.active .step-number {
+  background: #0046ff;
+  border-color: #0046ff;
+  color: white;
+  box-shadow: 0 0 15px rgba(0, 70, 255, 0.5);
+}
+
+.step-item.completed .step-number {
+  background: #4dff4d;
+  border-color: #4dff4d;
+  color: black;
+}
+
+.step-label { font-size: 0.75rem; color: rgba(255,255,255,0.4); }
+.step-item.active .step-label { color: white; }
+
+.step-line {
+  position: absolute;
+  top: 17px;
+  left: calc(50% + 20px);
+  width: calc(100% - 40px);
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  z-index: -1;
+}
+
+.step-item.completed .step-line { background: #4dff4d; }
+
+/* Content & Form */
+.section-header { text-align: center; margin-bottom: 30px; }
+.section-header h2 { font-size: 1.5rem; margin-bottom: 5px; }
+.section-header p { color: rgba(255,255,255,0.4); font-size: 0.85rem; }
+
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.input-box { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+.input-box.full { grid-column: span 2; }
+
+label { font-size: 0.8rem; color: rgba(255,255,255,0.6); }
+
+input, textarea {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 12px;
+  border-radius: 10px;
+  color: white;
+  outline: none;
+}
+
+input:focus, textarea:focus { border-color: #0046ff; background: rgba(255,255,255,0.1); }
+
+/* Navigation Buttons */
+.step-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.btn-next, .btn-save {
+  background: #0046ff;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn-back {
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
