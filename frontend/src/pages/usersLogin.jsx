@@ -37,7 +37,7 @@ export default function UsersLogin() {
           <div className="right-form-side">
             <div className="header-text">
               <h1>Seeker Login</h1>
-              <p>Enter your details to access your account.</p>
+              <p>ระบุข้อมูลของคุณเพื่อเข้าสู่ระบบ</p>
             </div>
 
             <form className="login-form-fields">
@@ -56,7 +56,7 @@ export default function UsersLogin() {
             </form>
 
             <div className="bottom-register-area">
-              <p className="reg-text">Don't have an account?</p>
+              <p className="reg-text">ยังไม่มีบัญชี?</p>
               <Link to="/register" className="outline-reg-btn">Register Now</Link>
             </div>
           </div>
