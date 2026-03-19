@@ -1,41 +1,99 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
-  LuSearch, LuBookmark,
-  LuBell, LuUser, LuFilter, LuFileText, LuBriefcase 
+  LuSearch, LuBookmark, LuBell, LuUser, LuFilter, 
+  LuFileText, LuBriefcase, LuPanelLeft 
 } from "react-icons/lu";
 import { FiPlusSquare, FiHome, FiGrid } from "react-icons/fi";
 import "../styles/UsersFeed.css";
 
 function UsersFeed() {
-  const [activeTab, setActiveTab] = useState("resume"); // 'resume' หรือ 'job'
+  const [activeTab, setActiveTab] = useState("resume");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const sidebarRef = useRef(null);
 
+  const toggleSidebar = () => {
+    if (isSidebarOpen) {
+    sidebarRef.current.style.width = "";
+  }
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+ useEffect(() => {
+  const sidebar = sidebarRef.current;
+  const handle = sidebar.querySelector(".sidebar-handle");
+
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  const onMouseDown = (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startW = sidebar.offsetWidth;
+    sidebar.classList.add("dragging");
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  const onMouseMove = (e) => {
+    if (!dragging) return;
+    const newW = Math.min(400, Math.max(60, startW + (e.clientX - startX)));
+    sidebar.style.width = newW + "px";
+  };
+
+  const onMouseUp = () => {
+    dragging = false;
+    sidebar.classList.remove("dragging");
+    document.body.style.userSelect = "";
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  handle.addEventListener("mousedown", onMouseDown);
+
+  return () => {
+    handle.removeEventListener("mousedown", onMouseDown);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+}, []);
+  
   return (
     <div className="feed-container">
-
       <nav className="feed-nav">
         <div className="nav-left-group">
-        <div className="nav-logo">PerFile</div>
-            <div className="nav-search-wrapper">
+          <button className="sidebar-toggle-btn" onClick={toggleSidebar}>
+            <LuPanelLeft />
+          </button>
+          <div className="nav-logo">PerFile</div>
+          <div className="nav-search-wrapper">
             <LuSearch className="search-icon" />
             <input type="text" placeholder="ค้นหา Username หรือ Company..." />
-            </div>
+          </div>
         </div>
 
-        <div className="nav-right">
-          <button className="nav-notif"><LuBell /></button>
+        <div className="nav-right-links">
+          <button className="nav-notif">
+            <LuBell />
+          </button>
           <div className="user-profile-dropdown">
-            <LuUser /> <span>Un know</span>
+            <LuUser /> 
+            <span>Un know</span>
           </div>
         </div>
       </nav>
 
       <div className="feed-layout">
-        {/* 2. Sidebar ฝั่งซ้าย */}
-        <aside className="feed-sidebar">
+        {/* ใส่ Class เพิ่มตาม State isSidebarOpen */}
+        <aside ref={sidebarRef} className={`feed-sidebar ${isSidebarOpen ? "open" : "closed"}`}>
+           <div className="sidebar-handle">
+              <div className="handle-line"></div>
+          </div>
           <div className="sidebar-menu">
             <button className="create-btn"><FiPlusSquare/> Create</button>
-            <Link to="/" className="menu-item active"><FiGrid /> Feed</Link>
+            <Link to="/feed" className="menu-item active"><FiGrid /> Feed</Link>
             <button className="menu-item"><FiHome /> Profile</button>
             <button className="menu-item"><LuBookmark /> Saved</button>
           </div>
@@ -52,7 +110,6 @@ function UsersFeed() {
           </div>
         </aside>
 
-        {/* 3. Main Feed Area */}
         <main className="feed-main">
           <header className="feed-header">
             <div className="welcome-text">
@@ -60,7 +117,6 @@ function UsersFeed() {
               <p>Explore public resumes and job opportunities</p>
             </div>
             
-            {/* เมนูเลือกดู Resume หรือ Job */}
             <div className="tab-switcher">
               <button 
                 className={activeTab === "resume" ? "active" : ""} 
@@ -82,7 +138,6 @@ function UsersFeed() {
               <button className="filter-btn"><LuFilter /> กรอง</button>
             </div>
 
-            {/* ส่วนแสดง Grid ของการ์ด */}
             <div className="cards-grid">
               {[...Array(12)].map((_, i) => (
                 <div key={i} className={`feed-card ${activeTab === "resume" ? "resume-border" : "job-border"}`}>

@@ -1,20 +1,21 @@
 .hr-reg-wrapper {
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
   background: linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%);
   display: flex;
-  justify-content: center;
+  flex-direction: column;       /* เปลี่ยน */
+  justify-content: flex-start;  /* เปลี่ยน */
   align-items: center;
   font-family: 'IBM Plex Sans Thai', sans-serif;
   color: white;
-  position: relative;
+  padding: 30px 20px;           /* เพิ่ม */
+  box-sizing: border-box;       /* เพิ่ม */
   overflow: hidden;
 }
 
 .hr-reg-back-btn {
-  position: absolute;
-  top: 30px;
-  left: 30px;
+  align-self: flex-start;       /* เปลี่ยน */
+  margin-bottom: 20px;          /* เปลี่ยน */
   background: #000;
   color: #fff;
   border: 1px solid #fff;
@@ -31,7 +32,7 @@
 .hr-reg-back-btn:hover { background: #fff; color: #000; }
 
 .hr-reg-card {
-  width: 1200px;
+  width: min(1000px, 90vw);
   background: rgba(255, 255, 255, 0.02);
   padding: 15px;
   border-radius: 30px;

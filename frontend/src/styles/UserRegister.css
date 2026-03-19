@@ -1,20 +1,21 @@
 .reg-page-wrapper {
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
   background: linear-gradient(180deg, #001856 0%, #000D2D 100%);
   display: flex;
-  justify-content: center;
+  flex-direction: column;       
+  justify-content: flex-start;   
   align-items: center;
   font-family: 'IBM Plex Sans Thai', sans-serif;
   color: white;
-  position: relative;
+  padding: 30px 20px;          
+  box-sizing: border-box;       
   overflow-x: hidden;
 }
 
 .reg-back-btn {
-  position: absolute;
-  top: 30px;
-  left: 30px;
+  align-self: flex-start;      
+  margin-bottom: 20px;         
   background: #000;
   color: #fff;
   border: 1px solid #fff;
@@ -32,7 +33,7 @@
 
 /* การ์ดหลัก */
 .reg-main-card {
-  width: 1200px; /* กว้างกว่าหน้า Login นิดหน่อยเพราะฟิลด์เยอะกว่า */
+  width: min(1000px, 90vw); 
   background: rgba(255, 255, 255, 0.03);
   padding: 15px;
   border-radius: 30px;

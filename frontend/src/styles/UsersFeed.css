@@ -1,7 +1,8 @@
 /* 1. Reset และโครงสร้างพื้นฐาน */
 .feed-container {
   min-height: 100vh;
-  width: 100vw;
+   height: 100vh;
+  width: 100%;
   background: linear-gradient(180deg, #001856 0%, #000D2D 100%); /* สีเดียวกับหน้า Login */
   color: white;
   font-family: 'IBM Plex Sans Thai', sans-serif;
@@ -9,18 +10,105 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-top: 80px;
 }
 
-/* 2. Navbar สไตล์ Startpage (ตามรูปที่ส่งมา) */
+
+.sidebar-toggle-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 5px;
+  transition: 0.3s;
+  margin-right: 10px; /* ระยะห่างจากโลโก้ */
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-notif {
+  background: #000;
+  color: aliceblue;
+}
+
+/* จัดการ Sidebar */
+.feed-sidebar {
+  width: 250px;
+  min-width: 60px;       /* แคบสุด */
+  max-width: 400px;      /* กว้างสุด */
+  height: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 25px 15px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+}
+
+.sidebar-handle {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.handle-line {
+  width: 2px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+
+.sidebar-handle:hover .handle-line {
+  background: #0046ff;
+}
+
+/* เมื่อ Sidebar ปิด */
+.feed-sidebar.closed {
+  width: 0;
+  padding: 30px 0;
+  opacity: 0;
+  pointer-events: none; /* คลิกไม่ได้เมื่อปิด */
+  border-right: none;
+}
+
+/* ปรับให้ Main Feed ขยายเต็มเมื่อ Sidebar ปิด */
+.feed-main {
+  flex: 1;
+  height: 100%;
+  padding: 40px;
+  overflow-y: auto;
+  transition: padding 0.3s ease;
+}
+
 .feed-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 80px;
-  background: #000; /* ดำสนิท */
+  width: 100%;
+  background: #000;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 50px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 1000;
+  flex-shrink: 0;
 }
 
 .nav-left-group {
@@ -39,11 +127,12 @@
 .nav-search-wrapper {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  padding: 5px 15px;
-  width: 350px;
+  padding: 8px 13px;
+  width: 450px;
+  margin-left: 50px;
 }
 
 .nav-search-wrapper input {
@@ -56,10 +145,54 @@
   font-size: 0.85rem;
 }
 
+.nav-search-wrapper:focus-within {
+  border-color: rgba(255, 255, 255, 0.1);
+  outline: none;
+  box-shadow: none;
+}
+
+.nav-search-wrapper input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+
+/* 2. Navbar ส่วนที่แก้ไข */
 .nav-right-links {
   display: flex;
+  align-items: center; /* จัดให้ทุกอย่างสูงเท่ากันในแนวนอน */
+  gap: 20px;           /* ระยะห่างระหว่าง กระดิ่ง | Un know | ปุ่มอื่นๆ */
+}
+
+/* ปรับแต่งปุ่มกระดิ่งให้ไม่มีพื้นหลังดำทับตัวหนังสือ */
+.nav-notif {
+  background: transparent !important; 
+  color: white;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex;
   align-items: center;
-  gap: 20px;
+  transition: 0.3s;
+}
+
+.nav-notif:hover {
+  color: #4dff4d; /* ให้เป็นสีเขียวเวลาจี้ เหมือนธีม Public */
+  transform: scale(1.1);
+}
+
+/* ส่วนของชื่อ Un know */
+.user-profile-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  cursor: pointer;
+}
+
+.user-profile-dropdown span {
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .nav-btn-seeker {
@@ -94,17 +227,37 @@
 .feed-layout {
   display: flex;
   flex: 1;
-  overflow: hidden; /* ล็อคไม่ให้ทั้งหน้าจอไถ แต่ไถแค่ส่วน Feed */
+  overflow: hidden;
+  height: calc(100vh - 80px);
 }
 
 /* Sidebar ฝั่งซ้าย */
 .feed-sidebar {
   width: 250px;
+  height: 100%;
+  min-width: 150px;
+  max-width: 300px;
   background: rgba(0, 0, 0, 0.2);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   padding: 25px 15px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+   will-change: width;
+  transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+}
+
+.feed-sidebar.dragging {
+  transition: none;
+}
+
+.feed-sidebar.closed {
+  width: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-right: none;
+  overflow: hidden;
 }
 
 .create-btn {
@@ -125,22 +278,26 @@
 
 .create-btn:hover { background: #0036cc; transform: translateY(-2px); }
 
+
 .menu-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 15px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
-  border-radius: 10px;
+  border: none;
   margin-bottom: 8px;
   transition: 0.2s;
 }
 
-.menu-item:hover, .menu-item.active {
-  background: rgba(255, 255, 255, 0.08);
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.12);
   color: white;
 }
+
 
 .sidebar-section {
   margin-top: 30px;
@@ -157,13 +314,6 @@
   color: rgba(255, 255, 255, 0.4);
   padding: 5px 15px;
   cursor: pointer;
-}
-
-/* 4. Main Content Area (ส่วนที่ไถได้) */
-.feed-main {
-  flex: 1;
-  padding: 40px;
-  overflow-y: auto; /* ไถแค่ส่วนนี้ */
 }
 
 .welcome-text h1 { font-size: 2.2rem; margin-bottom: 5px; }
