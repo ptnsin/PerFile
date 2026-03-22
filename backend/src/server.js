@@ -1,5 +1,7 @@
 import express from 'express'
 import cors from 'cors'
+import swaggerJsdoc from 'swagger-jsdoc'
+import swaggerUi from 'swagger-ui-express'
 
 // import authRouter from './routers/authRouter.js'
 // import adminRouter from './routers/adminRouter.js'
@@ -17,6 +19,32 @@ const app = express()
 
 app.use(cors())
 app.use(express.json())
+
+// ── Swagger setup ──────────────────────────────
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title      : 'PerFile API',
+      version    : '1.0.0',
+      description: 'PerFile',
+    },
+    servers: [{ url: `http://${HOST}:${PORT}` }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type        : 'http',
+          scheme      : 'bearer',
+          bearerFormat: 'JWT',
+        }
+      }
+    }
+  },
+  apis: ['./src/routers/*.js'],  // อ่าน comment จากทุก router
+})
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+// ───────────────────────────────────────────────
 
 // -------- 67118401 ปฏิภาณ 8 API ---------
 // app.use('/auth', authRouter)
