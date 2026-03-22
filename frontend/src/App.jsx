@@ -8,7 +8,7 @@ import UserRegister from "./pages/UserRegister"
 import HrRegister from "./pages/HrRegister";
 import Userdata from "./pages/Userdata";
 import UsersFeed from "./pages/UsersFeed";
-
+import Resume from "./pages/Resume";
 function App() {
   
 
@@ -23,6 +23,7 @@ function App() {
           <Route path="/hr-register" element={<HrRegister />} />
           <Route path="/user-data" element={<Userdata />} />
           <Route path="/feed" element={<UsersFeed />} />
+          <Route path="/resume" element={<Resume />} />
         </Routes>
       </Router>
     </>
