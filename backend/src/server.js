@@ -1,10 +1,14 @@
 import express from 'express'
 import cors from 'cors'
 
-
-
-import socialRouter from './routers/socialRouter.js'
-import hrRouter from './routers/hrRouter.js'
+const authRouter         = require('./routers/authRouter')
+const adminRouter        = require('./routers/adminRouter')
+const resumeRouter       = require('./routers/resumeRouter')
+const fileRouter         = require('./routers/fileRouter')
+const socialRouter       = require('./routers/socialRouter')
+const hrRouter           = require('./routers/hrRouter')
+const notificationRouter = require('./routers/notificationRouter')
+const shareRouter        = require('./routers/shareRouter')
 
 const HOST = 'localhost'
 const PORT = 3000
@@ -37,4 +41,4 @@ app.use('/notifications', notificationRouter)
 app.use('/share', shareRouter)
 
 
-app.listen(3000, () => console.log('Server is running...'))
+app.listen(3000, () => console.log(`Server is running at http://${HOST}:${PORT}`))
