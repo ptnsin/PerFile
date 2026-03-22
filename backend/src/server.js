@@ -5,7 +5,7 @@ import swaggerUi from 'swagger-ui-express'
 
 // import authRouter from './routers/authRouter.js'
 // import adminRouter from './routers/adminRouter.js'
-// import resumeRouter from './routers/resumeRouter.js'
+import resumeRouter from './routers/resumeRouter.js'
 // import fileRouter from './routers/fileRouter.js'
 import socialRouter from './routers/socialRouter.js'
 import hrRouter from './routers/hrRouter.js'
@@ -54,7 +54,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 
 // -------- 67114610 กองทัพ 8 API ---------
-// app.use('/resumes', resumeRouter)
+ app.use('/resumes', resumeRouter)
 
 // -------- 67162470 พงศกร 6 API ---------
 // app.use('/files', fileRouter)
