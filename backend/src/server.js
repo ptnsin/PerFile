@@ -4,7 +4,7 @@ import swaggerJsdoc from 'swagger-jsdoc'
 import swaggerUi from 'swagger-ui-express'
 
 import authRouter from './routers/authRouter.js'
-// import adminRouter from './routers/adminRouter.js'
+import adminRouter from './routers/adminRouter.js'
 import resumeRouter from './routers/resumeRouter.js'
 // import fileRouter from './routers/fileRouter.js'
 import socialRouter from './routers/socialRouter.js'
@@ -50,7 +50,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 app.use('/auth', authRouter)
 
 // -------- 67122203 ศิววงศ์ 9 API ---------
-// app.use('/admin', adminRouter)
+app.use('/admin', adminRouter)
 
 
 // -------- 67114610 กองทัพ 8 API ---------
