@@ -3,7 +3,7 @@ import cors from 'cors'
 import swaggerJsdoc from 'swagger-jsdoc'
 import swaggerUi from 'swagger-ui-express'
 
-// import authRouter from './routers/authRouter.js'
+import authRouter from './routers/authRouter.js'
 // import adminRouter from './routers/adminRouter.js'
 import resumeRouter from './routers/resumeRouter.js'
 // import fileRouter from './routers/fileRouter.js'
@@ -47,7 +47,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 // ───────────────────────────────────────────────
 
 // -------- 67118401 ปฏิภาณ 8 API ---------
-// app.use('/auth', authRouter)
+app.use('/auth', authRouter)
 
 // -------- 67122203 ศิววงศ์ 9 API ---------
 // app.use('/admin', adminRouter)

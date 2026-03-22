@@ -1,0 +1,361 @@
+import { Router } from 'express'
+import { requireRole } from '../middleware/requireRole.js'
+
+const authRouter = Router()
+
+// base path: "/auth"
+
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: API สำหรับจัดการ Authentication
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "user_abc123"
+ *         email:
+ *           type: string
+ *           example: "user@example.com"
+ *         role:
+ *           type: string
+ *           enum: [user, hr, admin]
+ *           example: "user"
+ *         status:
+ *           type: string
+ *           enum: [active, pending, suspended, banned]
+ *           example: "active"
+ */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/register
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: ลงทะเบียนผู้ใช้งานใหม่ (Job Seeker)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *               - fullName
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: "john_doe"
+ *               email:
+ *                 type: string
+ *                 example: "john@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "StrongPass123!"
+ *               fullName:
+ *                 type: string
+ *                 example: "John Doe"
+ *     responses:
+ *       201:
+ *         description: ลงทะเบียนสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Registration successful"
+ *       400:
+ *         description: Bad Request - ข้อมูลไม่ครบหรือ email ซ้ำ
+ */
+authRouter.post('/register', (req, res) => {
+  // TODO: implement
+  res.status(201).json({ message: 'Registration successful' })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/hr/register
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/hr/register:
+ *   post:
+ *     summary: ลงทะเบียนผู้ใช้งานใหม่ (HR) รอ Admin approve ก่อนใช้งาน
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *               - fullName
+ *               - company
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: "hr_jane"
+ *               email:
+ *                 type: string
+ *                 example: "hr@company.com"
+ *               password:
+ *                 type: string
+ *                 example: "StrongPass123!"
+ *               fullName:
+ *                 type: string
+ *                 example: "Jane Smith"
+ *               company:
+ *                 type: string
+ *                 example: "Acme Corp"
+ *     responses:
+ *       201:
+ *         description: ลงทะเบียนสำเร็จ รอ Admin อนุมัติ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "HR registration submitted. Awaiting admin approval."
+ *       400:
+ *         description: Bad Request - ข้อมูลไม่ครบหรือ email ซ้ำ
+ */
+authRouter.post('/hr/register', (req, res) => {
+  // TODO: implement
+  res.status(201).json({ message: 'HR registration submitted. Awaiting admin approval.' })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/login
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: ตรวจสอบ email และ password คืนค่าเป็น Access Token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "user@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "StrongPass123!"
+ *     responses:
+ *       200:
+ *         description: เข้าสู่ระบบสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Login successful"
+ *                 accessToken:
+ *                   type: string
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *       400:
+ *         description: Bad Request - ข้อมูลไม่ครบ
+ *       401:
+ *         description: Unauthorized - email หรือ password ไม่ถูกต้อง
+ *       403:
+ *         description: Forbidden - บัญชียังไม่ได้รับการอนุมัติ (HR pending)
+ */
+authRouter.post('/login', (req, res) => {
+  // TODO: implement
+  res.json({ message: 'Login successful', accessToken: '' })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/refresh
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: ขอ Access Token ใหม่ด้วย Refresh Token ใน Cookie
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: ได้ Access Token ใหม่
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *       401:
+ *         description: Unauthorized - ไม่มี Refresh Token หรือ Token หมดอายุ
+ */
+authRouter.post('/refresh', (req, res) => {
+  // TODO: implement
+  res.json({ accessToken: '' })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/logout
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: ออกจากระบบ
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ออกจากระบบสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Logout successful"
+ *       401:
+ *         description: Unauthorized
+ */
+authRouter.post('/logout', (req, res) => {
+  // TODO: implement
+  res.json({ message: 'Logout successful' })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /auth/me
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: ดูข้อมูล user ที่ login อยู่ พร้อม role และ status
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ข้อมูล user ปัจจุบัน
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Unauthorized
+ */
+authRouter.get('/me', (req, res) => {
+  // TODO: implement
+  res.json({ user: {} })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /auth/oauth/:provider
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/oauth/{provider}:
+ *   get:
+ *     summary: OAuth redirect ไปหา Google หรือ Github
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: provider
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [google, github]
+ *         description: OAuth provider ที่ต้องการใช้
+ *     responses:
+ *       302:
+ *         description: Redirect ไปยัง OAuth provider
+ *       400:
+ *         description: Bad Request - provider ไม่รองรับ
+ */
+authRouter.get('/oauth/:provider', (req, res) => {
+  // TODO: implement
+  const { provider } = req.params
+  res.redirect(`https://example.com/oauth/${provider}`)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /auth/password
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/password:
+ *   patch:
+ *     summary: เปลี่ยนรหัสผ่านของตัวเอง
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *                 example: "OldPass123!"
+ *               newPassword:
+ *                 type: string
+ *                 example: "NewPass456!"
+ *     responses:
+ *       200:
+ *         description: เปลี่ยนรหัสผ่านสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password changed successfully"
+ *       400:
+ *         description: Bad Request - ข้อมูลไม่ครบ
+ *       401:
+ *         description: Unauthorized - รหัสผ่านเดิมไม่ถูกต้อง
+ */
+authRouter.patch('/password', (req, res) => {
+  // TODO: implement
+  res.json({ message: 'Password changed successfully' })
+})
+
+export default authRouter
