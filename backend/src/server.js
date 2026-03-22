@@ -5,7 +5,7 @@ import cors from 'cors'
 
 import socialRouter from './routers/socialRouter.js'
 import hrRouter from './routers/hrRouter.js'
-
+// import adminRouter from './routers/adminRouter.js'
 const HOST = 'localhost'
 const PORT = 3000
 
@@ -19,6 +19,7 @@ app.use('/auth', authRouter)
 
 // -------- 67122203 ศิววงศ์ 9 API ---------
 app.use('/admin', adminRouter)
+
 
 // -------- 67114610 กองทัพ 8 API ---------
 app.use('/resumes', resumeRouter)
