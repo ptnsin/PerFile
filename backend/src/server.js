@@ -1,7 +1,6 @@
 import express from 'express'
 import cors from 'cors'
 
-<<<<<<< HEAD
 const authRouter         = require('./routers/authRouter')
 const adminRouter        = require('./routers/adminRouter')
 const resumeRouter       = require('./routers/resumeRouter')
@@ -11,13 +10,6 @@ const hrRouter           = require('./routers/hrRouter')
 const notificationRouter = require('./routers/notificationRouter')
 const shareRouter        = require('./routers/shareRouter')
 
-=======
-
-
-import socialRouter from './routers/socialRouter.js'
-import hrRouter from './routers/hrRouter.js'
-// import adminRouter from './routers/adminRouter.js'
->>>>>>> ebf0094724d88d638df3f88d1300347f2b79b7fa
 const HOST = 'localhost'
 const PORT = 3000
 
