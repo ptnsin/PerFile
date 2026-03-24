@@ -6,7 +6,7 @@ import swaggerUi from 'swagger-ui-express'
 import authRouter from './routers/authRouter.js'
 import adminRouter from './routers/adminRouter.js'
 import resumeRouter from './routers/resumeRouter.js'
-// import fileRouter from './routers/fileRouter.js'
+import fileRouter from './routers/fileRouter.js'
 import socialRouter from './routers/socialRouter.js'
 import hrRouter from './routers/hrRouter.js'
 // import notificationRouter from './routers/notificationRouter.js'
@@ -57,7 +57,7 @@ app.use('/admin', adminRouter)
  app.use('/resumes', resumeRouter)
 
 // -------- 67162470 พงศกร 6 API ---------
-// app.use('/files', fileRouter)
+app.use('/files', fileRouter)
 
 // -------- 67178847 ภัทรนันท์ 12 API---------
 app.use('/social', socialRouter)
