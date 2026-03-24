@@ -9,7 +9,7 @@ import resumeRouter from './routers/resumeRouter.js'
 import fileRouter from './routers/fileRouter.js'
 import socialRouter from './routers/socialRouter.js'
 import hrRouter from './routers/hrRouter.js'
-// import notificationRouter from './routers/notificationRouter.js'
+import notificationRouter from './routers/notificationRouter.js'
 // import shareRouter from './routers/shareRouter.js'
 
 const HOST = 'localhost'
@@ -64,7 +64,7 @@ app.use('/social', socialRouter)
 app.use('/hr', hrRouter)
 
 // -------- 67162470 พงศกร 4 API ---------
-// app.use('/notifications', notificationRouter)
+app.use('/notifications', notificationRouter)
 
 // ---67118401 ปฏิภาณ(POST,DELETE) / 67114610 กองทัพ (GET)
 // app.use('/share', shareRouter)
