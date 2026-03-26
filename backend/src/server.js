@@ -10,7 +10,7 @@ import fileRouter from './routers/fileRouter.js'
 import socialRouter from './routers/socialRouter.js'
 import hrRouter from './routers/hrRouter.js'
 import notificationRouter from './routers/notificationRouter.js'
-// import shareRouter from './routers/shareRouter.js'
+ import shareRouter from './routers/shareRouter.js'
 
 const HOST = 'localhost'
 const PORT = 3000
@@ -67,7 +67,7 @@ app.use('/hr', hrRouter)
 app.use('/notifications', notificationRouter)
 
 // ---67118401 ปฏิภาณ(POST,DELETE) / 67114610 กองทัพ (GET)
-// app.use('/share', shareRouter)
+ app.use('/share', shareRouter)
 
 
 app.listen(PORT, HOST, () => {
