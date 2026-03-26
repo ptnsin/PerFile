@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireRole } from '../middleware/requireRole.js'
-
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
 const authRouter = Router()
 
 // base path: "/auth"
@@ -189,11 +190,61 @@ authRouter.post('/hr/register', (req, res) => {
  *       403:
  *         description: Forbidden - บัญชียังไม่ได้รับการอนุมัติ (HR pending)
  */
-authRouter.post('/login', (req, res) => {
-  // TODO: implement
-  res.json({ message: 'Login successful', accessToken: '' })
-})
+authRouter.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
 
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password required" })
+    }
+
+    // 🔎 หา user
+    const [[user]] = await db.query(
+      "SELECT id, email, password, role, status FROM users WHERE email = ?",
+      [email]
+    )
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password" })
+    }
+
+    // 🔐 เช็ค password
+    const isMatch = await bcrypt.compare(password, user.password)
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password" })
+    }
+
+    // 🚫 เช็ค status
+    if (user.status === "pending") {
+      return res.status(403).json({ message: "Account pending approval" })
+    }
+    if (user.status === "banned") {
+      return res.status(403).json({ message: "Account banned" })
+    }
+    if (user.status === "suspended") {
+      return res.status(403).json({ message: "Account suspended" })
+    }
+
+    // 🎟️ สร้าง token
+    const accessToken = jwt.sign(
+      {
+        id: user.id,
+        role: user.role
+      },
+      process.env.JWT_SECRET || "SECRET_KEY",
+      { expiresIn: "1h" }
+    )
+
+    res.json({
+      message: "Login successful",
+      accessToken
+    })
+
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /auth/refresh
 // ─────────────────────────────────────────────────────────────────────────────
