@@ -1,4 +1,6 @@
 import { Router } from "express";
+import db from "../config/db.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 import { requireRole } from '../middleware/requireRole.js'
 
 const resumeRouter = Router();
@@ -92,9 +94,39 @@ const resumeRouter = Router();
  *       401:
  *         description: Unauthorized
  */
-resumeRouter.get("/my", (req, res) => {
-  // TODO: implement
-  res.json({ resumes: [] });
+resumeRouter.get("/my", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id; // ดึง ID จาก Token ที่ login ไว้
+
+    // 1. ดึงข้อมูล Resume ทั้งหมดที่ user คนนี้เป็นเจ้าของ
+    const [resumes] = await db.query(
+      "SELECT id, title, template, visibility, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE user_id = ? ORDER BY created_at DESC",
+      [userId]
+    );
+
+    // 2. ดึงข้อมูล Sections (ตารางย่อย) ของแต่ละ Resume มาประกอบร่าง
+    // ใช้ Promise.all เพื่อให้ดึงข้อมูลของทุก Resume พร้อมกันอย่างรวดเร็ว
+    const resumesWithSections = await Promise.all(
+      resumes.map(async (resume) => {
+        const [sections] = await db.query(
+          "SELECT id, type, content, section_order AS `order` FROM resume_sections WHERE resume_id = ? ORDER BY section_order ASC",
+          [resume.id]
+        );
+
+        return {
+          ...resume,
+          sections: sections // เอาข้อมูลย่อยใส่เข้าไปในตัว Resume นั้นๆ
+        };
+      })
+    );
+
+    // 3. ส่งข้อมูลออกไป (ถ้าไม่มีข้อมูลจะคืนค่าเป็นอาเรย์ว่าง { resumes: [] })
+    res.status(200).json({ resumes: resumesWithSections });
+
+  } catch (err) {
+    console.error("Get My Resumes Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,9 +178,52 @@ resumeRouter.get("/my", (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-resumeRouter.post("/resumes", (req, res) => {
-  // TODO: implement
-  res.status(201).json({ message: "Resume created successfully", resume: {} });
+resumeRouter.post("/resumes",authMiddleware, async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const { title, template, visibility, sections } = req.body;
+    const userId = req.user.id;
+
+    // 1. บันทึกตารางหลัก
+    const [resumeResult] = await connection.query(
+      "INSERT INTO resumes (user_id, title, template, visibility) VALUES (?, ?, ?, ?)",
+      [userId, title, template, visibility]
+    );
+    const resumeId = resumeResult.insertId;
+
+    // 2. บันทึกตารางย่อย (Sections)
+    if (sections && sections.length > 0) {
+      for (const section of sections) {
+        await connection.query(
+          "INSERT INTO resume_sections (resume_id, type, content, section_order) VALUES (?, ?, ?, ?)",
+          [resumeId, section.type, JSON.stringify(section.content), section.order]
+        );
+      }
+    }
+
+    await connection.commit();
+
+    // ✅ จุดที่ต้องแก้: ส่งข้อมูลกลับไปให้ Swagger โชว์แทนที่จะส่ง {}
+    res.status(201).json({
+      message: "Resume created successfully",
+      resume: {
+        id: resumeId,
+        title,
+        template,
+        visibility,
+        sections: sections || [], // ส่ง sections ที่รับมากลับไปโชว์
+        createdAt: new Date().toISOString()
+      }
+    });
+
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ message: "Server error" });
+  } finally {
+    connection.release();
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,9 +261,47 @@ resumeRouter.post("/resumes", (req, res) => {
  *       404:
  *         description: ไม่พบ resume
  */
-resumeRouter.get("/:id", (req, res) => {
-  // TODO: implement
-  res.json({ resumes: {} });
+resumeRouter.get("/:id", authMiddleware, async (req, res) => {
+  try {
+    const resumeId = req.params.id;
+    const userId = req.user ? req.user.id : null; // ดึง userId จาก Token (ถ้ามี)
+
+    // 1. ดึงข้อมูลจากตารางหลัก (resumes)
+    const [resumeRows] = await db.query(
+      "SELECT id, user_id, title, template, visibility, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE id = ?",
+      [resumeId]
+    );
+
+    if (resumeRows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบ Resume ที่ต้องการ" });
+    }
+
+    const resume = resumeRows[0];
+
+    // 2. ตรวจสอบสิทธิ์ (Ownership & Visibility)
+    // ถ้าสถานะเป็น private และคนที่เรียกไม่ใช่เจ้าของ -> ส่ง 403 Forbidden
+    if (resume.visibility === "private" && resume.user_id !== userId) {
+      return res.status(403).json({ message: "คุณไม่มีสิทธิ์เข้าถึง Resume ชุดนี้" });
+    }
+
+    // 3. ดึงข้อมูล Sections (ตารางย่อย) มาประกอบร่าง
+    const [sections] = await db.query(
+      "SELECT id, type, content, section_order AS `order` FROM resume_sections WHERE resume_id = ? ORDER BY section_order ASC",
+      [resumeId]
+    );
+
+    // 4. ส่งข้อมูลออกไป
+    res.status(200).json({
+      resume: {
+        ...resume,
+        sections: sections || []
+      }
+    });
+
+  } catch (err) {
+    console.error("Get Resume By ID Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,9 +356,62 @@ resumeRouter.get("/:id", (req, res) => {
  *       404:
  *         description: ไม่พบ resume
  */
-resumeRouter.put("/:id", (req, res) => {
-  // TODO: implement
-  res.json({ message: "Resume updated successfully", resume: {} });
+resumeRouter.put("/:id", authMiddleware, async (req, res) => {
+  const connection = await db.getConnection(); // ดึง connection มาทำ Transaction
+  try {
+    await connection.beginTransaction();
+
+    const resumeId = req.params.id;
+    const userId = req.user.id;
+    const { title, template, visibility, sections } = req.body;
+
+    // 1. ตรวจสอบว่า Resume นี้มีจริงและเป็นของ User คนนี้หรือไม่
+    const [resumeRows] = await connection.query(
+      "SELECT id FROM resumes WHERE id = ? AND user_id = ?",
+      [resumeId, userId]
+    );
+
+    if (resumeRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: "ไม่พบ Resume หรือคุณไม่มีสิทธิ์แก้ไข" });
+    }
+
+    // 2. อัปเดตข้อมูลตารางหลัก (resumes)
+    await connection.query(
+      "UPDATE resumes SET title = ?, template = ?, visibility = ? WHERE id = ?",
+      [title || "Untitled", template || "modern", visibility || "private", resumeId]
+    );
+
+    // 3. จัดการตารางย่อย (resume_sections)
+    if (sections) {
+      // วิธีที่ง่ายที่สุด: ลบอันเก่าทิ้งทั้งหมดของ Resume นี้
+      await connection.query("DELETE FROM resume_sections WHERE resume_id = ?", [resumeId]);
+
+      // แล้ว Insert อันใหม่เข้าไปแทน
+      if (sections.length > 0) {
+        for (const section of sections) {
+          await connection.query(
+            "INSERT INTO resume_sections (resume_id, type, content, section_order) VALUES (?, ?, ?, ?)",
+            [resumeId, section.type, JSON.stringify(section.content), section.order]
+          );
+        }
+      }
+    }
+
+    await connection.commit(); // ยืนยันการแก้ไขทั้งหมดลง Database
+
+    res.status(200).json({
+      message: "Resume updated successfully",
+      resume: { id: resumeId, title, template, visibility, sections }
+    });
+
+  } catch (err) {
+    if (connection) await connection.rollback(); // ถ้าพังให้ยกเลิกทั้งหมด (Rollback)
+    console.error("Update Resume Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  } finally {
+    if (connection) connection.release(); // คืน connection ให้ pool
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -284,9 +450,46 @@ resumeRouter.put("/:id", (req, res) => {
  *       404:
  *         description: ไม่พบ resume
  */
-resumeRouter.delete("/:id", (req, res) => {
-  // TODO: implement
-  res.json({ message: "Resume deleted successfully" });
+resumeRouter.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const resumeId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role; // สมมติว่าใน Token มีการเก็บ role ไว้ (1 คือ Admin)
+
+    // 1. ดึงข้อมูลมาเช็คก่อนว่ามี Resume นี้จริงไหม และใครเป็นเจ้าของ
+    const [resumeRows] = await db.query(
+      "SELECT id, user_id FROM resumes WHERE id = ?",
+      [resumeId]
+    );
+
+    if (resumeRows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบ Resume ที่ต้องการลบ" });
+    }
+
+    const resume = resumeRows[0];
+
+    // 2. ตรวจสอบสิทธิ์ (เจ้าของลบเอง OR เป็น Admin ลบ)
+    // ถ้าไม่ใช่เจ้าของ AND ไม่ใช่ Admin (Role 1) -> บล็อกทันที
+    if (resume.user_id !== userId && userRole !== 1) {
+      return res.status(403).json({ message: "คุณไม่มีสิทธิ์ลบ Resume ชุดนี้" });
+    }
+
+    // 3. ทำการลบข้อมูล
+    // หมายเหตุ: ถ้าคุณตั้งค่า Foreign Key เป็น ON DELETE CASCADE ไว้ในตาราง resume_sections
+    // การลบจากตาราง resumes อย่างเดียว ข้อมูลในตารางย่อยจะหายไปเองอัตโนมัติครับ
+    await db.query("DELETE FROM resumes WHERE id = ?", [resumeId]);
+
+    // 4. บันทึก Log (ถ้ามีฟังก์ชัน logAction)
+    if (typeof logAction === "function") {
+      await logAction(userId, "DELETE_RESUME", resumeId, `Deleted resume ID: ${resumeId}`);
+    }
+
+    res.status(200).json({ message: "Resume deleted successfully" });
+
+  } catch (err) {
+    console.error("Delete Resume Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

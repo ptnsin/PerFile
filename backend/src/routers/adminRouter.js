@@ -18,6 +18,7 @@ const requireAdmin = (req, res, next) => {
 // Helper: บันทึก audit log
 const logAction = async (adminId, action, targetId = null, detail = null) => {
   try {
+    // ตัด created_at ออก เพราะ DB ใส่ให้เองอัตโนมัติ
     await db.query(
       "INSERT INTO audit_logs (admin_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, NOW())",
       [adminId, action, targetId, detail]
@@ -313,7 +314,7 @@ router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) =
     }
 
     const [[user]] = await db.query(
-      "SELECT id, name, email, roles_id, status FROM users WHERE id = ?",
+      "SELECT id, username, email, roles_id, status FROM users WHERE id = ?",
       [id]
     );
 
@@ -361,7 +362,7 @@ router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) =
  *       500:
  *         description: Internal server error
  */
-router.delete("/users/:id", requireAdmin, async (req, res) => {
+router.delete("/users/:id",authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -418,30 +419,37 @@ router.delete("/users/:id", requireAdmin, async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.post("/hr/approve/:id", requireAdmin, async (req, res) => {
+router.post("/hr/approve/:id", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [[hrUser]] = await db.query(
-      "SELECT id, role, status FROM users WHERE id = ? AND role = 'hr'",
+    // 1. แก้ role เป็น roles_id และเช็คเลข 3 (HR)
+    const [rows] = await db.query(
+      "SELECT id, username, status FROM users WHERE id = ? AND roles_id = 3",
       [id]
     );
 
-    if (!hrUser) {
-      return res.status(404).json({ message: "HR account not found" });
+    // เช็คว่าเจอ HR ไหม
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบบัญชี HR นี้ในระบบ" });
     }
 
+    const hrUser = rows[0];
+
+    // 2. เช็คสถานะว่ารออนุมัติ (pending) จริงไหม
     if (hrUser.status !== "pending") {
-      return res.status(400).json({ message: "This HR account is not in pending status" });
+      return res.status(400).json({ message: "บัญชีนี้ไม่ได้อยู่ในสถานะรออนุมัติ" });
     }
 
+    // 3. อัปเดตสถานะเป็น active
     await db.query("UPDATE users SET status = 'active' WHERE id = ?", [id]);
 
-    await logAction(req.user.id, "APPROVE_HR", id, `Approved HR ID: ${id}`);
+    // 4. บันทึก Log โดยใช้ username จริง
+    await logAction(req.user.id, "APPROVE_HR", id, `Approved HR: ${hrUser.username}`);
 
-    res.status(200).json({ message: "HR account approved successfully" });
+    res.status(200).json({ message: "อนุมัติบัญชี HR เรียบร้อยแล้ว" });
   } catch (err) {
-    console.error(err);
+    console.error("Approve HR Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -557,15 +565,16 @@ router.delete("/hr/revoke/:id", requireAdmin, async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.get("/audit-logs", requireAdmin, async (req, res) => {
+router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const parsedLimit = parseInt(limit);
     const offset = (parseInt(page) - 1) * parsedLimit;
 
+    // แก้ u.name เป็น u.username ให้ตรงกับ Database จริงของคุณ
     const [logs] = await db.query(
       `SELECT al.id, al.action, al.target_id, al.detail, al.created_at,
-              u.name AS admin_name, u.email AS admin_email
+              u.username AS admin_name, u.email AS admin_email
        FROM audit_logs al
        LEFT JOIN users u ON u.id = al.admin_id
        ORDER BY al.created_at DESC
@@ -573,11 +582,12 @@ router.get("/audit-logs", requireAdmin, async (req, res) => {
       [parsedLimit, offset]
     );
 
+    // ดึงจำนวนทั้งหมดเพื่อทำ Pagination
     const [[{ total }]] = await db.query("SELECT COUNT(*) AS total FROM audit_logs");
 
     res.status(200).json({ logs, total });
   } catch (err) {
-    console.error(err);
+    console.error("Audit Logs Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -617,17 +627,19 @@ router.get("/audit-logs", requireAdmin, async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.get("/stats", requireAdmin, async (req, res) => {
+router.get("/stats",authMiddleware, requireAdmin, async (req, res) => {
   try {
     const [[{ users }]] = await db.query(
-      "SELECT COUNT(*) AS users FROM users WHERE role = 'user'"
+      "SELECT COUNT(*) AS users FROM users WHERE role = '2'"
     );
     const [[{ resumes }]] = await db.query(
       "SELECT COUNT(*) AS resumes FROM resumes"
     );
     const [[{ hrAccounts }]] = await db.query(
-      "SELECT COUNT(*) AS hrAccounts FROM users WHERE role = 'hr'"
+      "SELECT COUNT(*) AS hrAccounts FROM users WHERE role = '3'"
     );
+
+    
 
     res.status(200).json({ users, resumes, hrAccounts });
   } catch (err) {
