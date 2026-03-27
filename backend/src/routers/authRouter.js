@@ -213,59 +213,43 @@ authRouter.post('/hr/register', (req, res) => {
  *         description: Forbidden - บัญชียังไม่ได้รับการอนุมัติ (HR pending)
  */
 authRouter.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password required" })
+    try {
+        // 1. ค้นหา User จาก email ในฐานข้อมูล
+        const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+
+        // ถ้าไม่เจอ User
+        if (users.length === 0) {
+            return res.status(401).json({ message: "ไม่พบอีเมลนี้ในระบบ" });
+        }
+
+        const user = users[0];
+
+        // 2. เปรียบเทียบรหัสผ่าน (bcrypt จะเทียบ password ที่ส่งมา กับรหัสที่ hash ใน DB)
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+        }
+
+        // 3. ถ้าถูกต้อง สร้าง Token (JWT) เพื่อส่งกลับไปให้ User ใช้
+        const token = jwt.sign(
+            { id: user.id, email: user.email, role: user.roles_id },
+            'your_secret_key', // เปลี่ยนเป็นรหัสลับของคุณ
+            { expiresIn: '1d' }
+        );
+
+        res.status(200).json({
+            message: "เข้าสู่ระบบสำเร็จ",
+            token: token,
+            user: { id: user.id, username: user.username, role: user.roles_id }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server Error", error: error.message });
     }
-
-    // 🔎 หา user
-    const [[user]] = await db.query(
-      "SELECT id, email, password, role, status FROM users WHERE email = ?",
-      [email]
-    )
-
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" })
-    }
-
-    // 🔐 เช็ค password
-    const isMatch = await bcrypt.compare(password, user.password)
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password" })
-    }
-
-    // 🚫 เช็ค status
-    if (user.status === "pending") {
-      return res.status(403).json({ message: "Account pending approval" })
-    }
-    if (user.status === "banned") {
-      return res.status(403).json({ message: "Account banned" })
-    }
-    if (user.status === "suspended") {
-      return res.status(403).json({ message: "Account suspended" })
-    }
-
-    // 🎟️ สร้าง token
-    const accessToken = jwt.sign(
-      {
-        id: user.id,
-        role: user.role
-      },
-      process.env.JWT_SECRET || "SECRET_KEY",
-      { expiresIn: "1h" }
-    )
-
-    res.json({
-      message: "Login successful",
-      accessToken
-    })
-
-  } catch (err) {
-    console.error(err)
-    res.status(500).json({ message: "Internal server error" })
-  }
 })
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /auth/refresh
