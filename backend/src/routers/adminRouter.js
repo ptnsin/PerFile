@@ -1,5 +1,6 @@
 import { Router } from "express";
-//import db from "../db.js";
+import db from '../config/db.js'
+import { authMiddleware } from "../middleware/authMiddleware.js";
 import { requireRole } from '../middleware/requireRole.js'
 
 const router = Router();
@@ -8,7 +9,7 @@ const router = Router();
 // Middleware: ตรวจสอบว่าเป็น admin เท่านั้น
 // ─────────────────────────────────────────────
 const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== "admin") {
+  if (!req.user || req.user.role !== 1 ) {
     return res.status(403).json({ message: "Access denied: Admins only" });
   }
   next();
@@ -92,7 +93,7 @@ const logAction = async (adminId, action, targetId = null, detail = null) => {
  *       500:
  *         description: Internal server error
  */
-router.get("/users", requireAdmin, async (req, res) => {
+router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
   try {
     const { role, status, page = 1 } = req.query;
     const limit = 20;
@@ -102,8 +103,13 @@ router.get("/users", requireAdmin, async (req, res) => {
     let params = [];
 
     if (role) {
-      conditions.push("role = ?");
-      params.push(role);
+    let roleId = role;
+    if (role === 'admin') roleId = 1;
+    else if (role === 'user') roleId = 2;
+    else if (role === 'hr') roleId = 3;
+
+    conditions.push("roles_id = ?"); 
+    params.push(roleId);
     }
     if (status) {
       conditions.push("status = ?");
@@ -113,14 +119,18 @@ router.get("/users", requireAdmin, async (req, res) => {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const [users] = await db.query(
-      `SELECT id, name, email, role, status, created_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT id, username, email, roles_id, status, created_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
 
-    const [[{ total }]] = await db.query(
-      `SELECT COUNT(*) AS total FROM users ${whereClause}`,
-      params
+    const [totalResult] = await db.query(
+    `SELECT COUNT(*) AS total FROM users ${whereClause}`,
+    params
     );
+
+    const total = totalResult[0].total;
+
+
 
     res.status(200).json({ users, total });
   } catch (err) {
@@ -186,31 +196,38 @@ router.get("/users", requireAdmin, async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.put("/users/:id/role", requireAdmin, async (req, res) => {
+router.put("/users/:id/role",authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body;
+    const { role } = req.body; // รับมาเป็น 'admin', 'hr', หรือ 'user'
 
-    const allowedRoles = ["user", "hr", "admin"];
-    if (!role || !allowedRoles.includes(role)) {
-      return res.status(400).json({ message: "Invalid role. Allowed: user, hr, admin" });
+    // 1. แปลงคำอ่านจาก Body ให้เป็นตัวเลข ID ตามตาราง roles ที่คุณเปิดโชว์
+    const roleMap = { admin: 1, user: 2, hr: 3 };
+    const roleId = roleMap[role];
+
+    if (!roleId) {
+      return res.status(400).json({ message: "Invalid role. Allowed: admin, user, hr" });
     }
 
+    // 2. อัปเดต roles_id (ต้องใช้ชื่อคอลัมน์นี้ตามตาราง users ของคุณ)
     const [result] = await db.query(
-      "UPDATE users SET role = ? WHERE id = ?",
-      [role, id]
+      "UPDATE users SET roles_id = ? WHERE id = ?",
+      [roleId, id]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const [[user]] = await db.query(
-      "SELECT id, name, email, role, status FROM users WHERE id = ?",
+    // 3. ดึงข้อมูลกลับมาโชว์ (เปลี่ยน name เป็น username / role เป็น roles_id)
+    const [rows] = await db.query(
+      "SELECT id, username, email, roles_id, status FROM users WHERE id = ?",
       [id]
     );
+    const user = rows[0];
 
-    await logAction(req.user.id, "CHANGE_ROLE", id, `New role: ${role}`);
+    // 4. บันทึก Log (ถ้ายังไม่มีตาราง audit_logs ให้คอมเมนต์บรรทัดนี้ไว้ก่อน)
+    await logAction(req.user.id, "CHANGE_ROLE", id, `Changed to: ${role}`);
 
     res.status(200).json({ message: "Role updated successfully", user });
   } catch (err) {
@@ -276,7 +293,7 @@ router.put("/users/:id/role", requireAdmin, async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.put("/users/:id/status", requireAdmin, async (req, res) => {
+router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -296,7 +313,7 @@ router.put("/users/:id/status", requireAdmin, async (req, res) => {
     }
 
     const [[user]] = await db.query(
-      "SELECT id, name, email, role, status FROM users WHERE id = ?",
+      "SELECT id, name, email, roles_id, status FROM users WHERE id = ?",
       [id]
     );
 

@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { authMiddleware } from '../middleware/authMiddleware.js'
 import { requireRole } from '../middleware/requireRole.js'
 
 const fileRouter = Router()
@@ -183,9 +184,10 @@ fileRouter.post('/upload/video', (req, res) => {
  *       403:
  *         description: Forbidden - Admin เท่านั้น
  */
-fileRouter.get('/admin/all', requireRole('admin'), (req, res) => {
+fileRouter.get('/admin/all', authMiddleware, requireRole(1), (req, res) => {
   // TODO: implement
   res.json({ files: [], total: 0 })
+  console.log(req.user)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
