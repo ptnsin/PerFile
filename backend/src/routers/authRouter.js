@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { requireRole } from '../middleware/requireRole.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
+import db from '../config/db.js'
+
 const authRouter = Router()
 
 // base path: "/auth"
@@ -83,9 +85,29 @@ const authRouter = Router()
  *       400:
  *         description: Bad Request - ข้อมูลไม่ครบหรือ email ซ้ำ
  */
-authRouter.post('/register', (req, res) => {
+authRouter.post('/register', async (req, res) => {
   // TODO: implement
-  res.status(201).json({ message: 'Registration successful' })
+  const { username, email, password } = req.body;
+
+    try {
+        // 1. เข้ารหัสผ่าน (Hash Password) เพื่อความปลอดภัย
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // 2. เขียนคำสั่ง SQL (เช็คชื่อ Column ใน phpMyAdmin ของคุณให้ตรงนะครับ)
+        // จากรูปคุณมี: username, email, password, roles_id
+        const sql = "INSERT INTO users (username, email, password, roles_id) VALUES (?, ?, ?, ?)";
+        
+        // 3. สั่ง Execute (ส่งค่าไปที่ db)
+        // ใส่ 2 เป็นค่า default สำหรับบทบาท 'user' (ตามที่คุณตั้งไว้ในตาราง roles)
+        const [result] = await db.query(sql, [username, email, hashedPassword, 2]);
+
+        // 4. ถ้าสำเร็จ ส่งข้อความกลับไปบอก Postman
+        res.status(201).json({ message: "Registration successful", userId: result.insertId });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Database Error", error: error.message });
+    }
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
