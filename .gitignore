@@ -137,3 +137,7 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# --- MySQL / Docker Data (Revised) ---
+**/mysql-data/
+backend/databases/mysql-data/
