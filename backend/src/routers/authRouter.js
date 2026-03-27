@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireRole } from '../middleware/requireRole.js'
+import { authMiddleware } from '../middleware/authMiddleware.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import db from '../config/db.js'
@@ -236,7 +237,7 @@ authRouter.post('/login', async (req, res) => {
         // 3. ถ้าถูกต้อง สร้าง Token (JWT) เพื่อส่งกลับไปให้ User ใช้
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.roles_id },
-            'your_secret_key', // เปลี่ยนเป็นรหัสลับของคุณ
+            'SECRET_KEY',
             { expiresIn: '1d' }
         );
 
@@ -333,10 +334,31 @@ authRouter.post('/logout', (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-authRouter.get('/me', (req, res) => {
-  // TODO: implement
-  res.json({ user: {} })
-})
+// ต้องมั่นใจว่ามี Middleware verifyToken (หรือชื่อคล้ายๆ กัน) นำหน้า
+authRouter.get('/me', authMiddleware , async (req, res) => {
+    try {
+        // 1. ดึง id มาจาก req.user (ซึ่ง Middleware verifyJWT เป็นคนถอดรหัสใส่ไว้ให้)
+        const userId = req.user.id; 
+
+        // 2. ไป query หาข้อมูล user จริงๆ ใน DB (ไม่เอา password ออกมานะ)
+        const [users] = await db.query(
+            "SELECT id, username, email, roles_id FROM users WHERE id = ?", 
+            [userId]
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // 3. ส่งข้อมูล user ออกไป
+        res.status(200).json({
+            user: users[0] // ส่งข้อมูลก้อนนี้ออกไปแทน {}
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /auth/oauth/:provider
@@ -362,9 +384,25 @@ authRouter.get('/me', (req, res) => {
  *         description: Bad Request - provider ไม่รองรับ
  */
 authRouter.get('/oauth/:provider', (req, res) => {
-  // TODO: implement
-  const { provider } = req.params
-  res.redirect(`https://example.com/oauth/${provider}`)
+  const { provider } = req.params; // รับค่า 'github' มาจาก URL
+
+    // ตรวจสอบว่า provider ที่ส่งมาคืออะไร (ต้องเป็นตัวพิมพ์เล็กตามที่ Swagger ส่ง)
+    if (provider === 'github') {
+        // ตรงนี้คือส่วนที่คุณต้องใส่ Logic สำหรับพาไปหน้า Login ของ GitHub จริงๆ
+        // แต่ตอนนี้แก้ให้มัน Return ค่ากลับไปก่อนเพื่อให้หาย Error
+        return res.json({ 
+            message: "กำลังเชื่อมต่อกับ GitHub OAuth...",
+            provider: provider 
+        });
+    } else if (provider === 'google') {
+        return res.json({ 
+            message: "กำลังเชื่อมต่อกับ Google OAuth...",
+            provider: provider 
+        });
+    } else {
+        // ถ้าส่งอย่างอื่นมา (ที่ไม่ใช่ github หรือ google) ถึงจะขึ้น "ไม่รองรับ"
+        return res.status(400).json({ message: "Provider ไม่รองรับ" });
+    }
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
