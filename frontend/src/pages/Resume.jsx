@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
+
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
 const style = `
@@ -16,6 +17,16 @@ const style = `
     --input-bg: #121212;
     --muted: #6b6b6b;
   }
+
+  .back-link {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--gold);
+    text-decoration: none;
+    font-size: 14px;
+  }
+
+  .back-link:hover { color: var(--gold-light); }
 
   .app { display: flex; height: 100vh; overflow: hidden; }
 
@@ -526,6 +537,7 @@ export default function ResumeBuilder() {
         {/* SIDEBAR */}
         <div className="sidebar">
           <div className="sidebar-header">
+            <Link to="/feed" className="back-link">← กลับไปหน้า Feed</Link>
             <div className="logo">résumé<span>craft</span></div>
           </div>
           <div className="sidebar-tabs">
@@ -635,7 +647,7 @@ export default function ResumeBuilder() {
             )}
           </div>
 
-          <button className="btn-download" onClick={handlePrint}>⬇ พิมพ์ / บันทึก PDF</button>
+          <Link to="/feed" className="btn-download">⬇ พิมพ์ / บันทึก PDF</Link>
         </div>
 
         {/* PREVIEW */}

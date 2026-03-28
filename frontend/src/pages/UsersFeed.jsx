@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   LuSearch, LuBookmark, LuBell, LuUser, LuFilter, 
   LuFileText, LuBriefcase, LuPanelLeft 
@@ -11,6 +11,7 @@ function UsersFeed() {
   const [activeTab, setActiveTab] = useState("resume");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarRef = useRef(null);
+  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     if (isSidebarOpen) {
@@ -92,7 +93,7 @@ function UsersFeed() {
               <div className="handle-line"></div>
           </div>
           <div className="sidebar-menu">
-            <button className="create-btn"><FiPlusSquare/> Create</button>
+            <button className="create-btn" onClick={() => navigate('/resume')}><FiPlusSquare/> Create</button>
             <Link to="/feed" className="menu-item active"><FiGrid /> Feed</Link>
             <button className="menu-item"><FiHome /> Profile</button>
             <button className="menu-item"><LuBookmark /> Saved</button>
