@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useResumes } from "./ResumeContext";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
@@ -499,6 +500,8 @@ export default function ResumeBuilder() {
   const [tab, setTab] = useState("info");
   const [newSkill, setNewSkill] = useState("");
   const resumeRef = useRef();
+  const navigate = useNavigate();
+  const { publish } = useResumes();
 
   const set = (key, val) => setData(d => ({ ...d, [key]: val }));
 
@@ -537,7 +540,7 @@ export default function ResumeBuilder() {
         {/* SIDEBAR */}
         <div className="sidebar">
           <div className="sidebar-header">
-            <Link to="/feed" className="back-link">← กลับไปหน้า Feed</Link>
+            <button className="back-link" onClick={() => { publish(data); navigate('/feed'); }}>← กลับไปหน้า Feed</button>
             <div className="logo">résumé<span>craft</span></div>
           </div>
           <div className="sidebar-tabs">
@@ -647,7 +650,7 @@ export default function ResumeBuilder() {
             )}
           </div>
 
-          <Link to="/feed" className="btn-download">⬇ พิมพ์ / บันทึก PDF</Link>
+          <button className="btn-download" onClick={() => { publish(data); navigate('/feed'); }}>⬇ บันทึก &ไปติดตามในหน้า Feed</button>
         </div>
 
         {/* PREVIEW */}
