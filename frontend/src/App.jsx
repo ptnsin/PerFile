@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ResumeProvider } from "./pages/ResumeContext";
 
 import Startpage from "./pages/startpage";
 import UsersLogin from "./pages/usersLogin";
@@ -9,13 +10,14 @@ import HrRegister from "./pages/HrRegister";
 import Userdata from "./pages/Userdata";
 import UsersFeed from "./pages/UsersFeed";
 import Resume from "./pages/Resume";
+import ViewResume from "./pages/ViewResume";
 import UserProfile from "./pages/Userprofile";
 import SavedPage from "./pages/SavedPage";
 function App() {
   
 
   return (
-    <>
+    <ResumeProvider>
       <Router>
         <Routes>
           <Route path="/" element={<Startpage/>}/>
@@ -26,11 +28,12 @@ function App() {
           <Route path="/user-data" element={<Userdata />} />
           <Route path="/feed" element={<UsersFeed />} />
           <Route path="/resume" element={<Resume />} />
+          <Route path="/view-resume/:id" element={<ViewResume />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/saved" element={<SavedPage />} />
         </Routes>
       </Router>
-    </>
+    </ResumeProvider>
   )
 }
 
