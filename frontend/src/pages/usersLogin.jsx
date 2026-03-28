@@ -1,10 +1,52 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link,useNavigate } from "react-router-dom";
 import { LuMail, LuLock, LuArrowLeft } from "react-icons/lu";
 import { FaGoogle, FaGithub } from "react-icons/fa";
 import "../styles/UsersLogin.css";
 
 export default function UsersLogin() {
+  const navigate = useNavigate();
+
+  // --- ส่วนที่ต้องเพิ่ม: ฟังก์ชันรอรับ Token จาก Popup ---
+  useEffect(() => {
+    const handleMessage = (event) => {
+      // ตรวจสอบว่าข้อมูลส่งมาจาก Backend จริงๆ (Security Check)
+      if (event.origin !== "http://localhost:3000") return;
+
+      if (event.data.type === "AUTH_SUCCESS") {
+        const { token } = event.data;
+        
+        // เก็บ Token ลงเครื่อง
+        localStorage.setItem("token", token);
+        
+        // แจ้งเตือนและพาไปหน้าถัดไป
+        alert("เข้าสู่ระบบด้วย Social สำเร็จ!");
+        navigate("/dashboard"); // หรือหน้าไหนก็ได้ที่คุณต้องการ
+      }
+    };
+
+    // เปิดเครื่องรับสัญญาณ
+    window.addEventListener("message", handleMessage);
+    
+    // ปิดเครื่องรับสัญญาณเมื่อออกจากหน้านี้ (Cleanup)
+    return () => window.removeEventListener("message", handleMessage);
+  }, [navigate]);
+
+  // --- ฟังก์ชันเดิม (ห้ามลบ!) ---
+  const handleSocialLogin = (provider) => {
+    const backendUrl = `http://localhost:3000/auth/oauth/${provider}`;
+    const width = 500;
+    const height = 650;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    window.open(
+      backendUrl,
+      `Login with ${provider}`,
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+  };
+
   return (
     <div className="login-page-wrapper">
       <Link to="/" className="back-to-home-btn">
@@ -18,10 +60,17 @@ export default function UsersLogin() {
           <div className="left-social-side">
             <h3>Quick Access</h3>
             <div className="social-links-gap">
-              <button className="social-entry-btn">
+              <button 
+                className="social-entry-btn"
+                onClick={() => handleSocialLogin('google')}
+              >
                 <FaGoogle size={20} /> Continue with Google
               </button>
-              <button className="social-entry-btn">
+
+              <button 
+                className="social-entry-btn"
+                onClick={() => handleSocialLogin('github')}
+              >
                 <FaGithub size={20} /> Continue with GitHub
               </button>
             </div>
