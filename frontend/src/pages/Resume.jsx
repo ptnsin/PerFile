@@ -265,16 +265,20 @@ const style = `
   }
 
   /* RESUME PAPER */
-  .resume {
-    width: 794px;
-    min-height: 1123px;
-    background: #fff;
-    color: #1a1a1a;
-    font-family: 'DM Sans', sans-serif;
-    box-shadow: 0 25px 80px rgba(0,0,0,0.5);
-    position: relative;
-    overflow: hidden;
-  }
+.resume {
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+  position: relative;
+  overflow: hidden;
+}
+  @page {
+  size: A4 portrait;
+  margin: 0;
+}
 
   .resume-header {
     background: #111;
@@ -390,12 +394,17 @@ const style = `
     margin-bottom: 6px;
   }
 
-  .r-entry-desc {
-    font-size: 12px;
-    color: #555;
-    line-height: 1.6;
-  }
+.r-entry-desc {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.6;
 
+
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-line;
+}
   .r-skill-group { margin-bottom: 18px; }
 
   .r-skill-name {
