@@ -489,26 +489,37 @@ router.post("/hr/approve/:id", authMiddleware, requireAdmin, async (req, res) =>
  *       500:
  *         description: Internal server error
  */
-router.delete("/hr/revoke/:id", requireAdmin, async (req, res) => {
+router.delete("/hr/revoke/:id", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [[hrUser]] = await db.query(
-      "SELECT id, role FROM users WHERE id = ? AND role = 'hr'",
+    // 1. ตรวจสอบว่ามี User นี้จริงไหม และต้องเป็น HR (roles_id = 3)
+    // เปลี่ยนจาก role = 'hr' เป็น roles_id = 3
+    const [rows] = await db.query(
+      "SELECT id FROM users WHERE id = ? AND roles_id = 3",
       [id]
     );
 
-    if (!hrUser) {
-      return res.status(404).json({ message: "HR account not found" });
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบข้อมูล HR ที่ต้องการยกเลิกสิทธิ์" });
     }
 
+    // 2. อัปเดตสถานะกลับเป็น pending (เพื่อให้ HR เข้าใช้งานไม่ได้จนกว่าจะอนุมัติใหม่)
     await db.query("UPDATE users SET status = 'pending' WHERE id = ?", [id]);
 
-    await logAction(req.user.id, "REVOKE_HR", id, `Revoked HR ID: ${id}`);
+    // 3. บันทึก Log การกระทำของ Admin
+    if (typeof logAction === "function") {
+      await logAction(
+        req.user.id, 
+        "REVOKE_HR", 
+        id, 
+        `Admin ID: ${req.user.id} revoked HR ID: ${id} back to pending`
+      );
+    }
 
-    res.status(200).json({ message: "HR account revoked and set back to pending" });
+    res.status(200).json({ message: "ยกเลิกสิทธิ์ HR เรียบร้อยแล้ว (สถานะเปลี่ยนเป็น pending)" });
   } catch (err) {
-    console.error(err);
+    console.error("Revoke HR Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -593,57 +604,99 @@ router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// 8. GET /admin/stats
+// 8. GET /admin/dashboard-stats
 // ─────────────────────────────────────────────
 
 /**
  * @swagger
- * /admin/stats:
+ * /admin/dashboard-stats:
  *   get:
- *     summary: ดู dashboard สถิติในระบบ
- *     description: แสดงจำนวน user / resume / HR ทั้งหมดในระบบ
+ *     summary: ดึงข้อมูลสถิติทั้งหมดสำหรับหน้า Admin Dashboard
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: ดึงสถิติสำเร็จ
+ *         description: ข้อมูลสถิติภาพรวมของระบบ
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 users:
+ *                 userStats:
+ *                   type: object
+ *                   properties:
+ *                     admin:
+ *                       type: integer
+ *                     generalUser:
+ *                       type: integer
+ *                     hr:
+ *                       type: integer
+ *                 resumeStats:
+ *                   type: object
+ *                   properties:
+ *                     public:
+ *                       type: integer
+ *                     private:
+ *                       type: integer
+ *                 postStats:
+ *                   type: object
+ *                   properties:
+ *                     public:
+ *                       type: integer
+ *                     private:
+ *                       type: integer
+ *                 pendingHR:
  *                   type: integer
- *                   example: 120
- *                 resumes:
- *                   type: integer
- *                   example: 85
- *                 hrAccounts:
- *                   type: integer
- *                   example: 15
  *       403:
- *         description: Access denied
+ *         description: Access denied - Admins only
  *       500:
  *         description: Internal server error
  */
-router.get("/stats",authMiddleware, requireAdmin, async (req, res) => {
+
+router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const [[{ users }]] = await db.query(
-      "SELECT COUNT(*) AS users FROM users WHERE role = '2'"
+    const [userRows] = await db.query(
+      "SELECT roles_id, COUNT(*) as count FROM users GROUP BY roles_id"
     );
-    const [[{ resumes }]] = await db.query(
-      "SELECT COUNT(*) AS resumes FROM resumes"
-    );
-    const [[{ hrAccounts }]] = await db.query(
-      "SELECT COUNT(*) AS hrAccounts FROM users WHERE role = '3'"
-    );
-
     
+    const userStats = {
+      admin: userRows.find(r => r.roles_id === 1)?.count || 0,
+      generalUser: userRows.find(r => r.roles_id === 2)?.count || 0,
+      hr: userRows.find(r => r.roles_id === 3)?.count || 0
+    };
 
-    res.status(200).json({ users, resumes, hrAccounts });
+    const [resumeRows] = await db.query(
+      "SELECT visibility, COUNT(*) as count FROM resumes GROUP BY visibility"
+    );
+    
+    const resumeStats = {
+      public: resumeRows.find(r => r.visibility === 'public')?.count || 0,
+      private: resumeRows.find(r => r.visibility === 'private')?.count || 0
+    };
+
+    const [postRows] = await db.query(
+      "SELECT visibility, COUNT(*) as count FROM posts GROUP BY visibility"
+    ).catch(() => [[]]); // กันเหนียวถ้ายังไม่มีตารางหรือคอลัมน์ visibility ใน posts
+    
+    const postStats = {
+      public: postRows.find(r => r.visibility === 'public')?.count || 0,
+      private: postRows.find(r => r.visibility === 'private')?.count || 0
+    };
+
+    const [[{ pendingHR }]] = await db.query(
+      "SELECT COUNT(*) as pendingHR FROM users WHERE roles_id = 3 AND status = 'pending'"
+    );
+
+    res.status(200).json({
+      userStats,
+      resumeStats,
+      postStats,
+      pendingHR
+    });
+
   } catch (err) {
-    console.error(err);
+    console.error("Dashboard Stats Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -697,7 +750,7 @@ router.get("/stats",authMiddleware, requireAdmin, async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.put("/settings", requireAdmin, async (req, res) => {
+router.put("/settings", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { maxFileSize, maintenanceMode } = req.body;
 
@@ -705,34 +758,48 @@ router.put("/settings", requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "No settings provided to update" });
     }
 
-    const [[current]] = await db.query("SELECT * FROM system_settings WHERE id = 1");
+    // 1. ดึงค่าปัจจุบันมาดู (และป้องกันกรณีไม่มีข้อมูลใน DB)
+    const [rows] = await db.query("SELECT * FROM system_settings WHERE id = 1");
+    
+    // ถ้ายังไม่มีข้อมูลแถวที่ 1 ให้สร้างขึ้นมาใหม่ (Default)
+    if (rows.length === 0) {
+      await db.query("INSERT INTO system_settings (id, max_file_size, maintenance_mode) VALUES (1, 10485760, 0)");
+      return res.status(200).json({ message: "Settings initialized. Please try updating again." });
+    }
 
-    const updatedMaxFileSize =
-      maxFileSize !== undefined ? parseInt(maxFileSize) : current.max_file_size;
-    const updatedMaintenanceMode =
-      maintenanceMode !== undefined ? Boolean(maintenanceMode) : current.maintenance_mode;
+    const current = rows[0];
 
+    // 2. เตรียมค่าที่จะอัปเดต
+    const updatedMaxFileSize = maxFileSize !== undefined ? parseInt(maxFileSize) : current.max_file_size;
+    
+    // แปลง boolean เป็น 1 หรือ 0 สำหรับ MySQL TinyInt
+    const updatedMaintenanceMode = maintenanceMode !== undefined ? (maintenanceMode ? 1 : 0) : current.maintenance_mode;
+
+    // 3. อัปเดตลง Database
     await db.query(
       "UPDATE system_settings SET max_file_size = ?, maintenance_mode = ? WHERE id = 1",
       [updatedMaxFileSize, updatedMaintenanceMode]
     );
 
-    await logAction(
-      req.user.id,
-      "UPDATE_SETTINGS",
-      null,
-      `maxFileSize: ${updatedMaxFileSize}, maintenanceMode: ${updatedMaintenanceMode}`
-    );
+    // 4. บันทึก Log (ตอนนี้จะไม่ Error แล้วเพราะมี authMiddleware)
+    if (typeof logAction === "function") {
+      await logAction(
+        req.user.id,
+        "UPDATE_SETTINGS",
+        null,
+        `maxFileSize: ${updatedMaxFileSize}, maintenanceMode: ${updatedMaintenanceMode}`
+      );
+    }
 
     res.status(200).json({
       message: "Settings updated successfully",
       settings: {
         maxFileSize: updatedMaxFileSize,
-        maintenanceMode: updatedMaintenanceMode,
+        maintenanceMode: !!updatedMaintenanceMode, // แปลงกลับเป็น boolean ส่งให้ Frontend
       },
     });
   } catch (err) {
-    console.error(err);
+    console.error("Update Settings Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
   }
 });

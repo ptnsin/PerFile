@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import swaggerJsdoc from 'swagger-jsdoc'
@@ -12,8 +13,8 @@ import hrRouter from './routers/hrRouter.js'
 import notificationRouter from './routers/notificationRouter.js'
  import shareRouter from './routers/shareRouter.js'
 
-const HOST = 'localhost'
-const PORT = 3000
+const HOST = process.env.DB_HOST || 'localhost' 
+const PORT = process.env.PORT || 3000
 
 const app = express()
 
@@ -70,6 +71,7 @@ app.use('/notifications', notificationRouter)
  app.use('/share', shareRouter)
 
 
-app.listen(PORT, HOST, () => {
+app.listen(PORT, () => {
   console.log(`Server is running at http://${HOST}:${PORT}`)
+  console.log(`API Docs: http://${HOST}:${PORT}/api-docs`)
 })
