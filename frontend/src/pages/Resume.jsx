@@ -647,7 +647,7 @@ export default function ResumeBuilder() {
             )}
           </div>
 
-          <button className="btn-download" onClick={handlePrint}>⬇ พิมพ์ / บันทึก PDF</button>
+          <Link to="/feed" className="btn-download">⬇ พิมพ์ / บันทึก PDF</Link>
         </div>
 
         {/* PREVIEW */}
