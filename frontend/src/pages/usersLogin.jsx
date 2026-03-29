@@ -10,26 +10,22 @@ export default function UsersLogin() {
   // --- ส่วนที่ต้องเพิ่ม: ฟังก์ชันรอรับ Token จาก Popup ---
   useEffect(() => {
     const handleMessage = (event) => {
-      // ตรวจสอบว่าข้อมูลส่งมาจาก Backend จริงๆ (Security Check)
       if (event.origin !== "http://localhost:3000") return;
 
       if (event.data.type === "AUTH_SUCCESS") {
         const { token } = event.data;
-        
-        // เก็บ Token ลงเครื่อง
         localStorage.setItem("token", token);
-        
-        // แจ้งเตือนและพาไปหน้าถัดไป
-        alert("เข้าสู่ระบบด้วย Social สำเร็จ!");
-        navigate("/dashboard"); // หรือหน้าไหนก็ได้ที่คุณต้องการ
+        navigate("/feed"); 
       }
     };
 
-    // เปิดเครื่องรับสัญญาณ
+    // 1. "เปิดเครื่องรับ" เมื่อเข้าหน้านี้
     window.addEventListener("message", handleMessage);
     
-    // ปิดเครื่องรับสัญญาณเมื่อออกจากหน้านี้ (Cleanup)
-    return () => window.removeEventListener("message", handleMessage);
+    // 2. "ปิดเครื่องรับ" เมื่อออกจากหน้านี้ (Cleanup Function)
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
   }, [navigate]);
 
   // --- ฟังก์ชันเดิม (ห้ามลบ!) ---

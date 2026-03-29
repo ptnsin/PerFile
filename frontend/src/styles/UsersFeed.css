@@ -436,3 +436,83 @@
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
 }
+
+/* คอนเทนเนอร์หลักที่หุ้มทั้งชื่อและเมนูที่เด้งออกมา */
+.user-profile-wrapper {
+  position: relative; /* จำเป็นมากเพื่อให้เมนูลอยตรงตำแหน่ง */
+}
+
+/* ส่วนที่โชว์ Avatar และชื่อ */
+.user-profile-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 20px; /* ปรับให้โค้งมนดูสมัยใหม่ขึ้น */
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.user-profile-dropdown:hover {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+/* รูป Avatar */
+.nav-avatar-img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px #e0e0e0;
+}
+
+/* กล่องเมนูที่เด้งออกมา (Popup) */
+.profile-menu-popup {
+  position: absolute;
+  top: calc(100% + 8px); /* ให้ห่างจากแถบบนเล็กน้อย */
+  right: 0;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  width: 180px;
+  z-index: 9999; /* มั่นใจว่าอยู่บนสุดแน่นอน */
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  overflow: hidden;
+}
+
+/* ปุ่มข้างใน Popup */
+.profile-menu-popup button {
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.profile-menu-popup button:hover {
+  background: #f9fafb;
+  color: #111827;
+}
+
+/* ปุ่ม Logout โดยเฉพาะ */
+.profile-menu-popup button.logout-action {
+  color: #dc2626; /* สีแดงเข้ม */
+  margin-top: 4px;
+  border-top: 1px solid #f3f4f6;
+  border-radius: 0 0 6px 6px;
+  font-weight: 500;
+}
+
+.profile-menu-popup button.logout-action:hover {
+  background: #fef2f2;
+}
