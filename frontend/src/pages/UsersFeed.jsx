@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useResumes } from "./ResumeContext";
 import { 
   LuSearch, LuBookmark, LuBell, LuUser, LuFilter, 
   LuFileText, LuBriefcase, LuPanelLeft 
@@ -14,6 +15,7 @@ function UsersFeed() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
+  const { publishedResumes } = useResumes();
 
   const toggleSidebar = () => {
     if (isSidebarOpen) {
@@ -206,15 +208,31 @@ function UsersFeed() {
             </div>
 
             <div className="cards-grid">
-              {[...Array(12)].map((_, i) => (
-                <div key={i} className={`feed-card ${activeTab === "resume" ? "resume-border" : "job-border"}`}>
-                  <div className="card-thumb"></div>
-                  <div className="card-info">
-                    <div className="skeleton-line"></div>
-                    <div className="skeleton-line short"></div>
+              {activeTab === "resume" ? (
+                publishedResumes.length > 0 ? (
+                  publishedResumes.map((resume) => (
+                    <div key={resume.id} className="feed-card resume-border" onClick={() => navigate(`/view-resume/${resume.id}`)} style={{ cursor: "pointer" }}>
+                      <div className="card-info">
+                        <h3 className="resume-title">{resume.title}</h3>
+                        <p className="resume-owner">by {resume.owner}</p>
+                        <small className="resume-date">{resume.publishedAt}</small>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ padding: "20px", color: "#999" }}>ยังไม่มี Resume ที่โพสต์</p>
+                )
+              ) : (
+                [...Array(12)].map((_, i) => (
+                  <div key={i} className={`feed-card job-border`}>
+                    <div className="card-thumb"></div>
+                    <div className="card-info">
+                      <div className="skeleton-line"></div>
+                      <div className="skeleton-line short"></div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </main>

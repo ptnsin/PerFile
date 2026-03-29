@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -6,155 +7,160 @@ import {
   LuFolderOpen, LuX, LuPlus,
 } from "react-icons/lu";
 import { FiPlusSquare, FiHome, FiGrid } from "react-icons/fi";
-
-// ─── Design Tokens ───────────────────────────────────────────────
 const C = {
-  indigo: "#4f46e5",
-  indigoLight: "#ede9fe",
-  indigoMid: "#818cf8",
-  green: "#059669",
-  greenLight: "#d1fae5",
-  red: "#ef4444",
-  redLight: "#fee2e2",
-  bg: "#f7f8fa",
-  white: "#fff",
-  border: "#eee",
-  text: "#111827",
-  sub: "#6b7280",
-  muted: "#9ca3af",
+  indigo: "#0284c7", // Sky blue 600 - "ฟ้าคราม"
+  indigoLight: "#e0f2fe", // Sky blue 100
+  indigoMid: "#38bdf8", // Sky blue 400
+  green: "#0d9488", // Teal 600
+  greenLight: "#ccfbf1", // Teal 100
+  red: "#e11d48", // Rose 600
+  redLight: "#ffe4e6", // Rose 100
+  bg: "#f8fafc", // Slate 50
+  white: "#ffffff",
+  border: "#e2e8f0", // Slate 200
+  text: "#0f172a", // Slate 900
+  sub: "#475569", // Slate 600
+  muted: "#94a3b8", // Slate 400
 };
-
 const S = {
-  page: { minHeight: "100vh", background: C.bg, fontFamily: "'Sarabun','Inter',sans-serif", color: C.text },
+  page: { minHeight: "100vh", background: C.bg, fontFamily: "'Inter', 'Sarabun', sans-serif", color: C.text },
   // NAV
   nav: {
     position: "sticky", top: 0, zIndex: 100,
     display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "0 24px", height: 56,
-    background: C.white, borderBottom: `1px solid ${C.border}`, gap: 16,
+    padding: "0 28px", height: 60,
+    background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(8px)",
+    borderBottom: `1px solid ${C.border}`, gap: 16,
   },
-  navLeft: { display: "flex", alignItems: "center", gap: 12 },
-  navLogo: { fontWeight: 800, fontSize: 18, color: C.indigo, letterSpacing: "-0.5px" },
+  navLeft: { display: "flex", alignItems: "center", gap: 14 },
+  navLogo: { fontWeight: 800, fontSize: 19, color: C.indigo, letterSpacing: "-0.5px" },
   navSearch: {
     display: "flex", alignItems: "center",
-    background: "#f3f4f6", borderRadius: 8,
-    padding: "6px 12px", gap: 8, width: 260,
+    background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10,
+    padding: "8px 14px", gap: 8, width: 280,
+    transition: "all 0.2s ease",
   },
-  navInput: { border: "none", background: "transparent", outline: "none", fontSize: 13, color: "#374151", width: "100%" },
-  navRight: { display: "flex", alignItems: "center", gap: 12 },
-  iconBtn: { border: "none", background: "transparent", cursor: "pointer", color: C.sub, display: "flex", alignItems: "center", fontSize: 18, padding: 6, borderRadius: 6 },
-  userDrop: { display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#374151" },
+  navInput: { border: "none", background: "transparent", outline: "none", fontSize: 13, color: C.text, width: "100%" },
+  navRight: { display: "flex", alignItems: "center", gap: 14 },
+  iconBtn: { border: "none", background: "transparent", cursor: "pointer", color: C.sub, display: "flex", alignItems: "center", fontSize: 18, padding: 8, borderRadius: 8, transition: "background 0.2s" },
+  userDrop: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.text },
   // BODY
-  body: { display: "flex", minHeight: "calc(100vh - 56px)" },
+  body: { display: "flex", minHeight: "calc(100vh - 60px)" },
   sidebar: {
-    width: 220, flexShrink: 0,
+    width: 240, flexShrink: 0,
     background: C.white, borderRight: `1px solid ${C.border}`,
-    padding: "20px 12px", display: "flex", flexDirection: "column", gap: 6,
+    padding: "24px 16px", display: "flex", flexDirection: "column", gap: 8,
   },
   createBtn: {
-    display: "flex", alignItems: "center", gap: 8,
-    background: C.indigo, color: C.white,
-    border: "none", borderRadius: 8, padding: "9px 14px",
-    cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 8, width: "100%",
+    display: "flex", alignItems: "center", gap: 8, justifyContent: "center",
+    background: `linear-gradient(135deg, ${C.indigo}, #0369a1)`, color: C.white,
+    border: "none", borderRadius: 10, padding: "10px 16px",
+    cursor: "pointer", fontWeight: 700, fontSize: 13, marginBottom: 16, width: "100%",
+    boxShadow: "0 4px 12px rgba(2, 132, 199, 0.2)",
   },
   menuItem: {
-    display: "flex", alignItems: "center", gap: 8,
+    display: "flex", alignItems: "center", gap: 10,
     background: "transparent", border: "none",
-    color: C.sub, fontSize: 13, fontWeight: 500,
-    padding: "9px 12px", borderRadius: 8, cursor: "pointer",
+    color: C.sub, fontSize: 13, fontWeight: 600,
+    padding: "10px 14px", borderRadius: 8, cursor: "pointer",
     width: "100%", textAlign: "left", textDecoration: "none",
+    transition: "all 0.2s"
   },
   menuActive: { background: C.indigoLight, color: C.indigo, fontWeight: 700 },
-  secTitle: { fontSize: 11, fontWeight: 700, color: C.muted, padding: "10px 12px 4px", letterSpacing: 1 },
-  subItem: { fontSize: 12, color: C.sub, padding: "6px 16px", cursor: "pointer", borderRadius: 6 },
+  secTitle: { fontSize: 11, fontWeight: 700, color: C.muted, padding: "16px 14px 6px", letterSpacing: 1.2 },
+  subItem: { fontSize: 12, color: C.sub, padding: "8px 18px", cursor: "pointer", borderRadius: 6, fontWeight: 500 },
   // MAIN
-  main: { flex: 1, padding: "32px 32px 48px", maxWidth: 960, margin: "0 auto" },
-  pageHeader: { marginBottom: 24 },
-  pageTitle: { fontSize: 22, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 10, marginBottom: 4 },
-  pageSub: { fontSize: 13, color: C.sub },
+  main: { flex: 1, padding: "36px 40px 60px", maxWidth: 1040, margin: "0 auto" },
+  pageHeader: { marginBottom: 32 },
+  pageTitle: { fontSize: 24, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 12, marginBottom: 6 },
+  pageSub: { fontSize: 14, color: C.sub, fontWeight: 500 },
   // TOOLBAR
-  toolbar: { display: "flex", alignItems: "center", gap: 10, marginBottom: 24, flexWrap: "wrap" },
-  tabGroup: { display: "flex", background: "#f3f4f6", borderRadius: 8, padding: 3, gap: 2 },
+  toolbar: { display: "flex", alignItems: "center", gap: 12, marginBottom: 28, flexWrap: "wrap" },
+  tabGroup: { display: "flex", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 4, gap: 4 },
   tabBtn: {
     display: "flex", alignItems: "center", gap: 6,
     border: "none", background: "transparent",
-    borderRadius: 6, padding: "7px 14px",
-    cursor: "pointer", fontSize: 12, fontWeight: 600, color: C.sub,
-    transition: "all 0.15s",
+    borderRadius: 8, padding: "8px 16px",
+    cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.sub,
+    transition: "all 0.2s",
   },
-  tabBtnActive: { background: C.white, color: C.indigo, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" },
+  tabBtnActive: { background: C.white, color: C.indigo, boxShadow: "0 2px 6px rgba(0,0,0,0.05)" },
   spacer: { flex: 1 },
   filterBtn: {
     display: "flex", alignItems: "center", gap: 6,
     border: `1px solid ${C.border}`, background: C.white,
-    borderRadius: 8, padding: "7px 14px",
-    cursor: "pointer", fontSize: 12, fontWeight: 600, color: C.sub,
+    borderRadius: 10, padding: "8px 16px",
+    cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.text,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
   },
   searchBox: {
-    display: "flex", alignItems: "center", gap: 6,
+    display: "flex", alignItems: "center", gap: 8,
     background: C.white, border: `1px solid ${C.border}`,
-    borderRadius: 8, padding: "7px 12px",
+    borderRadius: 10, padding: "8px 14px",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
   },
-  searchInput: { border: "none", outline: "none", fontSize: 12, color: C.text, background: "transparent", width: 160 },
+  searchInput: { border: "none", outline: "none", fontSize: 13, color: C.text, background: "transparent", width: 180 },
   // COLLECTION ROW
-  collectionRow: { display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" },
+  collectionRow: { display: "flex", gap: 12, marginBottom: 32, flexWrap: "wrap" },
   collectionChip: {
-    display: "flex", alignItems: "center", gap: 6,
+    display: "flex", alignItems: "center", gap: 8,
     border: `1.5px solid ${C.border}`, background: C.white,
-    borderRadius: 20, padding: "5px 14px",
-    cursor: "pointer", fontSize: 12, fontWeight: 600, color: C.sub,
-    transition: "all 0.15s",
+    borderRadius: 24, padding: "6px 16px",
+    cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.sub,
+    transition: "all 0.2s",
   },
-  collectionChipActive: { borderColor: C.indigo, background: C.indigoLight, color: C.indigo },
+  collectionChipActive: { borderColor: C.indigo, background: C.indigoLight, color: C.indigo, boxShadow: "0 2px 8px rgba(2, 132, 199, 0.15)" },
   collectionCount: {
-    background: "#e5e7eb", color: C.sub,
-    fontSize: 10, fontWeight: 700,
-    borderRadius: 20, padding: "1px 7px",
+    background: C.bg, color: C.sub,
+    fontSize: 11, fontWeight: 700,
+    borderRadius: 20, padding: "2px 8px",
   },
   collectionCountActive: { background: C.indigo, color: C.white },
   addCollectionChip: {
-    display: "flex", alignItems: "center", gap: 5,
-    border: `1.5px dashed #c7d2fe`, background: "transparent",
-    borderRadius: 20, padding: "5px 14px",
-    cursor: "pointer", fontSize: 12, fontWeight: 600, color: C.indigoMid,
+    display: "flex", alignItems: "center", gap: 6,
+    border: `1.5px dashed ${C.indigoMid}`, background: "transparent",
+    borderRadius: 24, padding: "6px 16px",
+    cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.indigo,
   },
   // GRID
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px,1fr))", gap: 16 },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px,1fr))", gap: 20 },
   card: {
-    background: C.white, borderRadius: 12,
+    background: C.white, borderRadius: 16,
     border: `1px solid ${C.border}`, overflow: "hidden",
     cursor: "pointer", position: "relative",
-    transition: "box-shadow 0.18s, transform 0.18s",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.03)",
+    transition: "all 0.2s",
   },
-  cardThumbResume: { width: "100%", height: 116, background: `linear-gradient(135deg,${C.indigoLight} 0%,#c7d2fe 100%)` },
-  cardThumbJob: { width: "100%", height: 116, background: "linear-gradient(135deg,#d1fae5 0%,#6ee7b7 100%)" },
-  cardBody: { padding: "12px 14px" },
-  cardName: { fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 },
-  cardSub: { fontSize: 11, color: C.sub, marginBottom: 6 },
-  cardMeta: { display: "flex", alignItems: "center", gap: 10 },
-  badge: { fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 },
+  cardThumbResume: { width: "100%", height: 130, background: `linear-gradient(135deg, ${C.indigoLight} 0%, ${C.indigoMid} 100%)` },
+  cardThumbJob: { width: "100%", height: 130, background: `linear-gradient(135deg, ${C.greenLight} 0%, ${C.green} 100%)` },
+  cardBody: { padding: "16px" },
+  cardName: { fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 },
+  cardSub: { fontSize: 12, color: C.sub, marginBottom: 8 },
+  cardMeta: { display: "flex", alignItems: "center", gap: 12 },
+  badge: { fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20 },
   resumeBadge: { background: C.indigoLight, color: C.indigo },
   jobBadge: { background: C.greenLight, color: C.green },
-  viewsText: { display: "flex", alignItems: "center", gap: 3, fontSize: 11, color: C.muted },
+  viewsText: { display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.muted, fontWeight: 500 },
   // Remove btn overlay
   removeBtn: {
-    position: "absolute", top: 8, right: 8,
-    background: "rgba(255,255,255,0.9)", border: "none",
-    borderRadius: 6, padding: "4px 6px",
-    cursor: "pointer", color: C.red, fontSize: 14,
+    position: "absolute", top: 10, right: 10,
+    background: "rgba(255,255,255,0.95)", border: "none",
+    borderRadius: 8, padding: "6px",
+    cursor: "pointer", color: C.red, fontSize: 16,
     display: "flex", alignItems: "center",
-    opacity: 0, transition: "opacity 0.15s",
+    opacity: 0, transition: "opacity 0.2s",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
   },
   // Empty state
   empty: {
     gridColumn: "1/-1",
     display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center",
-    padding: "60px 0", gap: 12, color: C.muted,
+    padding: "80px 0", gap: 16, color: C.muted,
   },
-  emptyIcon: { fontSize: 48, marginBottom: 4 },
-  emptyText: { fontSize: 14, fontWeight: 600, color: C.sub },
-  emptyDesc: { fontSize: 12, color: C.muted },
+  emptyIcon: { fontSize: 56, marginBottom: 8, color: C.indigoLight },
+  emptyText: { fontSize: 16, fontWeight: 700, color: C.text },
+  emptyDesc: { fontSize: 14, color: C.sub },
 };
 
 // ─── Mock Data ────────────────────────────────────────────────────
@@ -166,22 +172,17 @@ const SAVED_ITEMS = [
   { id: 5, type: "job",    title: "React Dev @ SCB",     owner: "SCB Tech",       views: 67,  collection: "งาน" },
   { id: 6, type: "resume", title: "Motion Designer",     owner: "@korn.design",   views: 178, collection: "ทั้งหมด" },
 ];
-
 const COLLECTIONS = [
   { label: "ทั้งหมด", key: "all" },
   { label: "งาน",     key: "งาน" },
-  { label: "แรงบันดาลใจ", key: "แรงบันดาลใจ" },
 ];
-
 export default function SavedPage() {
   const [activeType, setActiveType] = useState("all");   // all | resume | job
   const [activeCol,  setActiveCol]  = useState("all");
   const [search,     setSearch]     = useState("");
   const [items,      setItems]      = useState(SAVED_ITEMS);
   const [hoveredId,  setHoveredId]  = useState(null);
-
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id));
-
   const filtered = items.filter((item) => {
     const matchType = activeType === "all" || item.type === activeType;
     const matchCol  = activeCol  === "all" || item.collection === activeCol;
@@ -189,10 +190,8 @@ export default function SavedPage() {
                       item.owner.toLowerCase().includes(search.toLowerCase());
     return matchType && matchCol && matchSrch;
   });
-
   const countFor = (key) =>
     key === "all" ? items.length : items.filter((i) => i.collection === key).length;
-
   return (
     <div style={S.page}>
       {/* NAV */}
@@ -210,7 +209,6 @@ export default function SavedPage() {
           <div style={S.userDrop}><LuUser style={{ fontSize: 16 }} /><span>Un know</span></div>
         </div>
       </nav>
-
       <div style={S.body}>
         {/* SIDEBAR */}
         <aside style={S.sidebar}>
@@ -218,15 +216,12 @@ export default function SavedPage() {
           <Link to="/feed" style={{ ...S.menuItem, textDecoration: "none" }}><FiGrid /> Feed</Link>
           <button style={S.menuItem}><FiHome /> Profile</button>
           <button style={{ ...S.menuItem, ...S.menuActive }}><LuBookmark /> Saved</button>
-
           <div style={S.secTitle}>PRIVATE PROFILE</div>
           <div style={S.subItem}>Development 1</div>
           <div style={S.subItem}>Tutor 1</div>
-
           <div style={{ ...S.secTitle, color: "#6b7280" }}>PUBLIC PROFILE</div>
           <div style={S.subItem}>Ux/Ui 2</div>
         </aside>
-
         {/* MAIN */}
         <main style={S.main}>
           {/* Header */}
@@ -237,7 +232,6 @@ export default function SavedPage() {
             </div>
             <div style={S.pageSub}>{items.length} รายการ · จัดเป็น {COLLECTIONS.length - 1} คอลเลกชัน</div>
           </div>
-
           {/* Toolbar */}
           <div style={S.toolbar}>
             {/* Type tabs */}
@@ -274,7 +268,6 @@ export default function SavedPage() {
             </div>
             <button style={S.filterBtn}><LuFilter size={13} /> กรอง</button>
           </div>
-
           {/* Collection chips */}
           <div style={S.collectionRow}>
             {COLLECTIONS.map((c) => (
@@ -291,7 +284,6 @@ export default function SavedPage() {
             ))}
             <button style={S.addCollectionChip}><LuPlus size={12} /> คอลเลกชันใหม่</button>
           </div>
-
           {/* Cards */}
           <div style={S.grid}>
             {filtered.length === 0 ? (
@@ -308,7 +300,6 @@ export default function SavedPage() {
                 onMouseLeave={() => setHoveredId(null)}
               >
                 <div style={item.type === "resume" ? S.cardThumbResume : S.cardThumbJob} />
-
                 {/* Remove button — shows on hover */}
                 <button
                   style={{ ...S.removeBtn, opacity: hoveredId === item.id ? 1 : 0 }}
@@ -317,7 +308,6 @@ export default function SavedPage() {
                 >
                   <LuTrash2 size={13} />
                 </button>
-
                 <div style={S.cardBody}>
                   <div style={S.cardName}>{item.title}</div>
                   <div style={S.cardSub}>{item.owner}</div>

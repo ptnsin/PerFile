@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useResumes } from "./ResumeContext";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
@@ -264,16 +265,20 @@ const style = `
   }
 
   /* RESUME PAPER */
-  .resume {
-    width: 794px;
-    min-height: 1123px;
-    background: #fff;
-    color: #1a1a1a;
-    font-family: 'DM Sans', sans-serif;
-    box-shadow: 0 25px 80px rgba(0,0,0,0.5);
-    position: relative;
-    overflow: hidden;
-  }
+.resume {
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+  position: relative;
+  overflow: hidden;
+}
+  @page {
+  size: A4 portrait;
+  margin: 0;
+}
 
   .resume-header {
     background: #111;
@@ -389,12 +394,17 @@ const style = `
     margin-bottom: 6px;
   }
 
-  .r-entry-desc {
-    font-size: 12px;
-    color: #555;
-    line-height: 1.6;
-  }
+.r-entry-desc {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.6;
 
+
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-line;
+}
   .r-skill-group { margin-bottom: 18px; }
 
   .r-skill-name {
@@ -499,6 +509,8 @@ export default function ResumeBuilder() {
   const [tab, setTab] = useState("info");
   const [newSkill, setNewSkill] = useState("");
   const resumeRef = useRef();
+  const navigate = useNavigate();
+  const { publish } = useResumes();
 
   const set = (key, val) => setData(d => ({ ...d, [key]: val }));
 
@@ -537,7 +549,7 @@ export default function ResumeBuilder() {
         {/* SIDEBAR */}
         <div className="sidebar">
           <div className="sidebar-header">
-            <Link to="/feed" className="back-link">← กลับไปหน้า Feed</Link>
+            <button className="back-link" onClick={() => { publish(data); navigate('/feed'); }}>← กลับไปหน้า Feed</button>
             <div className="logo">résumé<span>craft</span></div>
           </div>
           <div className="sidebar-tabs">
@@ -647,7 +659,7 @@ export default function ResumeBuilder() {
             )}
           </div>
 
-          <Link to="/feed" className="btn-download">⬇ พิมพ์ / บันทึก PDF</Link>
+          <button className="btn-download" onClick={() => { publish(data); navigate('/feed'); }}>⬇ บันทึก &ไปติดตามในหน้า Feed</button>
         </div>
 
         {/* PREVIEW */}
