@@ -626,7 +626,7 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
             setTimeout(() => { window.close(); }, 500);
           } else {
             localStorage.setItem('token', token);
-            window.location.href = frontendUrl + (role === "3" ? "/hr-dashboard" : "/feed");
+            window.location.href = frontendUrl + (role === "3" ? "/hr-feed" : "/feed");
           }
         </script>
       </body>
