@@ -67,7 +67,7 @@ export default function HrLogin() {
       if (event.data.type === "AUTH_SUCCESS") {
         localStorage.setItem("token", event.data.token);
         localStorage.setItem("role", "HR");
-        navigate("/hr-dashboard");
+        navigate("/hr-feed");
       }
       
       if (event.data.type === "AUTH_ERROR") {

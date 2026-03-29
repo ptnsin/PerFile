@@ -99,7 +99,7 @@ function HrRegister() {
           showConfirmButton: false
         });
         
-        navigate("/hr-dashboard"); // วาร์ปไปหน้า Dashboard ของ HR
+        navigate("/hr-feed"); // วาร์ปไปหน้า Feed ของ HR
       }
     };
 
