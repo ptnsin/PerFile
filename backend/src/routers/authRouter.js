@@ -402,10 +402,18 @@ authRouter.post('/hr/login', async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-authRouter.post('/logout', (req, res) => {
-  // TODO: implement
-  res.json({ message: 'Logout successful' })
-})
+authRouter.post('/logout', authMiddleware, (req, res) => {
+  // ในระบบ JWT ปกติ เราแค่ตอบกลับว่าสำเร็จ
+  // เพราะหน้าที่หลักในการทำลาย Token คือฝั่ง Frontend
+  
+  // 💡 ถ้าในอนาคตอยากทำระบบ "Blacklist Token" 
+  // คุณสามารถเอาค่า req.user.id หรือ Token ไปเก็บในฐานข้อมูลที่ชื่อ 'revoked_tokens' ได้ที่นี่
+  
+  res.status(200).json({ 
+    message: 'Logout successful',
+    info: 'Please remove the token from your local storage' 
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /auth/me
@@ -414,7 +422,7 @@ authRouter.post('/logout', (req, res) => {
  * @swagger
  * /auth/me:
  *   get:
- *     summary: ดูข้อมูล user ที่ login อยู่ พร้อม role และ status
+ *     summary: ดูข้อมูล user ที่ login อยู่ พร้อมบทบาทและสถานะ
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
@@ -427,18 +435,34 @@ authRouter.post('/logout', (req, res) => {
  *               type: object
  *               properties:
  *                 user:
- *                   $ref: '#/components/schemas/User'
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     fullName:
+ *                       type: string
+ *                     avatar:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     status:
+ *                       type: string
  *       401:
- *         description: Unauthorized
+ *         description: ไม่พบ Token หรือ Token หมดอายุ
  */
-// ต้องมั่นใจว่ามี Middleware verifyToken (หรือชื่อคล้ายๆ กัน) นำหน้า
-authRouter.get("/me", authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id; // ดึง ID จาก Token
 
-    // SQL: JOIN ตาราง roles เพื่อเอาชื่อ role_name มาแสดงแทนตัวเลข
+// ต้องมั่นใจว่ามี Middleware verifyToken (หรือชื่อคล้ายๆ กัน) นำหน้า
+authRouter.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id; // ดึงมาจาก JWT Payload
+
+    // เพิ่ม u.avatar เข้าไปใน SQL (อย่าลืมไปเพิ่ม column นี้ในตาราง users นะครับ)
     const [rows] = await db.query(
-      `SELECT u.id, u.username, u.email, u.fullName, u.status, r.name as role 
+      `SELECT u.id, u.username, u.email, u.fullName, u.avatar, u.status, r.name as role 
        FROM users u 
        JOIN roles r ON u.roles_id = r.id 
        WHERE u.id = ?`,
@@ -446,7 +470,7 @@ authRouter.get("/me", authMiddleware, async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "ไม่พบข้อมูลผู้ใช้งาน" });
     }
 
     const user = rows[0];
@@ -456,15 +480,16 @@ authRouter.get("/me", authMiddleware, async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        fullName: user.fullName || "N/A", // ป้องกันกรณี fullName เป็นค่าว่าง
-        role: user.role,      // จะแสดงเป็น 'Admin', 'User', หรือ 'HR' ตามในตาราง roles
+        fullName: user.fullName || user.username, // ถ้าไม่มีชื่อจริง ให้ใช้ username แทน
+        avatar: user.avatar || null,             // ส่ง URL รูปโปรไฟล์กลับไป
+        role: user.role,                         // 'Admin', 'User', 'HR'
         status: user.status
       }
     });
 
   } catch (err) {
     console.error("GET /me Error:", err.message);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
   }
 });
 
@@ -516,13 +541,12 @@ authRouter.get('/oauth/:provider', (req, res) => {
 });
 
 // 2. Google Callback
+// 1. Google Callback (เพิ่มระบบ Avatar)
 authRouter.get('/oauth/google/callback', async (req, res) => {
   const { code } = req.query;
-
   if (!code) return res.status(400).send("Login Failed: No code provided");
 
   try {
-    // แลก Token
     const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
       code,
       client_id: process.env.GOOGLE_CLIENT_ID,
@@ -532,24 +556,24 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
     });
 
     const { access_token } = tokenResponse.data;
-
-    // ขอข้อมูล Profile
     const userResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` }
     });
 
-    const googleUser = userResponse.data;
+    const googleUser = userResponse.data; // ข้อมูลที่มี googleUser.picture
 
-    // จัดการ Database
     const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [googleUser.email]);
     
     let user;
     if (rows.length > 0) {
       user = rows[0];
+      // อัปเดตรูปโปรไฟล์เผื่อ User เปลี่ยนรูปที่ Google
+      await db.query("UPDATE users SET avatar = ? WHERE id = ?", [googleUser.picture, user.id]);
     } else {
+      // เพิ่ม avatar ลงใน INSERT
       const [result] = await db.query(
-        "INSERT INTO users (username, email, fullName, roles_id, status) VALUES (?, ?, ?, ?, ?)",
-        [googleUser.email.split('@')[0], googleUser.email, googleUser.name, 2, 'active']
+        "INSERT INTO users (username, email, fullName, avatar, password, roles_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [googleUser.email.split('@')[0], googleUser.email, googleUser.name, googleUser.picture, null, 2, 'active']
       );
       user = { id: result.insertId, email: googleUser.email, roles_id: 2 };
     }
@@ -561,78 +585,113 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
     );
 
     res.send(`
-      <html>
-        <body>
-          <script>
-            window.opener.postMessage({ type: 'AUTH_SUCCESS', token: '${token}' }, 'http://localhost:5173');
-            window.close();
-          </script>
-        </body>
-      </html>
-    `);
+    <html>
+      <head>
+        <title>Logging in...</title>
+        <style>
+          body { font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa; }
+          .loader { border: 3px solid #f3f3f3; border-top: 3px solid #000; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+      </head>
+      <body>
+        <div style="text-align: center;">
+          <div class="loader" style="margin: 0 auto 15px;"></div>
+          <p>กำลังพากลับไปที่หน้า Feed...</p>
+        </div>
+
+        <script>
+          const token = "${token}";
+          const frontendUrl = "http://localhost:5173";
+
+          if (window.opener) {
+            // ถ้าเปิดแบบ Popup (กดจากหน้าเว็บ)
+            window.opener.postMessage({ type: 'AUTH_SUCCESS', token: token }, frontendUrl);
+            setTimeout(() => { window.close(); }, 500);
+          } else {
+            // ถ้าเปิดตรงๆ (เช่น กดจากลิงก์หรือ Swagger)
+            localStorage.setItem('token', token);
+            window.location.href = frontendUrl + "/feed"; 
+          }
+        </script>
+      </body>
+    </html>
+  `);
 
   } catch (error) {
     console.error("Google Auth Error:", error.response?.data || error.message);
-    res.status(500).send("Authentication failed");
+    res.status(500).send("Authentication failed: " + (error.response?.data?.error_description || error.message));
   }
 });
 
 authRouter.get('/oauth/github/callback', async (req, res) => {
-  const { code } = req.query; // GitHub ส่ง code มาให้ทาง URL เหมือนกัน
-
+  const { code } = req.query;
   if (!code) return res.status(400).send("Login Failed: No code provided from GitHub");
 
   try {
-    // A. นำ code ไปแลก Access Token จาก GitHub
+    // 1. นำ code ไปแลก Access Token
     const tokenResponse = await axios.post('https://github.com/login/oauth/access_token', {
       client_id: process.env.GITHUB_CLIENT_ID,
       client_secret: process.env.GITHUB_CLIENT_SECRET,
-      code: code
-    }, {
-      headers: { Accept: 'application/json' } // GitHub ต้องการ header นี้เพื่อให้ส่งกลับเป็น JSON
-    });
+      code
+    }, { headers: { Accept: 'application/json' } });
 
     const accessToken = tokenResponse.data.access_token;
+    if (!accessToken) return res.status(400).send("GitHub Auth failed: No token");
 
-    if (!accessToken) {
-        return res.status(400).send("GitHub Authentication failed: No access token");
-    }
-
-    // B. นำ access_token ไปขอข้อมูล Profile (Username, Email)
+    // 2. ดึงข้อมูล User Profile พื้นฐาน
     const userResponse = await axios.get('https://api.github.com/user', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
+    const githubUser = userResponse.data;
 
-    const githubUser = userResponse.data; 
-    // ข้อมูลที่ได้: githubUser.login (username), githubUser.email, githubUser.name, githubUser.id
+    // 3. --- Logic ดึงอีเมลสำรอง (กรณี GitHub คืนค่า null) ---
+    let userEmail = githubUser.email;
 
-    // C. ตรวจสอบในฐานข้อมูล (Logic เหมือน Google)
-    // หมายเหตุ: บางครั้ง GitHub ไม่คืน Email ถ้า User ตั้งค่าเป็น Private 
-    // เราจะใช้ githubUser.login + "@github.com" เป็นตัวสำรองถ้าไม่มี email
-    const userEmail = githubUser.email || `${githubUser.login}@github.com`;
+    if (!userEmail) {
+      try {
+        const emailResponse = await axios.get('https://api.github.com/user/emails', {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        // ค้นหาอีเมลที่เป็น Primary และ Verified ก่อน
+        const primaryEmail = emailResponse.data.find(e => e.primary && e.verified);
+        // ถ้าไม่มี Primary ให้เอาตัวแรกที่มี หรือถ้าไม่มีจริงๆ ให้ใช้ fallback
+        userEmail = primaryEmail ? primaryEmail.email : (emailResponse.data[0] ? emailResponse.data[0].email : null);
+      } catch (e) {
+        console.error("Failed to fetch GitHub emails:", e.message);
+      }
+    }
 
+    // ถ้าท้ายที่สุดยังไม่มีอีเมล (เช่น User ไม่ได้ตั้งค่าไว้เลย) ให้ใช้ username@github.com ป้องกัน DB Error
+    if (!userEmail) {
+      userEmail = `${githubUser.login}@github.com`;
+    }
+
+    // 4. จัดการ Database (เช็ค/เพิ่ม/อัปเดต)
     const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [userEmail]);
     
     let user;
     if (rows.length > 0) {
       user = rows[0];
+      // อัปเดตรูปโปรไฟล์ให้เป็นปัจจุบัน
+      await db.query("UPDATE users SET avatar = ? WHERE id = ?", [githubUser.avatar_url, user.id]);
     } else {
-      // สร้าง User ใหม่
+      // สมัครสมาชิกใหม่ (Role 2 = User ทั่วไป)
       const [result] = await db.query(
-        "INSERT INTO users (username, email, fullName, roles_id, status) VALUES (?, ?, ?, ?, ?)",
-        [githubUser.login, userEmail, githubUser.name || githubUser.login, 2, 'active']
+        "INSERT INTO users (username, email, fullName, avatar, roles_id, status) VALUES (?, ?, ?, ?, ?, ?)",
+        [githubUser.login, userEmail, githubUser.name || githubUser.login, githubUser.avatar_url, 2, 'active']
       );
       user = { id: result.insertId, email: userEmail, roles_id: 2 };
     }
 
-    // D. สร้าง JWT Token ของระบบเรา
+    // 5. สร้าง JWT สำหรับระบบของเรา
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.roles_id },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    // E. ส่งสคริปต์ปิด Popup และส่ง Token กลับไปที่ Frontend
+    // 6. ส่ง Token กลับไปปิด Popup ที่ Frontend
     res.send(`
       <html>
         <body>
@@ -645,7 +704,7 @@ authRouter.get('/oauth/github/callback', async (req, res) => {
     `);
 
   } catch (error) {
-    console.error("GitHub Auth Error:", error.response?.data || error.message);
+    console.error("GitHub OAuth Error:", error.response?.data || error.message);
     res.status(500).send("GitHub Authentication failed");
   }
 });

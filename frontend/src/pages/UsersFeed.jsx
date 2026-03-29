@@ -9,6 +9,8 @@ import "../styles/UsersFeed.css";
 
 function UsersFeed() {
   const [activeTab, setActiveTab] = useState("resume");
+  const [userData, setUserData] = useState(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
@@ -60,6 +62,50 @@ function UsersFeed() {
     document.removeEventListener("mouseup", onMouseUp);
   };
 }, []);
+
+  useEffect(() => {
+  const fetchUser = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        // ถ้าไม่มี token ให้เด้งกลับหน้า login
+        navigate("/login");
+        return;
+      }
+
+      const response = await fetch("http://localhost:3000/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserData(data.user); // เก็บข้อมูล user (id, fullName, avatar, etc.)
+      } else {
+        // ถ้า token หมดอายุ หรือผิดพลาด
+        localStorage.removeItem("token");
+        navigate("/login");
+      }
+    } catch (error) {
+      console.error("Fetch user error:", error);
+    }
+  };
+
+  fetchUser();
+}, [navigate]);
+
+  useEffect(() => {
+  const handleClickOutside = (event) => {
+    // ถ้าคลิกข้างนอกตัว wrapper ให้ปิดเมนู
+    if (!event.target.closest('.user-profile-wrapper')) {
+      setIsUserMenuOpen(false);
+    }
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, []);
   
   return (
     <div className="feed-container">
@@ -79,10 +125,30 @@ function UsersFeed() {
           <button className="nav-notif">
             <LuBell />
           </button>
-          <div className="user-profile-dropdown">
-            <LuUser /> 
-            <span>Un know</span>
-          </div>
+
+          <div className="user-profile-wrapper" style={{ position: 'relative' }}>
+    <div className="user-profile-dropdown" onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}>
+      {userData?.avatar ? (
+        <img src={userData.avatar} alt="Profile" className="nav-avatar-img" />
+      ) : (
+        <LuUser />
+      )}
+      <span>{userData?.fullName || "Loading..."}</span>
+    </div>
+
+    {/* กล่องเมนูที่จะเด้งออกมาเมื่อคลิก */}
+    {isUserMenuOpen && (
+      <div className="profile-menu-popup">
+        <button onClick={() => navigate("/profile")}>View Profile</button>
+        <button className="logout-action" onClick={() => {
+          localStorage.removeItem("token");
+          navigate("/login");
+        }}>
+          Logout
+        </button>
+      </div>
+    )}
+  </div>
         </div>
       </nav>
 
@@ -114,7 +180,7 @@ function UsersFeed() {
         <main className="feed-main">
           <header className="feed-header">
             <div className="welcome-text">
-              <h1>hi , Un know</h1>
+              <h1>hi, {userData?.fullName?.split(" ")[0] || "there"}</h1> {/* split เอาเฉพาะชื่อเล่น/ชื่อแรก */}
               <p>Explore public resumes and job opportunities</p>
             </div>
             
