@@ -412,6 +412,31 @@
 }
 .skeleton-line.short { width: 50%; }
 
+.card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resume-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  word-break: break-word;
+}
+
+.resume-owner {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.resume-date {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 /* คอนเทนเนอร์หลักที่หุ้มทั้งชื่อและเมนูที่เด้งออกมา */
 .user-profile-wrapper {
   position: relative; /* จำเป็นมากเพื่อให้เมนูลอยตรงตำแหน่ง */
