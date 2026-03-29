@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 
 export const authMiddleware = (req, res, next) => {
+  console.log("Current JWT_SECRET:", process.env.JWT_SECRET);
   const authHeader = req.headers.authorization
 
   if (!authHeader) {
@@ -14,6 +15,8 @@ export const authMiddleware = (req, res, next) => {
     req.user = decoded
     next()
   } catch (err) {
-    return res.status(401).json({ message: "Invalid token" })
+    console.error("JWT Error Name:", err.name); // จะบอกว่าเป็น TokenExpiredError หรือ JsonWebTokenError
+    console.error("JWT Error Message:", err.message); // จะบอกสาเหตุละเอียด
+    return res.status(401).json({ message: "Invalid token", error: err.message })
   }
 }

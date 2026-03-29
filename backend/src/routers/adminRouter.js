@@ -9,7 +9,7 @@ const router = Router();
 // Middleware: ตรวจสอบว่าเป็น admin เท่านั้น
 // ─────────────────────────────────────────────
 const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 1 ) {
+  if (!req.user || req.user.roles_id !== 1 ) {
     return res.status(403).json({ message: "Access denied: Admins only" });
   }
   next();
@@ -20,7 +20,7 @@ const logAction = async (adminId, action, targetId = null, detail = null) => {
   try {
     // ตัด created_at ออก เพราะ DB ใส่ให้เองอัตโนมัติ
     await db.query(
-      "INSERT INTO audit_logs (admin_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, NOW())",
+      "INSERT INTO audit_logs (admin_id, action, target_id, detail) VALUES (?, ?, ?, ?)",
       [adminId, action, targetId, detail]
     );
   } catch (err) {
@@ -684,9 +684,8 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
       private: postRows.find(r => r.visibility === 'private')?.count || 0
     };
 
-    const [[{ pendingHR }]] = await db.query(
-      "SELECT COUNT(*) as pendingHR FROM users WHERE roles_id = 3 AND status = 'pending'"
-    );
+    const [pendingRows] = await db.query("SELECT COUNT(*) as pendingHR FROM users WHERE roles_id = 3 AND status = 'pending'");
+    const pendingHR = pendingRows[0].pendingHR;
 
     res.status(200).json({
       userStats,

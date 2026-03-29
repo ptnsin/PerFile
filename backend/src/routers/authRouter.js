@@ -283,9 +283,9 @@ authRouter.post('/login', async (req, res) => {
 
         // 3. ถ้าถูกต้อง สร้าง Token (JWT) เพื่อส่งกลับไปให้ User ใช้
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.roles_id },
-            'SEprocess.env.JWT_SECRETCRET_KEY',
-            { expiresIn: '1d' }
+          { id: user.id, email: user.email, roles_id: user.roles_id },
+          process.env.JWT_SECRET || 'SECRET_KEY', 
+          { expiresIn: '1d' }
         );
 
         res.status(200).json({
