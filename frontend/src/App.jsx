@@ -14,7 +14,7 @@ import ViewResume from "./pages/ViewResume";
 import UserProfile from "./pages/Userprofile";
 import SavedPage from "./pages/SavedPage";
 import HRDashboard from "./pages/HRDashboard";
-import PrivateFeed from "./pages/Private Profile";
+// import PrivateFeed from "./pages/Private Profile";
 function App() {
   
 
@@ -34,7 +34,7 @@ function App() {
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/saved" element={<SavedPage />} />
           <Route path="/hr-dashboard" element={<HRDashboard />} />
-          <Route path="/private-feed" element={<PrivateFeed />} />
+          {/* <Route path="/private-feed" element={<PrivateFeed />} /> */}
         </Routes>
       </Router>
     </ResumeProvider>

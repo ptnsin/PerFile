@@ -190,3 +190,20 @@
   border-color: white; 
   transform: scale(1.01); 
 }
+
+/* เพิ่มสีให้ไอคอนหรือขอบปุ่ม Social เล็กน้อยเพื่อให้ดูมีมิติ */
+.reg-social-btn.google:hover {
+  border-color: #ea4335; /* สีแดง Google */
+  background: rgba(234, 67, 53, 0.1);
+}
+
+.reg-social-btn.github:hover {
+  border-color: #ffffff; /* สีขาว GitHub */
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ปรับให้รูป Avatar ในหน้า Register (ถ้ามี) ดูสมูทกับธีมมืด */
+.reg-avatar-preview {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 70, 255, 0.2);
+}

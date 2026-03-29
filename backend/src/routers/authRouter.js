@@ -89,29 +89,43 @@ const authRouter = Router()
  *         description: Bad Request - ข้อมูลไม่ครบหรือ email ซ้ำ
  */
 authRouter.post('/register', async (req, res) => {
-  // TODO: implement
-  const { username, email, password } = req.body;
+    const { username, email, password, fullName } = req.body; // เพิ่ม fullName เข้ามาด้วย
 
     try {
-        // 1. เข้ารหัสผ่าน (Hash Password) เพื่อความปลอดภัย
+        // 1. เช็ค Email ซ้ำก่อน (ป้องกัน Error จาก DB)
+        const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+        if (existing.length > 0) {
+            return res.status(400).json({ message: "อีเมลนี้ถูกใช้งานไปแล้ว" });
+        }
+
+        // 2. เข้ารหัสผ่าน
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 2. เขียนคำสั่ง SQL (เช็คชื่อ Column ใน phpMyAdmin ของคุณให้ตรงนะครับ)
-        // จากรูปคุณมี: username, email, password, roles_id
-        const sql = "INSERT INTO users (username, email, password, roles_id) VALUES (?, ?, ?, ?)";
-        
-        // 3. สั่ง Execute (ส่งค่าไปที่ db)
-        // ใส่ 2 เป็นค่า default สำหรับบทบาท 'user' (ตามที่คุณตั้งไว้ในตาราง roles)
-        const [result] = await db.query(sql, [username, email, hashedPassword, 2]);
+        // 3. บันทึกลงตาราง (เพิ่ม fullName เข้าไปตามที่คุณมีใน Form)
+        const sql = "INSERT INTO users (username, email, password, fullName, roles_id, status) VALUES (?, ?, ?, ?, ?, ?)";
+        const [result] = await db.query(sql, [username, email, hashedPassword, fullName, 2, 'active']);
 
-        // 4. ถ้าสำเร็จ ส่งข้อความกลับไปบอก Postman
-        res.status(201).json({ message: "Registration successful", userId: result.insertId });
+        const userId = result.insertId;
+
+        // 🌟 4. สร้าง Token ทันที (เพื่อให้ Frontend เอาไปใช้ Login ต่อได้เลย)
+        const token = jwt.sign(
+            { id: userId, email: email, role: 2 },
+            process.env.JWT_SECRET || 'SECRET_KEY',
+            { expiresIn: '1d' }
+        );
+
+        // 5. ส่งทั้ง message และ token กลับไป
+        res.status(201).json({ 
+            message: "Registration successful", 
+            token: token, // ส่งกุญแจกลับไปให้ Frontend วาร์ป
+            user: { id: userId, username, role: 2 }
+        });
 
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Database Error", error: error.message });
     }
-})
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /auth/hr/register
@@ -270,7 +284,7 @@ authRouter.post('/login', async (req, res) => {
         // 3. ถ้าถูกต้อง สร้าง Token (JWT) เพื่อส่งกลับไปให้ User ใช้
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.roles_id },
-            'SECRET_KEY',
+            'SEprocess.env.JWT_SECRETCRET_KEY',
             { expiresIn: '1d' }
         );
 
@@ -543,7 +557,7 @@ authRouter.get('/oauth/:provider', (req, res) => {
 // 2. Google Callback
 // 1. Google Callback (เพิ่มระบบ Avatar)
 authRouter.get('/oauth/google/callback', async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query; // 'state' สามารถใช้บอกได้ว่ามาจากหน้า HR หรือ User
   if (!code) return res.status(400).send("Login Failed: No code provided");
 
   try {
@@ -560,67 +574,68 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
       headers: { Authorization: `Bearer ${access_token}` }
     });
 
-    const googleUser = userResponse.data; // ข้อมูลที่มี googleUser.picture
+    const googleUser = userResponse.data;
 
     const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [googleUser.email]);
     
     let user;
     if (rows.length > 0) {
       user = rows[0];
-      // อัปเดตรูปโปรไฟล์เผื่อ User เปลี่ยนรูปที่ Google
-      await db.query("UPDATE users SET avatar = ? WHERE id = ?", [googleUser.picture, user.id]);
+      // อัปเดตข้อมูลพื้นฐาน (ชื่อและรูป)
+      await db.query("UPDATE users SET avatar = ?, fullName = ? WHERE id = ?", [googleUser.picture, googleUser.name, user.id]);
     } else {
-      // เพิ่ม avatar ลงใน INSERT
+      // 🌟 จุดสำคัญ: เช็คว่าสมัครผ่านหน้าไหน (ถ้าไม่ส่ง state มา ให้เป็น User ทั่วไปก่อน)
+      const isHR = state === 'hr_register'; 
+      const defaultRole = isHR ? 3 : 2;
+      const defaultStatus = isHR ? 'pending' : 'active'; // ถ้าเป็น HR ให้รออนุมัติก่อน
+
       const [result] = await db.query(
         "INSERT INTO users (username, email, fullName, avatar, password, roles_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [googleUser.email.split('@')[0], googleUser.email, googleUser.name, googleUser.picture, null, 2, 'active']
+        [googleUser.email.split('@')[0], googleUser.email, googleUser.name, googleUser.picture, null, defaultRole, defaultStatus]
       );
-      user = { id: result.insertId, email: googleUser.email, roles_id: 2 };
+      user = { id: result.insertId, email: googleUser.email, roles_id: defaultRole, status: defaultStatus };
+    }
+
+    // 🔒 เช็คสถานะก่อนส่ง Token (ถ้าเป็น HR ที่ยังไม่โดน Approve ห้ามส่ง Token ไป)
+    if (user.status !== 'active') {
+      return res.send(`
+        <script>
+          window.opener.postMessage({ type: 'AUTH_ERROR', message: 'บัญชีของคุณอยู่ระหว่างการรออนุมัติ' }, 'http://localhost:5173');
+          window.close();
+        </script>
+      `);
     }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.roles_id },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'SECRET_KEY',
       { expiresIn: '1d' }
     );
 
+    // ส่ง HTML กลับไปปิด Popup (เหมือนเดิมแต่เพิ่มความชัวร์เรื่อง Redirect)
     res.send(`
     <html>
-      <head>
-        <title>Logging in...</title>
-        <style>
-          body { font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa; }
-          .loader { border: 3px solid #f3f3f3; border-top: 3px solid #000; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
-          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        </style>
-      </head>
       <body>
-        <div style="text-align: center;">
-          <div class="loader" style="margin: 0 auto 15px;"></div>
-          <p>กำลังพากลับไปที่หน้า Feed...</p>
-        </div>
-
         <script>
           const token = "${token}";
+          const role = "${user.roles_id}";
           const frontendUrl = "http://localhost:5173";
 
           if (window.opener) {
-            // ถ้าเปิดแบบ Popup (กดจากหน้าเว็บ)
-            window.opener.postMessage({ type: 'AUTH_SUCCESS', token: token }, frontendUrl);
+            window.opener.postMessage({ type: 'AUTH_SUCCESS', token: token, role: role }, frontendUrl);
             setTimeout(() => { window.close(); }, 500);
           } else {
-            // ถ้าเปิดตรงๆ (เช่น กดจากลิงก์หรือ Swagger)
             localStorage.setItem('token', token);
-            window.location.href = frontendUrl + "/feed"; 
+            window.location.href = frontendUrl + (role === "3" ? "/hr-dashboard" : "/feed");
           }
         </script>
       </body>
     </html>
-  `);
+    `);
 
   } catch (error) {
     console.error("Google Auth Error:", error.response?.data || error.message);
-    res.status(500).send("Authentication failed: " + (error.response?.data?.error_description || error.message));
+    res.status(500).send("Authentication failed");
   }
 });
 
