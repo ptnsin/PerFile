@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useResumes } from "./ResumeContext";
-<<<<<<< Updated upstream
+ 
 import "../styles/Resume.css";
-=======
+
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
@@ -440,7 +440,7 @@ const style = `
     .resume { box-shadow: none; }
   }
 `;
->>>>>>> Stashed changes
+ 
 
 const defaultData = {
   name: "ณิชา สุวรรณโชติ",
