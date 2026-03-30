@@ -67,9 +67,10 @@ export default function ResumeBuilder() {
   const [data, setData] = useState(defaultData);
   const [tab, setTab] = useState("info");
   const [newSkill, setNewSkill] = useState("");
+  const [savedToast, setSavedToast] = useState(false); // ← toast แจ้งเมื่อบันทึกสำเร็จ
   const resumeRef = useRef();
   const navigate = useNavigate();
-  const { publish } = useResumes();
+  const { publish, savePrivate } = useResumes(); // ← เพิ่ม savePrivate
 
   const set = (key, val) => setData(d => ({ ...d, [key]: val }));
 
@@ -93,6 +94,16 @@ export default function ResumeBuilder() {
 
   const handlePrint = () => window.print();
 
+  // ← บันทึกแบบ Private แล้วกลับ Profile
+  const handleSavePrivate = () => {
+    savePrivate(data);
+    setSavedToast(true);
+    setTimeout(() => {
+      setSavedToast(false);
+      navigate("/profile");
+    }, 1200);
+  };
+
   const tabs = [
     { id: "info", label: "ข้อมูล" },
     { id: "exp", label: "ประสบการณ์" },
@@ -102,11 +113,24 @@ export default function ResumeBuilder() {
 
   return (
     <>
+      {/* Toast แจ้งบันทึกสำเร็จ */}
+      {savedToast && (
+        <div style={{
+          position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)",
+          background: "#4f46e5", color: "#fff", padding: "10px 24px",
+          borderRadius: 8, zIndex: 9999, fontSize: 14, fontWeight: 600,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+        }}>
+          ✓ บันทึก Resume แล้ว! กำลังไปหน้า Profile...
+        </div>
+      )}
+
       <div className="app">
         {/* SIDEBAR */}
         <div className="sidebar">
           <div className="sidebar-header">
-            <button className="back-link" onClick={() => { publish(data); navigate('/feed'); }}>← กลับไปหน้า Feed</button>
+            {/* ← ปุ่มกลับ ไม่ publish แค่กลับ feed */}
+            <button className="back-link" onClick={() => navigate('/feed')}>← กลับไปหน้า Feed</button>
             <div className="logo">résumé<span>craft</span></div>
           </div>
           <div className="sidebar-tabs">
@@ -216,7 +240,21 @@ export default function ResumeBuilder() {
             )}
           </div>
 
-          <button className="btn-download" onClick={() => { publish(data); navigate('/feed'); }}>⬇ บันทึก &ไปติดตามในหน้า Feed</button>
+          {/* ← แยกปุ่มออกเป็น 2 ปุ่ม */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "0 16px 16px" }}>
+            {/* บันทึก Private → ไปหน้า Profile */}
+            <button className="btn-download" onClick={handleSavePrivate}>
+              💾 บันทึก Resume
+            </button>
+            {/* โพสต์สาธารณะ → ไปหน้า Feed */}
+            <button
+              className="btn-download"
+              style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
+              onClick={() => { publish(data); navigate('/feed'); }}
+            >
+              🌐 โพสต์สาธารณะ → Feed
+            </button>
+          </div>
         </div>
 
         {/* PREVIEW */}
