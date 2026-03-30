@@ -1,5 +1,4 @@
 import { Router } from 'express'
-import { requireRole } from '../middleware/requireRole.js'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
@@ -767,9 +766,216 @@ authRouter.get('/oauth/github/callback', async (req, res) => {
  *       401:
  *         description: Unauthorized - รหัสผ่านเดิมไม่ถูกต้อง
  */
-authRouter.patch('/password', (req, res) => {
-  // TODO: implement
-  res.json({ message: 'Password changed successfully' })
-})
+authRouter.patch('/password', authMiddleware, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.user.id; // ได้มาจาก authMiddleware
+
+    // 1. ตรวจสอบข้อมูลว่าส่งมาครบไหม
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ message: "กรุณากรอกรหัสผ่านเดิมและรหัสผ่านใหม่" });
+    }
+
+    // 2. ดึงรหัสผ่านปัจจุบัน (Hashed) จากฐานข้อมูล
+    const [users] = await db.query("SELECT password FROM users WHERE id = ?", [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้งาน" });
+    }
+
+    const user = users[0];
+
+    // 3. ตรวจสอบว่ารหัสผ่านเดิม (oldPassword) ถูกต้องไหม
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "รหัสผ่านเดิมไม่ถูกต้อง" });
+    }
+
+    // 4. ตรวจสอบว่ารหัสผ่านใหม่ต้องไม่เหมือนรหัสเดิม (Optional - เพื่อความปลอดภัย)
+    if (oldPassword === newPassword) {
+      return res.status(400).json({ message: "รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม" });
+    }
+
+    // 5. Hash รหัสผ่านใหม่
+    const saltRounds = 10;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // 6. อัปเดตรหัสผ่านใหม่ลงฐานข้อมูล
+    await db.query("UPDATE users SET password = ? WHERE id = ?", [hashedNewPassword, userId]);
+
+    res.status(200).json({ message: "Password changed successfully" });
+
+  } catch (error) {
+    console.error("Change Password Error:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/forgot-password
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: ขอรีเซ็ตรหัสผ่าน (ส่งลิงก์ไปที่เมล)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: ส่งลิงก์สำเร็จ
+ *       404:
+ *         description: ไม่พบอีเมลนี้ในระบบ
+ */
+
+authRouter.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  try {
+    const [users] = await db.query("SELECT id, password FROM users WHERE email = ?", [email]);
+    if (users.length === 0) {
+      return res.status(404).json({ message: "ไม่พบอีเมลนี้ในระบบ" });
+    }
+
+    const user = users[0];
+    const secret = (process.env.JWT_SECRET || "PerFile") + user.password;
+    
+    // สร้าง Token ชั่วคราว 15 นาที
+    const token = jwt.sign({ id: user.id, email: email }, secret, { expiresIn: '15m' });
+
+    // 🔗 สร้างลิงก์สมมติ (เพื่อเอาไว้ก๊อปปี้ค่าไปเทส)
+    const resetLink = `http://localhost:5173/reset-password/${user.id}/${token}`;
+
+    // 🚩 หัวใจสำคัญ: พ่นลง Terminal ให้เราเห็น
+    console.log("\n================ RESET PASSWORD DEBUG ================");
+    console.log("USER ID:", user.id);
+    console.log("TOKEN:", token);
+    console.log("======================================================\n");
+
+    res.status(200).json({ 
+      message: "ระบบได้รับคำขอแล้ว (ตรวจสอบลิงก์ใน Backend Console เพื่อเทส)",
+      debug_info: "Copy token from console to use in /reset-password" 
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/reset-password
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: รีเซ็ตรหัสผ่านใหม่
+ *     description: >
+ *       รับ id, token จากลิงก์รีเซ็ต และรหัสผ่านใหม่จากผู้ใช้
+ *       ตรวจสอบความถูกต้องของ token แล้วอัปเดตรหัสผ่านในระบบ
+ *       token จะใช้ได้ครั้งเดียว (หลังเปลี่ยนรหัสผ่านแล้ว token เก่าจะหมดสภาพทันที)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - token
+ *               - newPassword
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: ID ของผู้ใช้ (มาจาก URL ของลิงก์รีเซ็ต)
+ *                 example: 42
+ *               token:
+ *                 type: string
+ *                 description: JWT token ที่ได้รับจากลิงก์รีเซ็ตในอีเมล
+ *                 example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: รหัสผ่านใหม่ที่ต้องการตั้ง
+ *                 example: MyNewP@ssw0rd
+ *     responses:
+ *       200:
+ *         description: เปลี่ยนรหัสผ่านสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: เปลี่ยนรหัสผ่านใหม่สำเร็จ!
+ *       400:
+ *         description: Token ไม่ถูกต้องหรือหมดอายุแล้ว
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: ลิงก์ไม่ถูกต้องหรือหมดอายุแล้ว
+ *       404:
+ *         description: ไม่พบผู้ใช้ในระบบ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: ไม่พบผู้ใช้
+ *       500:
+ *         description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+
+authRouter.post('/reset-password', async (req, res) => {
+  const { id, token, newPassword } = req.body;
+  try {
+    // 1. ดึงข้อมูล User มาเพื่อสร้างกุญแจ Verify
+    const [users] = await db.query("SELECT password FROM users WHERE id = ?", [id]);
+    if (users.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้" });
+
+    const user = users[0];
+    const secret = process.env.JWT_SECRET + user.password;
+
+    // 2. ตรวจสอบ Token ว่าถูกต้องและยังไม่หมดอายุไหม
+    try {
+      jwt.verify(token, secret);
+    } catch (err) {
+      return res.status(400).json({ message: "ลิงก์ไม่ถูกต้องหรือหมดอายุแล้ว" });
+    }
+
+    // 3. ถ้าผ่าน ก็ Hash รหัสใหม่แล้ว Update เลย
+    const hashedPass = await bcrypt.hash(newPassword, 10);
+    await db.query("UPDATE users SET password = ? WHERE id = ?", [hashedPass, id]);
+
+    res.json({ message: "เปลี่ยนรหัสผ่านใหม่สำเร็จ!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 export default authRouter
