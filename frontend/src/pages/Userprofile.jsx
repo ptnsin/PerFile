@@ -6,8 +6,7 @@ import {
   LuGithub, LuLinkedin, LuMail, LuStar, LuEye, LuPlus
 } from "react-icons/lu";
 import { FiPlusSquare, FiHome, FiGrid } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
-const navigate = useNavigate();
+
 
 // ---- Inline styles (no external CSS needed) ----
 const S = {
