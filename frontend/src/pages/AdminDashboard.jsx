@@ -3,7 +3,7 @@ import axios from "axios";
 import "../styles/AdminDashboard.css";
 import { 
   LuSearch, LuBell, LuUsers, LuFileText, 
-  LuSettings, LuActivity, LuShieldCheck, LuCheck, LuBan 
+  LuSettings, LuActivity, LuShieldCheck, LuCheck, LuBan, LuUser, LuTrash2 
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 
@@ -66,6 +66,26 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error("Approve Error:", err);
       alert("ไม่สามารถเปลี่ยนสถานะได้");
+    }
+  };
+
+  const handleStatusChange = async (userId, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.put(
+        `http://localhost:3000/admin/users/${userId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.status === 200) {
+        // อัปเดต State ในเครื่องทันทีไม่ต้อง Reload หน้า (เพื่อความลื่นไหล)
+        setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus } : u));
+        alert(`เปลี่ยนสถานะเป็น ${newStatus} เรียบร้อยแล้ว`);
+      }
+    } catch (err) {
+      console.error("Update Status Error:", err);
+      alert("ไม่สามารถเปลี่ยนสถานะได้ กรุณาลองใหม่");
     }
   };
 
@@ -132,48 +152,137 @@ export default function AdminDashboard() {
           <div className="data-section">
             <div className="table-header">
               <h2 style={{ fontSize: '16px', fontWeight: 700 }}>User Management</h2>
-              <button className="action-btn" style={{ padding: '6px 12px' }}>View All</button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {/* เพิ่ม Select กรอง Role แบบง่ายๆ */}
+                <select className="action-btn" style={{ fontSize: '12px' }}>
+                    <option value="">All Roles</option>
+                    <option value="1">Admin</option>
+                    <option value="2">Seeker</option>
+                    <option value="3">HR</option>
+                </select>
+                <button className="action-btn" style={{ padding: '6px 12px' }}>View All</button>
+              </div>
             </div>
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Username</th>
+                  <th>User Info</th>
+                  <th>Full Name & Company</th>
                   <th>Role</th>
+                  <th>Joined Date</th>
                   <th>Status</th>
                   <th>Actions</th>
+                  <th>Delete</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id}>
+                    {/* 1. ข้อมูล Username & Email */}
                     <td>
-                      <div style={{ fontWeight: 600 }}>{user.username}</div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{user.email}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {user.avatar ? (
+                          <img src={user.avatar} crossOrigin="anonymous" style={{ width: '32px', height: '32px', borderRadius: '50%' }} alt="avt" />
+                        ) : (
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LuUser size={16} /></div>
+                        )}
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{user.username}</div>
+                          <div style={{ fontSize: '11px', color: '#9ca3af' }}>{user.email}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td>{user.roles_id === 3 ? "HR" : user.roles_id === 1 ? "Admin" : "Seeker"}</td>
+
+                    {/* 2. ชื่อจริง และ บริษัท (ถ้าเป็น HR) */}
                     <td>
-                      <span className={`status-badge status-${user.status}`}>
-                        {user.status}
+                      <div style={{ fontWeight: 500 }}>{user.fullName || "-"}</div>
+                      {user.roles_id === 3 && (
+                        <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 600 }}>
+                          🏢 {user.company || "No Company"}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* 3. สิทธิ์การใช้งาน */}
+                    <td>
+                      <span style={{ 
+                        fontSize: '12px', 
+                        fontWeight: 600,
+                        color: user.roles_id === 1 ? '#ef4444' : user.roles_id === 3 ? '#4f46e5' : '#6b7280'
+                      }}>
+                        {user.roles_id === 1 ? "Admin" : user.roles_id === 3 ? "HR Agent" : "Seeker"}
                       </span>
                     </td>
-                    <td>
-                      {/* ถ้าเป็น HR และรออนุมัติ ให้โชว์ปุ่ม Approve */}
-                      {user.roles_id === 3 && user.status === 'pending' ? (
-                        <button className="action-btn" onClick={() => handleApproveHR(user.id)} title="Approve HR">
-                          <LuCheck color="#10b981" />
-                        </button>
-                      ) : null}
 
-                      {/* ปุ่มระงับการใช้งาน */}
-                      {user.status !== 'banned' ? (
-                        <button className="action-btn" onClick={() => handleUpdateStatus(user.id, 'banned')} title="Ban User">
-                          <LuBan color="#ef4444" />
+                    {/* 4. วันที่สมัคร */}
+                    <td style={{ fontSize: '12px', color: '#6b7280' }}>
+                      {new Date(user.created_at).toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </td>
+
+                    {/* 5. สถานะ */}
+                    <td>
+                      {/* เปลี่ยนจากแค่โชว์ Badge เป็น Select Dropdown */}
+                      <select 
+                        className={`status-select-box status-${user.status}`}
+                        value={user.status}
+                        onChange={(e) => handleStatusChange(user.id, e.target.value)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          border: '1px solid #ddd',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="active">active</option> 
+                        <option value="pending">pending</option>
+                        <option value="suspended">suspended</option>
+                        <option value="banned">banned</option>
+                      </select>
+                    </td>
+
+                    {/* 6. ปุ่มจัดการ */}
+                    <td>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        {user.roles_id === 3 && user.status === 'pending' && (
+                          <button className="action-btn" onClick={() => handleApproveHR(user.id)} title="Approve HR">
+                            <LuCheck color="#10b981" />
+                          </button>
+                        )}
+                        
+                        {user.status !== 'banned' ? (
+                          <button className="action-btn" onClick={() => handleUpdateStatus(user.id, 'banned')} title="Ban User">
+                            <LuBan color="#ef4444" />
+                          </button>
+                        ) : (
+                          <button 
+                            className="action-btn" 
+                            onClick={() => handleUpdateStatus(user.id, 'active')}
+                            style={{ fontSize: '11px', color: '#10b981' }}
+                          >
+                            Unban
+                          </button>
+                        )}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        {/* ปุ่มลบ User (API ข้อ 4) */}
+                        <button 
+                          className="action-btn" 
+                          onClick={() => handleDeleteUser(user.id)}
+                          style={{ color: '#ffffff', backgroundColor: '#ef4444' }}
+                          title="Delete User"
+                        >
+                          <LuTrash2  />
                         </button>
-                      ) : (
-                        <button className="action-btn" onClick={() => handleUpdateStatus(user.id, 'active')}>
-                          Unban
-                        </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}

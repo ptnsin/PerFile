@@ -120,18 +120,29 @@ router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const [users] = await db.query(
-      `SELECT id, username, email, roles_id, status, created_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT 
+        id, 
+        username, 
+        email, 
+        fullName, 
+        company, 
+        avatar, 
+        roles_id, 
+        status, 
+        created_at 
+      FROM users 
+      ${whereClause} 
+      ORDER BY created_at DESC 
+      LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
 
     const [totalResult] = await db.query(
     `SELECT COUNT(*) AS total FROM users ${whereClause}`,
-    params
+      params
     );
 
     const total = totalResult[0].total;
-
-
 
     res.status(200).json({ users, total });
   } catch (err) {
@@ -299,7 +310,7 @@ router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) =
     const { id } = req.params;
     const { status } = req.body;
 
-    const allowedStatuses = ["active", "suspended", "banned"];
+    const allowedStatuses = ["active", "pending", "suspended", "banned"];
     if (!status || !allowedStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status. Allowed: active, suspended, banned" });
     }

@@ -223,3 +223,13 @@
   border-color: var(--admin-primary);
   color: var(--admin-primary);
 }
+
+.status-select-box.status-active { background-color: #d1fae5; color: #059669; }
+.status-select-box.status-pending { background-color: #fef3c7; color: #d97706; }
+.status-select-box.status-suspended { background-color: #f3f4f6; color: #6b7280; }
+.status-select-box.status-banned { background-color: #fee2e2; color: #dc2626; }
+
+.status-select-box:focus {
+  outline: 2px solid var(--admin-primary);
+  border-color: transparent;
+}
