@@ -1,8 +1,35 @@
 import { Router } from 'express'
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { requireRole } from '../middleware/requireRole.js'
 
 const fileRouter = Router()
+
+// 1. ตรวจสอบว่ามีโฟลเดอร์ uploads หรือยัง ถ้าไม่มีให้สร้าง (กัน Error)
+const uploadDir = 'uploads/';
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+// 2. ตั้งค่า Storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir); // ระบุโฟลเดอร์ที่เก็บไฟล์
+  },
+  filename: (req, file, cb) => {
+    // ตั้งชื่อไฟล์ใหม่เป็น: timestamp-ชื่อเดิม (กันชื่อซ้ำ)
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// 3. สร้าง Instance ของ Multer
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // จำกัด 10MB
+});
 
 // base path: "/files"
 
@@ -84,10 +111,25 @@ const fileRouter = Router()
  *       401:
  *         description: Unauthorized
  */
-fileRouter.post('/upload', (req, res) => {
-  // TODO: implement
-  res.status(201).json({ message: 'File uploaded successfully', fileId: '', url: '' })
-})
+fileRouter.post('/upload', authMiddleware, upload.single('file'), (req, res) => {
+  try {
+    // เช็คว่าไฟล์เข้าไหม
+    if (!req.file) {
+      return res.status(400).json({ message: 'ไม่มีไฟล์ถูกอัปโหลด' });
+    }
+
+    // สร้าง URL (สมมติว่ารันที่ port 3000)
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+
+    res.status(201).json({
+      message: 'File uploaded successfully',
+      fileId: req.file.filename,
+      url: fileUrl
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /files/upload/video
@@ -184,11 +226,51 @@ fileRouter.post('/upload/video', (req, res) => {
  *       403:
  *         description: Forbidden - Admin เท่านั้น
  */
-fileRouter.get('/admin/all', authMiddleware, requireRole(1), (req, res) => {
-  // TODO: implement
-  res.json({ files: [], total: 0 })
-  console.log(req.user)
-})
+fileRouter.get('/admin/all', authMiddleware, requireRole(1), async (req, res) => {
+  try {
+    const uploadDir = 'uploads/';
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+
+    // 1. อ่านไฟล์ทั้งหมดในโฟลเดอร์ uploads
+    if (!fs.existsSync(uploadDir)) {
+      return res.json({ files: [], total: 0 });
+    }
+
+    const allFiles = fs.readdirSync(uploadDir);
+
+    // 2. กรองเฉพาะข้อมูลที่จำเป็น และสร้าง Object ตามรูปแบบ FileItem
+    const fileList = allFiles.map((filename) => {
+      const stats = fs.statSync(path.join(uploadDir, filename));
+      return {
+        fileId: filename,
+        filename: filename,
+        url: `${req.protocol}://${req.get('host')}/uploads/${filename}`,
+        size: stats.size,
+        createdAt: stats.birthtime // วันที่สร้างไฟล์
+      };
+    });
+
+    // 3. ทำ Pagination (ตัดแบ่งตามหน้าที่ขอมา)
+    const paginatedFiles = fileList.slice(startIndex, endIndex);
+
+    res.json({
+      files: paginatedFiles,
+      total: fileList.length,
+      currentPage: page,
+      totalPages: Math.ceil(fileList.length / limit)
+    });
+
+    // ตรวจสอบข้อมูล user ใน console ตามที่คุณเขียนไว้
+    console.log("Admin Request by:", req.user);
+    
+  } catch (error) {
+    console.error("Get All Files Error:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /files/:fileId/signed-url

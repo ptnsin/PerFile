@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: mysql
--- Generation Time: Mar 29, 2026 at 04:13 AM
+-- Generation Time: Mar 29, 2026 at 09:39 AM
 -- Server version: 9.6.0
 -- PHP Version: 8.3.30
 
@@ -173,8 +173,9 @@ CREATE TABLE `users` (
   `id` int NOT NULL,
   `username` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `fullName` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `avatar` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `company` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `roles_id` int NOT NULL,
   `status` enum('active','suspended','banned','pending') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
@@ -185,11 +186,13 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `password`, `fullName`, `company`, `roles_id`, `status`, `created_at`) VALUES
-(1, 'path', 'path@gmail.com', '$2b$10$Lt3viNk71UwDcHqRr3JLP.qW1hjujOdtsXCigwEbZy1jVUEHWjI.u', NULL, NULL, 2, 'active', '2026-03-27 04:47:28'),
-(2, 'tae', 'tae@gmail.com', '$2b$10$LO77oYxvg.lxOGFxCnVl3ejpmacFpa/uzPbOHJJcjcpSQ0QS0P.XO', NULL, NULL, 1, 'active', '2026-03-27 04:47:28'),
-(3, 'tap', 'tap@gmail.com', '$2b$10$dx96ouPIujYwitQ9pXGVoe0jFFJZWgj.IcxD9BSHJJeHZPqsEfot.', NULL, NULL, 3, 'active', '2026-03-27 05:47:00'),
-(4, 'supaji', 'supaji@company.com', '$2b$10$aTkc8Jth5PoDU80/hwmdWuJfeYIR9fNIhTb3p73JzVAvPR2WyQYxC', 'supaji wongpa', 'coop', 3, 'active', '2026-03-28 07:13:24');
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `fullName`, `avatar`, `company`, `roles_id`, `status`, `created_at`) VALUES
+(1, 'path', 'path@gmail.com', '$2b$10$Lt3viNk71UwDcHqRr3JLP.qW1hjujOdtsXCigwEbZy1jVUEHWjI.u', NULL, NULL, NULL, 2, 'active', '2026-03-27 04:47:28'),
+(2, 'tae', 'tae@gmail.com', '$2b$10$LO77oYxvg.lxOGFxCnVl3ejpmacFpa/uzPbOHJJcjcpSQ0QS0P.XO', NULL, NULL, NULL, 1, 'active', '2026-03-27 04:47:28'),
+(3, 'tap', 'tap@gmail.com', '$2b$10$dx96ouPIujYwitQ9pXGVoe0jFFJZWgj.IcxD9BSHJJeHZPqsEfot.', NULL, NULL, NULL, 3, 'active', '2026-03-27 05:47:00'),
+(4, 'supaji', 'supaji@company.com', '$2b$10$aTkc8Jth5PoDU80/hwmdWuJfeYIR9fNIhTb3p73JzVAvPR2WyQYxC', 'supaji wongpa', NULL, 'coop', 3, 'active', '2026-03-28 07:13:24'),
+(6, 'ptnsin', 'patharanun.sin@spumail.net', NULL, 'ptnsin', 'https://avatars.githubusercontent.com/u/230481526?v=4', NULL, 2, 'active', '2026-03-29 05:40:19'),
+(10, 'pattharanan5331', 'pattharanan5331@gmail.com', NULL, 'Daniel .K', 'https://lh3.googleusercontent.com/a/ACg8ocLQcjo0Hd738cRH-pqPAVKkOAb_Bd-pzu7XK9DO6azD7VK_32FH=s96-c', NULL, 2, 'active', '2026-03-29 09:17:26');
 
 --
 -- Indexes for dumped tables
@@ -290,7 +293,7 @@ ALTER TABLE `resume_sections`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Constraints for dumped tables
