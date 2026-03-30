@@ -131,7 +131,7 @@ function UsersFeed() {
           <div className="user-profile-wrapper" style={{ position: 'relative' }}>
     <div className="user-profile-dropdown" onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}>
       {userData?.avatar ? (
-        <img src={userData.avatar} alt="Profile" className="nav-avatar-img" />
+        <img src={userData.avatar} alt="Profile" className="nav-avatar-img" crossOrigin="anonymous" />
       ) : (
         <LuUser />
       )}

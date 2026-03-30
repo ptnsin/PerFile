@@ -15,6 +15,7 @@ import UserProfile from "./pages/Userprofile";
 import SavedPage from "./pages/SavedPage";
 import HrFeed from "./pages/HrFeed";
 // import PrivateFeed from "./pages/Private Profile";
+import AdminDashboard from "./pages/AdminDashboard";
 function App() {
   
 
@@ -35,6 +36,7 @@ function App() {
           <Route path="/saved" element={<SavedPage />} />
           <Route path="/hr-feed" element={<HrFeed />} />
           {/* <Route path="/private-feed" element={<PrivateFeed />} /> */}
+          <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </Router>
     </ResumeProvider>
