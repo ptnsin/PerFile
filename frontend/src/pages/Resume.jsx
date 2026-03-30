@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useResumes } from "./ResumeContext";
+
  
 import "../styles/Resume.css";
 
@@ -441,6 +442,7 @@ const style = `
   }
 `;
  
+import "../styles/Resume.css";
 
 const defaultData = {
   name: "ณิชา สุวรรณโชติ",
