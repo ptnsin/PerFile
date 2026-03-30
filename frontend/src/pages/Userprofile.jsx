@@ -6,6 +6,8 @@ import {
   LuGithub, LuLinkedin, LuMail, LuStar, LuEye, LuPlus
 } from "react-icons/lu";
 import { FiPlusSquare, FiHome, FiGrid } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+const navigate = useNavigate();
 
 // ---- Inline styles (no external CSS needed) ----
 const S = {
@@ -238,7 +240,7 @@ export default function UserProfile() {
   const [isSidebarOpen] = useState(true);
 
   const tabs = ["resumes", "jobs", "saved"];
-  const tabLabels = { resumes: "Public Resumes", jobs: "Job Posts", saved: "Saved" };
+  const tabLabels = { resumes: "Private Resumes", jobs: "Public Resumes", saved: "Saved" };
 
   return (
     <div style={S.page}>
