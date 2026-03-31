@@ -13,7 +13,7 @@ import Resume from "./pages/Resume";
 import ViewResume from "./pages/ViewResume";
 import UserProfile from "./pages/Userprofile";
 import HrFeed from "./pages/HrFeed";
-
+import HRProfile from "./pages/HRProfile";
 // import PrivateFeed from "./pages/Private Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 function App() {
@@ -37,6 +37,7 @@ function App() {
 
           {/* <Route path="/private-feed" element={<PrivateFeed />} /> */}
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/hr-profile" element={<HRProfile />} />
         </Routes>
       </Router>
     </ResumeProvider>

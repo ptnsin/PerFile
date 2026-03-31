@@ -1,198 +1,238 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  LuSearch, LuBell, LuUser, LuFilter,
-  LuFileText, LuBriefcase, LuPanelLeft, LuPlus, LuBookmark
+  LuSearch, LuBell, LuFilter, LuBriefcase,
+  LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers
 } from "react-icons/lu";
-import { FiPlusSquare, FiHome, FiGrid } from "react-icons/fi";
-import "../styles/HRFeed.css"; // แนะนำให้สร้าง CSS แยก หรือใช้ตัวเดิมที่มีโครงสร้างเหมือน UsersFeed
+import "../styles/HRFeed.css";
 
-function HrFeed() {
-  const [activeTab, setActiveTab] = useState("candidates");
-  const [userData, setUserData] = useState(null);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+const STATS = [
+  { num: "12", label: "ตำแหน่งเปิดรับ" },
+  { num: "340", label: "ผู้สมัครทั้งหมด" },
+  { num: "28", label: "สัมภาษณ์เดือนนี้" },
+  { num: "94%", label: "อัตราตอบรับ" },
+];
+
+const TABS = [
+  { key: "candidates", label: "Candidates", icon: <LuUsers />, count: 340 },
+  { key: "jobs",       label: "My Job Posts", icon: <LuBriefcase />, count: 12 },
+];
+
+export default function HrFeed() {
+  const [activeTab, setActiveTab]       = useState("candidates");
+  const [userData, setUserData]         = useState(null);
+  const [menuOpen, setMenuOpen]         = useState(false);
+  const [sidebarOpen, setSidebarOpen]   = useState(true);
   const sidebarRef = useRef(null);
-  const navigate = useNavigate();
+  const navigate   = useNavigate();
 
-  // 1. ระบบ Sidebar Resizable (ก๊อปมาจา UsersFeed เป๊ะๆ)
+  /* ── Resizable sidebar ── */
   useEffect(() => {
     const sidebar = sidebarRef.current;
-    const handle = sidebar.querySelector(".sidebar-handle");
-    let dragging = false;
-    let startX = 0;
-    let startW = 0;
+    if (!sidebar) return;
+    const handle = sidebar.querySelector(".hrf-resize-handle");
+    if (!handle) return;
+    let drag = false, startX = 0, startW = 0;
 
-    const onMouseDown = (e) => {
-      dragging = true;
-      startX = e.clientX;
-      startW = sidebar.offsetWidth;
-      sidebar.classList.add("dragging");
+    const down = (e) => {
+      drag = true; startX = e.clientX; startW = sidebar.offsetWidth;
       document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
+      document.addEventListener("mousemove", move);
+      document.addEventListener("mouseup", up);
     };
-
-    const onMouseMove = (e) => {
-      if (!dragging) return;
-      const newW = Math.min(400, Math.max(80, startW + (e.clientX - startX)));
-      sidebar.style.width = newW + "px";
+    const move = (e) => {
+      if (!drag) return;
+      const w = Math.min(340, Math.max(80, startW + (e.clientX - startX)));
+      sidebar.style.width = w + "px";
     };
-
-    const onMouseUp = () => {
-      dragging = false;
-      sidebar.classList.remove("dragging");
+    const up = () => {
+      drag = false;
       document.body.style.userSelect = "";
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
     };
 
-    handle.addEventListener("mousedown", onMouseDown);
-    return () => {
-      handle.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
+    handle.addEventListener("mousedown", down);
+    return () => handle.removeEventListener("mousedown", down);
   }, []);
 
-  // 2. ดึงข้อมูล HR จาก Backend
+  /* ── Fetch HR user ── */
   useEffect(() => {
-    const fetchUser = async () => {
+    (async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) return navigate("/hr-login");
-
-        const response = await fetch("http://localhost:3000/auth/me", {
+        const res = await fetch("http://localhost:3000/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data.user);
-        } else {
-          navigate("/hr-login");
-        }
-      } catch (error) {
-        console.error("Fetch HR error:", error);
+        if (res.ok) setUserData((await res.json()).user);
+        else navigate("/hr-login");
+      } catch (err) {
+        console.error(err);
       }
-    };
-    fetchUser();
+    })();
   }, [navigate]);
 
-  // 3. ปิดเมนูเมื่อคลิกข้างนอก
+  /* ── Close dropdown on outside click ── */
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.user-profile-wrapper')) {
-        setIsUserMenuOpen(false);
-      }
+    const close = (e) => {
+      if (!e.target.closest(".hrf-user-area")) setMenuOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
 
+  const initial = userData?.username?.[0]?.toUpperCase() ?? "H";
+  const firstName = userData?.fullName?.split(" ")[0] ?? "HR";
+
   const toggleSidebar = () => {
-    if (isSidebarOpen) sidebarRef.current.style.width = "";
-    setIsSidebarOpen(!isSidebarOpen);
+    if (sidebarOpen && sidebarRef.current) sidebarRef.current.style.width = "";
+    setSidebarOpen((v) => !v);
   };
 
   return (
-    <div className="feed-container hr-theme">
-      {/* NAV */}
-      <nav className="feed-nav">
-        <div className="nav-left-group">
-          <button className="sidebar-toggle-btn" onClick={toggleSidebar}>
+    <div className="hrf-page">
+
+      {/* ─── NAV ─── */}
+      <nav className="hrf-nav">
+        <div className="hrf-nav-left">
+          <button className="hrf-toggle-btn" onClick={toggleSidebar} title="Toggle sidebar">
             <LuPanelLeft />
           </button>
-          <div className="nav-logo">PerFile <span className="badge-hr">HR</span></div>
-          <div className="nav-search-wrapper">
-            <LuSearch className="search-icon" />
+
+          <div className="hrf-logo">
+            Per<em>File</em>
+            <span className="hrf-logo-badge">HR</span>
+          </div>
+
+          <div className="hrf-search">
+            <LuSearch />
             <input type="text" placeholder="ค้นหาแคนดิเดต หรือเรซูเม่..." />
           </div>
         </div>
 
-        <div className="nav-right-links">
-          <button className="nav-notif"><LuBell /></button>
+        <div className="hrf-nav-right">
+          <button className="hrf-icon-btn" title="Notifications"><LuBell /></button>
 
-          <div className="user-profile-wrapper" style={{ position: 'relative' }}>
-            <div className="user-profile-dropdown" onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}>
-              {userData?.avatar ? (
-                <img src={userData.avatar} alt="Profile" className="nav-avatar-img" />
-              ) : (
-                <div className="avatar-initial">{userData?.username?.[0].toUpperCase()}</div>
-              )}
-              <span>{userData?.fullName || "Loading..."}</span>
+          <div className="hrf-user-area" style={{ position: "relative" }}>
+            <div
+              className="hrf-user-chip"
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <div className="hrf-avatar">
+                {userData?.avatar
+                  ? <img src={userData.avatar} alt="avatar" />
+                  : initial}
+              </div>
+              <span>{userData?.fullName ?? "Loading..."}</span>
             </div>
 
-            {isUserMenuOpen && (
-              <div className="profile-menu-popup">
+            {menuOpen && (
+              <div className="hrf-dropdown">
                 <button onClick={() => navigate("/hr-profile")}>Company Profile</button>
-                <button className="logout-action" onClick={() => {
-                  localStorage.clear();
-                  navigate("/hr-login");
-                }}>Logout</button>
+                <button
+                  className="hrf-logout"
+                  onClick={() => { localStorage.clear(); navigate("/hr-login"); }}
+                >
+                  Logout
+                </button>
               </div>
             )}
           </div>
         </div>
       </nav>
 
-      <div className="feed-layout">
-        {/* SIDEBAR */}
-        <aside ref={sidebarRef} className={`feed-sidebar ${isSidebarOpen ? "open" : "closed"}`}>
-          <div className="sidebar-handle"><div className="handle-line"></div></div>
-          
-          <div className="sidebar-menu">
-            <button className="create-btn hr-btn" onClick={() => navigate('/create-job')}>
-              <LuPlus/> Post Job
-            </button>
-            <Link to="/hr-feed" className="menu-item active"><FiGrid /> Dashboard</Link>
-            <button className="menu-item"><LuBriefcase /> My Jobs</button>
-            <button className="menu-item"><LuBookmark /> Shortlisted</button>
+      {/* ─── BODY ─── */}
+      <div className="hrf-body">
+
+        {/* ─── SIDEBAR ─── */}
+        <aside
+          ref={sidebarRef}
+          className={`hrf-sidebar${sidebarOpen ? "" : " closed"}`}
+        >
+          <div className="hrf-resize-handle">
+            <div className="hrf-resize-bar" />
           </div>
-          
-          <div className="sidebar-section">
-            <p className="section-title hr-title">Recent Applicants</p>
-            <div className="sub-item">Wasin Most</div>
-            <div className="sub-item">Supaji Wongpa</div>
-          </div>
+
+          <button className="hrf-post-btn" onClick={() => navigate("/create-job")}>
+            <LuPlus /> Post Job
+          </button>
+
+          <Link to="/hr-feed" className="hrf-menu-item active">
+            <LuLayoutDashboard /> Dashboard
+          </Link>
+          <button className="hrf-menu-item">
+            <LuBriefcase /> My Jobs
+          </button>
+          <button className="hrf-menu-item">
+            <LuBookmark /> Shortlisted
+          </button>
+
+          <div className="hrf-section-label">Recent Applicants</div>
+          <div className="hrf-sub-item">Wasin Most</div>
+          <div className="hrf-sub-item">Supaji Wongpa</div>
         </aside>
 
-        {/* MAIN CONTENT */}
-        <main className="feed-main">
-          <header className="feed-header">
-            <div className="welcome-text">
-              <h1>Hi, {userData?.fullName?.split(" ")[0] || "HR"}</h1>
+        {/* ─── MAIN ─── */}
+        <main className="hrf-main">
+
+          {/* Header + Tab Bar */}
+          <div className="hrf-header-card">
+            <div className="hrf-welcome">
+              <h1>Hi, {firstName} 👋</h1>
               <p>Manage your company's recruitment and job posts</p>
             </div>
-            
-            <div className="tab-switcher">
-              <button className={activeTab === "candidates" ? "active" : ""} onClick={() => setActiveTab("candidates")}>
-                <LuUser /> Candidates
-              </button>
-              <button className={activeTab === "jobs" ? "active" : ""} onClick={() => setActiveTab("jobs")}>
-                <LuBriefcase /> My Job Posts
-              </button>
-            </div>
-          </header>
 
-          <div className="content-scroll-area">
-            <div className="filter-bar">
-              <button className="filter-btn"><LuFilter /> กรอง</button>
+            <div className="hrf-tab-bar">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  className={`hrf-tab${activeTab === t.key ? " active" : ""}`}
+                  onClick={() => setActiveTab(t.key)}
+                >
+                  {t.icon}
+                  {t.label}
+                  <span className="hrf-tab-badge">{t.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="hrf-stats">
+            {STATS.map((s) => (
+              <div key={s.label} className="hrf-stat-card">
+                <div className="hrf-stat-num">{s.num}</div>
+                <div className="hrf-stat-label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Content panel */}
+          <div className="hrf-panel">
+            <div className="hrf-filter-bar">
+              <button className="hrf-filter-btn"><LuFilter /> กรอง</button>
             </div>
 
-            <div className="cards-grid">
-              {/* ส่วนนี้สามารถวน Loop ข้อมูลเหมือนใน UsersFeed ได้เลย */}
+            <div className="hrf-cards-grid">
               {activeTab === "candidates" ? (
-                 <p className="empty-state">แสดงรายการผู้สมัครงานตรงนี้...</p>
+                <div className="hrf-empty">
+                  <div className="hrf-empty-icon">👥</div>
+                  <div className="hrf-empty-title">ยังไม่มีผู้สมัคร</div>
+                  <div className="hrf-empty-desc">รายการผู้สมัครงานจะแสดงที่นี่</div>
+                </div>
               ) : (
-                 <p className="empty-state">แสดงรายการงานที่คุณลงประกาศไว้...</p>
+                <div className="hrf-empty">
+                  <div className="hrf-empty-icon">📋</div>
+                  <div className="hrf-empty-title">ยังไม่มีประกาศงาน</div>
+                  <div className="hrf-empty-desc">กด Post Job เพื่อลงประกาศงานใหม่</div>
+                </div>
               )}
             </div>
           </div>
+
         </main>
       </div>
     </div>
   );
 }
-
-export default HrFeed;
