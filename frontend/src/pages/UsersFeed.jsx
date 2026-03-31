@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useResumes } from "./ResumeContext";
 import { 
@@ -11,11 +11,23 @@ import "../styles/UsersFeed.css";
 function UsersFeed() {
   const [activeTab, setActiveTab] = useState("resume");
   const [userData, setUserData] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
   const { publishedResumes } = useResumes();
+
+  const filteredResumes = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return publishedResumes.filter((resume) => {
+      if (!normalizedSearch) return true;
+      const title = resume.title?.toLowerCase() || "";
+      const owner = resume.owner?.toLowerCase() || "";
+      return title.includes(normalizedSearch) || owner.includes(normalizedSearch);
+    });
+  }, [publishedResumes, searchTerm]);
 
   const toggleSidebar = () => {
     if (isSidebarOpen) {
@@ -26,7 +38,10 @@ function UsersFeed() {
 
  useEffect(() => {
   const sidebar = sidebarRef.current;
+  if (!sidebar) return;
+
   const handle = sidebar.querySelector(".sidebar-handle");
+  if (!handle) return;
 
   let dragging = false;
   let startX = 0;
@@ -70,8 +85,7 @@ function UsersFeed() {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        // ถ้าไม่มี token ให้เด้งกลับหน้า login
-        navigate("/login");
+        // ถ้าไม่มี token ก็ไม่ต้อง fetch user แต่หน้า feed ยังเปิดได้
         return;
       }
 
@@ -85,9 +99,8 @@ function UsersFeed() {
         const data = await response.json();
         setUserData(data.user); // เก็บข้อมูล user (id, fullName, avatar, etc.)
       } else {
-        // ถ้า token หมดอายุ หรือผิดพลาด
+        // ถ้า token หมดอายุ หรือผิดพลาด ก็ clear token แต่ไม่ redirect
         localStorage.removeItem("token");
-        navigate("/login");
       }
     } catch (error) {
       console.error("Fetch user error:", error);
@@ -119,7 +132,12 @@ function UsersFeed() {
           <div className="nav-logo">PerFile</div>
           <div className="nav-search-wrapper">
             <LuSearch className="search-icon" />
-            <input type="text" placeholder="ค้นหา Username หรือ Company..." />
+            <input
+              type="text"
+              placeholder="ค้นหา Username หรือ Company..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
 
@@ -129,7 +147,7 @@ function UsersFeed() {
           </button>
 
           <div className="user-profile-wrapper" style={{ position: 'relative' }}>
-    <div className="user-profile-dropdown" onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}>
+            <div className="user-profile-dropdown" onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}>
       {userData?.avatar ? (
         <img src={userData.avatar}
         alt="Profile" className="nav-avatar-img" 
@@ -166,8 +184,8 @@ function UsersFeed() {
           <div className="sidebar-menu">
             <button className="create-btn" onClick={() => navigate('/resume')}><FiPlusSquare/> Create</button>
             <Link to="/feed" className="menu-item active"><FiGrid /> Feed</Link>
-            <button className="menu-item"><FiHome /> Profile</button>
-            <button className="menu-item"><LuBookmark /> Saved</button>
+            <button className="menu-item" onClick={() => navigate('/profile')}><FiHome /> Profile</button>
+            <button className="menu-item" onClick={() => navigate('/saved')}><LuBookmark /> Saved</button>
           </div>
           
           <div className="sidebar-section">
@@ -207,13 +225,32 @@ function UsersFeed() {
 
           <div className="content-scroll-area">
             <div className="filter-bar">
-              <button className="filter-btn"><LuFilter /> กรอง</button>
+              <button
+                className="filter-btn"
+                onClick={() => setIsFilterOpen((prev) => !prev)}
+              >
+                <LuFilter /> กรอง
+              </button>
             </div>
+            {isFilterOpen && (
+              <div className="filter-panel">
+                <p style={{ margin: "0 0 8px" }}>ตัวอย่างตั้งค่า filter:</p>
+                <button
+                  className="filter-option"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setIsFilterOpen(false);
+                  }}
+                >
+                  ล้าง filter
+                </button>
+              </div>
+            )}
 
             <div className="cards-grid">
               {activeTab === "resume" ? (
-                publishedResumes.length > 0 ? (
-                  publishedResumes.map((resume) => (
+                filteredResumes.length > 0 ? (
+                  filteredResumes.map((resume) => (
                     <div key={resume.id} className="feed-card resume-border" onClick={() => navigate(`/view-resume/${resume.id}`)} style={{ cursor: "pointer" }}>
                       <div className="card-info">
                         <h3 className="resume-title">{resume.title}</h3>

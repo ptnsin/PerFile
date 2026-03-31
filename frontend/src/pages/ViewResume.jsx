@@ -142,9 +142,10 @@ const styles = `
 export default function ViewResume() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { publishedResumes } = useResumes();
+  const { publishedResumes, privateResumes } = useResumes();
 
-  const resume = publishedResumes.find(r => r.id === parseInt(id));
+  const resumeId = parseInt(id);
+  const resume = publishedResumes.find(r => r.id === resumeId) || privateResumes.find(r => r.id === resumeId);
 
   if (!resume) {
     return (
