@@ -6,16 +6,22 @@ import {
   LuSettings, LuActivity, LuShieldCheck, LuCheck, LuBan, LuUser, LuTrash2 
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
+import { jwtDecode } from "jwt-decode";
 
 export default function AdminDashboard() {
+  const [currentTab, setCurrentTab] = useState("overview","User Management");
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
   const userTableRef = useRef(null);
   const sidebarRef = useRef(null);
   const [isSidebarOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [selectedRole, setSelectedRole] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState("");
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditTotal, setAuditTotal] = useState(0);
 
   // --- 2. Helper Functions (ประกาศไว้ก่อนเพื่อให้ Effects เรียกใช้ได้) ---
   const fetchStats = async () => {
@@ -30,30 +36,47 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchAuditLogs = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:3000/admin/audit-logs?page=1&limit=20", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAuditLogs(res.data.logs);
+      setAuditTotal(res.data.total);
+    } catch (err) {
+      console.error("Error fetching audit logs:", err);
+    }
+  };
+
   // --- 3. Effects ---
-  
+
   // ดึงข้อมูลครั้งแรกเมื่อโหลดหน้า
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-
-        // ดึงสถิติ
-        await fetchStats();
-
-        // ดึงรายชื่อ User
-        const usersRes = await axios.get("http://localhost:3000/admin/users?page=1", { headers });
-        setUsers(usersRes.data.users);
-        
-        setLoading(false);
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        setLoading(false);
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      // 🌟 จุดสำคัญ: ต้อง Decode และเก็บลง State ตรงนี้
+      if (token) {
+        const decoded = jwtDecode(token);
+        console.log("Decoded Token:", decoded); // <--- ลองดูใน Console (F12) ว่ามีคำว่า username ไหม
+        setUserData(decoded);
       }
-    };
-    fetchData();
-  }, []);
+
+      const headers = { Authorization: `Bearer ${token}` };
+      await fetchStats();
+      await fetchAuditLogs();
+      const usersRes = await axios.get("http://localhost:3000/admin/users?page=1", { headers });
+      setUsers(usersRes.data.users);
+      setLoading(false);
+    } catch (err) {
+      console.error("Fetch Error:", err);
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, []);
 
   // ระบบลาก Sidebar
   useEffect(() => {
@@ -98,15 +121,6 @@ export default function AdminDashboard() {
     };
   }, [loading]);
 
-  const scrollToUserManagement = () => {
-  if (userTableRef.current) {
-    userTableRef.current.scrollIntoView({ 
-      behavior: "smooth", // เลื่อนแบบนุ่มนวล
-      block: "start"      // ให้ส่วนหัวของตารางอยู่บนสุดของหน้าจอ
-    });
-  }
-  };
-
   // เปลี่ยนสถานะ User (จาก Select Dropdown หรือปุ่ม Ban)
   const handleUpdateStatus = async (userId, newStatus) => {
     const msg = newStatus === 'banned' ? "ระงับการใช้งาน User นี้?" : "คืนสถานะ User นี้?";
@@ -121,6 +135,7 @@ export default function AdminDashboard() {
 
       setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus } : u));
       await fetchStats(); // อัปเดตตัวเลข Stats จาก DB จริง
+      await fetchAuditLogs(); // อัปเดต audit logs ด้วย
     } catch (err) {
       console.error("Update Status Error:", err);
       alert("ไม่สามารถเปลี่ยนสถานะได้");
@@ -129,29 +144,44 @@ export default function AdminDashboard() {
 
   // ลบ User ถาวร
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบ User นี้ถาวร? การกระทำนี้ไม่สามารถย้อนกลับได้")) {
-      return;
-    }
+    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบ User นี้ถาวร?")) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.delete(`http://localhost:3000/admin/users/${userId}`, {
+      await axios.delete(`http://localhost:3000/admin/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (response.status === 200) {
-        setUsers(users.filter((user) => user.id !== userId));
-        await fetchStats(); // อัปเดตตัวเลข Stats จาก DB จริง
-        alert("ลบข้อมูลสำเร็จเรียบร้อยแล้ว");
-      }
+      setUsers(users.filter((user) => user.id !== userId));
+      await fetchStats();
+      await fetchAuditLogs(); // 🌟 อัปเดต Log หลังจากลบ
+      alert("ลบข้อมูลสำเร็จเรียบร้อยแล้ว");
     } catch (err) {
       console.error("Delete User Error:", err);
-      alert("เกิดข้อผิดพลาดในการลบข้อมูล");
     }
   };
 
   // ฟังก์ชันนี้เรียกใช้ Logic เดียวกับ handleUpdateStatus เพื่อความไม่งง
   const handleStatusChange = (userId, newStatus) => {
     handleUpdateStatus(userId, newStatus);
+  };
+
+  const goToOverview = () => {
+  // 1. สั่งสลับ Tab กลับไปที่ Overview
+  setCurrentTab("overview");
+
+  // 2. สั่งให้หน้าจอเลื่อนกลับไปบนสุด (Smooth Scroll to top)
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+};
+
+  const scrollToUserManagement = () => {
+  if (userTableRef.current) {
+    userTableRef.current.scrollIntoView({ 
+      behavior: "smooth", // เลื่อนแบบนุ่มนวล
+      block: "start"      // ให้ส่วนหัวของตารางอยู่บนสุดของหน้าจอ
+    });
+  }
   };
 
   // --- 5. Render Logic ---
@@ -171,7 +201,7 @@ export default function AdminDashboard() {
           <button className="icon-btn"><LuBell /></button>
           <div className="user-dropdown">
             <LuShieldCheck size={18} color="#4f46e5" />
-            <span>Super Admin</span>
+            <span>Admin {userData?.username || "Admin"}</span>
           </div>
         </div>
       </nav>
@@ -180,8 +210,12 @@ export default function AdminDashboard() {
         <aside ref={sidebarRef} className={`admin-sidebar ${isSidebarOpen ? "open" : "closed"}`}>
           <div className="sidebar-content-wrapper">
             <div className="section-title">Main Menu</div>
-            <button className="menu-item active"><FiHome /> <span>Overview</span></button>
-            <button className="menu-item" onClick={scrollToUserManagement} ><LuUsers /> <span>User Management</span></button>
+            <button className={`menu-item ${currentTab === "overview" ? "active" : ""}`} 
+            onClick={goToOverview}><FiHome /> <span>Overview</span></button>
+            <button className={`menu-item ${currentTab === "user-management" ? "active" : ""}`} onClick={() => {
+              setCurrentTab("user-management");
+              scrollToUserManagement();
+            }} ><LuUsers /> <span>User Management</span></button>
             <button className="menu-item"><LuFileText /> <span>Resume Controls</span></button>
             
             <div className="section-title">System</div>
@@ -221,6 +255,51 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          <div className="pending-card">
+            <h3>Pending Approval</h3>
+            <div className="pending-list">
+              {users
+                .filter((user) => user.status === "pending") // 🌟 กรองเฉพาะคนที่สถานะเป็น pending
+                .map((user) => (
+                  <div key={user.id} className="pending-item">
+                    {/* ส่วน User Info (Avatar + Username/Email) */}
+                    <div className="user-info-brief">
+                      <div className="mini-avatar">
+                        {user.username?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="info-text">
+                        <p className="username">{user.username}</p>
+                        <p className="email">{user.email}</p>
+                      </div>
+                    </div>
+
+                    {/* ส่วน Full Name & Company */}
+                    <div className="work-info">
+                      <p className="fullname">{user.fullName || "ไม่ระบุชื่อ"}</p>
+                      <p className="company">{user.company || "ไม่มีข้อมูลบริษัท"}</p>
+                    </div>
+
+                    {/* ปุ่ม Action (เผื่อคุณต้องการกดอนุมัติจากตรงนี้ได้เลย) */}
+                    <div className="action-group">
+                      <button 
+                        className="approve-btn"
+                        onClick={() => handleUpdateStatus(user.id, 'active')}
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              
+              {/* กรณีไม่มีใครรออนุมัติเลย */}
+              {users.filter(u => u.status === "pending").length === 0 && (
+                <p style={{ textAlign: 'center', color: '#9ca3af', padding: '20px' }}>
+                  ไม่มีรายการรอนุมัติ
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* ตารางแสดงข้อมูล User ล่าสุด */}
           <div className="data-section" ref={userTableRef} >
             <div className="table-header">
@@ -229,19 +308,39 @@ export default function AdminDashboard() {
                 <div className="nav-search" style={{ width: '200px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={15} />
                   <input 
-                    placeholder="ค้นหาชื่อหรืออีเมล..." 
+                    placeholder="ค้นหาชื่อ, อีเมล, บริษัท..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                {/* เพิ่ม Select กรอง Role แบบง่ายๆ */}
-                <select className="action-btn" style={{ fontSize: '12px' }}>
-                    <option value="">All Roles</option>
-                    <option value="1">Admin</option>
-                    <option value="2">Seeker</option>
-                    <option value="3">HR</option>
+
+                {/* เลือก Method */}
+                <select 
+                  className="action-btn" 
+                  value={selectedMethod}
+                  onChange={(e) => setSelectedMethod(e.target.value)}
+                  style={{ fontSize: '12px' }}
+                >
+                  <option value="">All Methods</option>
+                  <option value="google">Google</option>
+                  <option value="github">GitHub</option>
+                  <option value="email">Email</option>
                 </select>
-                <button className="action-btn" style={{ padding: '6px 12px' }}>View All</button>
+
+                {/* เลือก Role */}
+                <select 
+                  className="action-btn" 
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  style={{ fontSize: '12px' }}
+                >
+                  <option value="">All Roles</option>
+                  <option value="1">Admin</option>
+                  <option value="2">Seeker</option>
+                  <option value="3">HR Agent</option>
+                </select>
+
+                <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => {setSearchTerm(""); setSelectedRole(""); setSelectedMethod("");}} >Reset</button>
               </div>
             </div>
             <table className="admin-table">
@@ -260,11 +359,20 @@ export default function AdminDashboard() {
                 {users
                 .filter((user) => {
                   const searchTermLower = searchTerm.toLowerCase();
-                  return (
-                    user.username.toLowerCase().includes(searchTermLower) ||
-                    user.email.toLowerCase().includes(searchTermLower) ||
-                    user.fullName?.toLowerCase().includes(searchTermLower)
-                  );
+                  
+                  const matchesSearch =
+                    user.username?.toLowerCase().includes(searchTermLower) ||
+                    user.email?.toLowerCase().includes(searchTermLower) ||
+                    user.fullName?.toLowerCase().includes(searchTermLower) ||
+                    user.company?.toLowerCase().includes(searchTermLower);
+                  const matchesRole = selectedRole === "" || user.roles_id.toString() === selectedRole;
+                  let userMethod = "email";
+                  if (user.google_id) userMethod = "google";
+                  else if (user.github_id) userMethod = "github";
+                  
+                  const matchesMethod = selectedMethod === "" || userMethod === selectedMethod;
+
+                  return matchesSearch && matchesRole && matchesMethod;
                 })
                 .map((user) => (
                   <tr key={user.id}>
@@ -370,6 +478,43 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+
+          <div className="audit-section">
+            <div className="table-header">
+              <h2>Audit Logs System</h2>
+              {/* 🌟 แสดงจำนวนทั้งหมดจาก auditTotal */}
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                Total {auditTotal} activities
+              </span>
+            </div>
+
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Admin</th>
+                  <th>Action</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* 🌟 นำ auditLogs มาวนลูปแสดงผล */}
+                {auditLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td>{new Date(log.created_at).toLocaleString('th-TH')}</td>
+                    <td>{log.admin_name}</td>
+                    <td>
+                      <span className={`action-tag action-${log.action.toLowerCase()}`}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td>{log.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
         </main>
       </div>
     </div>

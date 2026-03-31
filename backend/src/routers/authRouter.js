@@ -365,7 +365,7 @@ authRouter.post('/hr/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, roles_id: user.roles_id },
+      { id: user.id, username: user.username, email: user.email, roles_id: user.roles_id },
       process.env.JWT_SECRET || 'SECRET_KEY',
       { expiresIn: '1d' }
     );
