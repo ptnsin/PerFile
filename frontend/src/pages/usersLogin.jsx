@@ -12,8 +12,7 @@ export default function UsersLogin() {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
+    localStorage.clear();
 
     // 1. ฟังก์ชันจัดการการเปลี่ยนหน้าตามสิทธิ์ (ย้ายมาไว้ข้างในเพื่อแก้ Warning)
     const handleRedirectByRole = (token) => {

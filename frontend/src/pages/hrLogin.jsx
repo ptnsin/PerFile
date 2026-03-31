@@ -10,7 +10,16 @@ export default function HrLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // 1. ฟังก์ชัน Login แบบปกติ
+  useEffect(() => {
+  // ล้าง Token และ Role เก่าออกให้หมดเมื่อเข้ามาหน้านี้
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  
+  // หรือจะล้างทั้งหมดเลยก็ได้ถ้าไม่ได้เก็บอย่างอื่น
+  // localStorage.clear(); 
+}, []);
+
+  // 1. ฟังก์ชัน Login แบบปกติ (รองรับทั้ง Admin และ HR)
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -24,18 +33,24 @@ export default function HrLogin() {
 
       if (response.ok) {
         localStorage.setItem("token", data.token);
-        localStorage.setItem("role", "HR"); // เก็บสถานะว่าเป็น HR
+        localStorage.setItem("role", data.user.role); // เก็บ Role จริงที่ได้จาก DB (1 หรือ 3)
         
         Swal.fire({
-          title: "สำเร็จ!",
-          text: "ยินดีต้อนรับเข้าสู่ระบบจัดการผู้ประกอบการ",
+          title: data.user.role === 1 ? "ยินดีต้อนรับ Admin" : "สำเร็จ!",
+          text: data.message,
           icon: "success",
           timer: 1500,
           showConfirmButton: false
         });
-        navigate("/hr-dashboard"); // ไปหน้า Dashboard ของ HR
+
+        // 🌟 แยกเส้นทางตาม Role
+        if (data.user.role === 1) {
+          navigate("/admin"); // ถ้าเป็น Admin ส่งไปหน้า Dashboard กลาง
+        } else {
+          navigate("/hr-feed"); // ถ้าเป็น HR ส่งไปหน้าจัดการงาน
+        }
+
       } else {
-        // ดัก Error เฉพาะ (เช่น กรณีสถานะยังเป็น pending)
         Swal.fire({
           title: "เข้าสู่ระบบไม่สำเร็จ",
           text: data.message,
@@ -48,9 +63,8 @@ export default function HrLogin() {
     }
   };
 
-  // 2. ฟังก์ชัน Social Login สำหรับ Workspace
+  // 2. ฟังก์ชัน Social Login
   const handleSocialLogin = (provider) => {
-    // ส่ง state=hr_login ไปด้วยเพื่อให้ Backend รู้ว่าต้องเช็คสิทธิ์ HR
     const backendUrl = `http://localhost:3000/auth/oauth/${provider}?state=hr_login`;
     const width = 500, height = 650;
     const left = window.screenX + (window.outerWidth - width) / 2;
@@ -59,15 +73,22 @@ export default function HrLogin() {
     window.open(backendUrl, `Login with ${provider}`, `width=${width},height=${height},left=${left},top=${top}`);
   };
 
-  // 3. รับ Token จาก Social Login Popup
+  // 3. รับ Token และ Role จาก Social Login Popup
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.origin !== "http://localhost:3000") return;
 
       if (event.data.type === "AUTH_SUCCESS") {
-        localStorage.setItem("token", event.data.token);
-        localStorage.setItem("role", "HR");
-        navigate("/hr-feed");
+        const { token, role } = event.data;
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", role);
+
+        // 🌟 แยกเส้นทางตาม Role จาก Social Login
+        if (parseInt(role) === 1) {
+          navigate("/admin");
+        } else {
+          navigate("/hr-feed");
+        }
       }
       
       if (event.data.type === "AUTH_ERROR") {
@@ -91,18 +112,19 @@ export default function HrLogin() {
           <div className="hr-side-left">
             <div className="hr-info-content">
               <LuBriefcase size={50} color="#a855f7" />
-              <h3>Employer Portal</h3>
-              <p>จัดการการประกาศรับสมัครงานและค้นหาบุคลากรที่ใช่สำหรับองค์กรของคุณ</p>
+              {/* เปลี่ยนหัวข้อให้ดูเป็นกลางขึ้นเล็กน้อย */}
+              <h3>Management Portal</h3>
+              <p>ระบบจัดการสำหรับผู้ประกอบการและผู้ดูแลระบบ</p>
               
               <div className="hr-social-gap">
                 <button 
                   className="hr-social-btn" 
                   onClick={() => handleSocialLogin('google')}
                 >
-                  <FaGoogle /> Sign in with Workspace
+                  <FaGoogle /> Sign in with Google
                 </button>
               </div>
-              <p className="hr-helper-text">Secure access for verified organizations.</p>
+              <p className="hr-helper-text">Secure access for verified personnel.</p>
             </div>
           </div>
 
@@ -113,8 +135,8 @@ export default function HrLogin() {
           <div className="hr-side-right">
             <div className="hr-form-container">
               <div className="hr-header">
-                <h1>Owner Login</h1>
-                <p>ก้าวเข้าสู่ระบบจัดการสำหรับผู้ประกอบการ</p>
+                <h1>Owner & Admin</h1>
+                <p>ก้าวเข้าสู่ระบบจัดการ PerFile</p>
               </div>
 
               <form className="hr-login-form" onSubmit={handleLogin}>
@@ -122,7 +144,7 @@ export default function HrLogin() {
                   <LuMail className="hr-icon" />
                   <input 
                     type="email" 
-                    placeholder="Business Email" 
+                    placeholder="Email Address" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required 

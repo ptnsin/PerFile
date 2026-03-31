@@ -96,7 +96,7 @@ const logAction = async (adminId, action, targetId = null, detail = null) => {
  */
 router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
   try {
-    const { role, status, page = 1 } = req.query;
+    const { role, status, page = 1, search } = req.query;
     const limit = 20;
     const offset = (parseInt(page) - 1) * limit;
 
@@ -117,6 +117,11 @@ router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
       params.push(status);
     }
 
+    if (search) {
+      conditions.push("(username LIKE ? OR email LIKE ? OR fullName LIKE ?)");
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const [users] = await db.query(
@@ -124,9 +129,11 @@ router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
         id, 
         username, 
         email, 
+        google_id,
+        github_id,
         fullName, 
-        company, 
         avatar, 
+        company, 
         roles_id, 
         status, 
         created_at 
@@ -312,7 +319,7 @@ router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) =
 
     const allowedStatuses = ["active", "pending", "suspended", "banned"];
     if (!status || !allowedStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status. Allowed: active, suspended, banned" });
+      return res.status(400).json({ message: "Invalid status. Allowed: active, pending, suspended, banned" });
     }
 
     const [result] = await db.query(
@@ -376,6 +383,10 @@ router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) =
 router.delete("/users/:id",authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (parseInt(id) === req.user.id) {
+      return res.status(400).json({ message: "You cannot delete your own admin account!" });
+    }
 
     const [[user]] = await db.query("SELECT id FROM users WHERE id = ?", [id]);
     if (!user) {
@@ -668,7 +679,7 @@ router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
 router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const [userRows] = await db.query(
-      "SELECT roles_id, COUNT(*) as count FROM users GROUP BY roles_id"
+      "SELECT roles_id, COUNT(*) as count FROM users WHERE status = 'active' GROUP BY roles_id"
     );
     
     const userStats = {

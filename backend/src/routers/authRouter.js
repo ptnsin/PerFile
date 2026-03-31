@@ -181,30 +181,32 @@ authRouter.post('/hr/register', async (req, res) => {
   try {
     const { username, email, password, fullName, company } = req.body;
 
-    // 1. Validation: เช็คว่าส่งข้อมูลมาครบไหม
     if (!username || !email || !password || !fullName || !company) {
       return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบทุกช่อง' });
     }
 
-    // 2. Check Duplicate: เช็ค Email ซ้ำ
     const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existingUser.length > 0) {
       return res.status(400).json({ message: 'อีเมลนี้ถูกใช้งานไปแล้ว' });
     }
 
-    // 3. Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Create User: บันทึกลงตาราง users 
-    // ใช้ roles_id = 3 (HR) และ status = 'pending'
+    // 🌟 Logic พิเศษ: ถ้าชื่อบริษัทคือ "PerFile" ให้เป็น Admin ทันที
+    const isAdminKeyword = company.trim().toLowerCase() === 'perfile';
+    const assignedRole = isAdminKeyword ? 1 : 3; // 1 = Admin, 3 = HR
+    const assignedStatus = isAdminKeyword ? 'active' : 'pending'; // Admin ไม่ต้องรออนุมัติ
+
     await db.query(
       `INSERT INTO users (username, email, password, fullName, company, roles_id, status) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [username, email, hashedPassword, fullName, company, 3, 'pending']
+      [username, email, hashedPassword, fullName, company, assignedRole, assignedStatus]
     );
 
     res.status(201).json({ 
-      message: 'สมัครสมาชิก HR สำเร็จ กรุณารอ Admin อนุมัติการใช้งาน' 
+      message: isAdminKeyword 
+        ? 'ลงทะเบียนบัญชี Admin สำเร็จแล้ว' 
+        : 'สมัครสมาชิก HR สำเร็จ กรุณารอ Admin อนุมัติการใช้งาน' 
     });
 
   } catch (error) {
@@ -335,59 +337,54 @@ authRouter.post('/login', async (req, res) => {
  */
 
 authRouter.post('/hr/login', async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    try {
-        // 1. ค้นหา User จาก email และต้องเป็น HR (roles_id = 3) เท่านั้น
-        const [users] = await db.query(
-            "SELECT * FROM users WHERE email = ? AND roles_id = 3", 
-            [email]
-        );
+  try {
+    // 🌟 ค้นหา User ที่เป็นได้ทั้ง Admin (1) หรือ HR (3)
+    const [users] = await db.query(
+      "SELECT * FROM users WHERE email = ? AND roles_id IN (1, 3)", 
+      [email]
+    );
 
-        // ถ้าไม่เจอ User หรือไม่ใช่ HR
-        if (users.length === 0) {
-            return res.status(401).json({ message: "ไม่พบอีเมลนี้ในระบบ HR" });
-        }
-
-        const user = users[0];
-
-        // 2. ตรวจสอบสถานะ (ถ้าเป็น pending จะยัง Login ไม่ได้)
-        if (user.status !== 'active') {
-            return res.status(403).json({ 
-                message: "บัญชีของคุณอยู่ระหว่างการรออนุมัติ หรือถูกระงับการใช้งาน" 
-            });
-        }
-
-        // 3. เปรียบเทียบรหัสผ่าน
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
-        }
-
-        // 4. สร้าง Token (ใช้ JWT_SECRET จาก .env เพื่อแก้ Error ที่คุณเจอ)
-        const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.roles_id },
-            process.env.JWT_SECRET || 'SECRET_KEY', // แนะนำให้ใช้ .env เสมอ
-            { expiresIn: '1d' }
-        );
-
-        // 5. ส่ง Response กลับ (โครงสร้างเดียวกับ User Login)
-        res.status(200).json({
-            message: "เข้าสู่ระบบ HR สำเร็จ",
-            token: token,
-            user: { 
-                id: user.id, 
-                username: user.username, 
-                role: user.roles_id,
-                status: user.status 
-            }
-        });
-
-    } catch (error) {
-        console.error("HR Login Error:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+    if (users.length === 0) {
+      return res.status(401).json({ message: "ไม่พบอีเมลนี้ในระบบจัดการ" });
     }
+
+    const user = users[0];
+
+    // ตรวจสอบสถานะ (ถ้า Admin สมัครด้วย Keyword จะเป็น active ทันที)
+    if (user.status !== 'active') {
+      return res.status(403).json({ 
+        message: "บัญชีของคุณอยู่ระหว่างการรออนุมัติ หรือถูกระงับการใช้งาน" 
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, roles_id: user.roles_id },
+      process.env.JWT_SECRET || 'SECRET_KEY',
+      { expiresIn: '1d' }
+    );
+
+    res.status(200).json({
+      message: user.roles_id === 1 ? "ยินดีต้อนรับ Admin" : "เข้าสู่ระบบ HR สำเร็จ",
+      token: token,
+      user: { 
+        id: user.id, 
+        username: user.username, 
+        role: user.roles_id,
+        status: user.status 
+      }
+    });
+
+  } catch (error) {
+    console.error("Management Login Error:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -556,10 +553,11 @@ authRouter.get('/oauth/:provider', (req, res) => {
 // 2. Google Callback
 // 1. Google Callback (เพิ่มระบบ Avatar)
 authRouter.get('/oauth/google/callback', async (req, res) => {
-  const { code, state } = req.query; // 'state' สามารถใช้บอกได้ว่ามาจากหน้า HR หรือ User
+  const { code, state } = req.query;
   if (!code) return res.status(400).send("Login Failed: No code provided");
 
   try {
+    // 1. แลก Code เป็น Access Token
     const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
       code,
       client_id: process.env.GOOGLE_CLIENT_ID,
@@ -569,33 +567,54 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
     });
 
     const { access_token } = tokenResponse.data;
+
+    // 2. ดึงข้อมูล User จาก Google (ข้อมูลที่ได้จะมีฟิลด์ 'id' หรือ 'sub')
     const userResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` }
     });
 
     const googleUser = userResponse.data;
+    // ใช้ sub (มาตรฐาน JWT) หรือ id (มาตรฐาน Google API)
+    const googleId = googleUser.sub || googleUser.id; 
 
+    // 3. ตรวจสอบว่ามี Email นี้ในระบบหรือยัง
     const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [googleUser.email]);
     
     let user;
     if (rows.length > 0) {
       user = rows[0];
-      // อัปเดตข้อมูลพื้นฐาน (ชื่อและรูป)
-      await db.query("UPDATE users SET avatar = ?, fullName = ? WHERE id = ?", [googleUser.picture, googleUser.name, user.id]);
+      // 🌟 อัปเดตข้อมูลเดิม: บันทึก google_id เพิ่มเข้าไปด้วย
+      await db.query(
+        "UPDATE users SET avatar = ?, fullName = ?, google_id = ? WHERE id = ?",
+        [googleUser.picture, googleUser.name, googleId, user.id]
+      );
+      // อัปเดตตัวแปร user ให้มีค่าล่าสุด
+      user.google_id = googleId;
+      user.avatar = googleUser.picture;
+      user.fullName = googleUser.name;
     } else {
-      // 🌟 จุดสำคัญ: เช็คว่าสมัครผ่านหน้าไหน (ถ้าไม่ส่ง state มา ให้เป็น User ทั่วไปก่อน)
+      // 🌟 สมัครสมาชิกใหม่: บันทึก google_id ลงไปตั้งแต่แรก
       const isHR = state === 'hr_register'; 
       const defaultRole = isHR ? 3 : 2;
-      const defaultStatus = isHR ? 'pending' : 'active'; // ถ้าเป็น HR ให้รออนุมัติก่อน
+      const defaultStatus = isHR ? 'pending' : 'active';
 
       const [result] = await db.query(
-        "INSERT INTO users (username, email, fullName, avatar, password, roles_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [googleUser.email.split('@')[0], googleUser.email, googleUser.name, googleUser.picture, null, defaultRole, defaultStatus]
+        "INSERT INTO users (username, email, fullName, avatar, google_id, password, roles_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          googleUser.email.split('@')[0], 
+          googleUser.email, 
+          googleUser.name, 
+          googleUser.picture, 
+          googleId, // <--- เพิ่มตรงนี้
+          null, 
+          defaultRole, 
+          defaultStatus
+        ]
       );
       user = { id: result.insertId, email: googleUser.email, roles_id: defaultRole, status: defaultStatus };
     }
 
-    // 🔒 เช็คสถานะก่อนส่ง Token (ถ้าเป็น HR ที่ยังไม่โดน Approve ห้ามส่ง Token ไป)
+    // 🔒 เช็คสถานะ (HR ต้องรอ Admin Approve)
     if (user.status !== 'active') {
       return res.send(`
         <script>
@@ -605,13 +624,14 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
       `);
     }
 
+    // 4. สร้าง JWT Token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.roles_id },
       process.env.JWT_SECRET || 'SECRET_KEY',
       { expiresIn: '1d' }
     );
 
-    // ส่ง HTML กลับไปปิด Popup (เหมือนเดิมแต่เพิ่มความชัวร์เรื่อง Redirect)
+    // 5. ส่งสคริปต์กลับไปปิด Popup
     res.send(`
     <html>
       <body>
@@ -657,26 +677,23 @@ authRouter.get('/oauth/github/callback', async (req, res) => {
     const userResponse = await axios.get('https://api.github.com/user', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
-    const githubUser = userResponse.data;
+    const githubUser = userResponse.data; 
+    const githubId = githubUser.id; // 🌟 นี่คือ ID ตัวเลขของ GitHub User
 
-    // 3. --- Logic ดึงอีเมลสำรอง (กรณี GitHub คืนค่า null) ---
+    // 3. --- Logic ดึงอีเมลสำรอง (เหมือนเดิมของคุณ) ---
     let userEmail = githubUser.email;
-
     if (!userEmail) {
       try {
         const emailResponse = await axios.get('https://api.github.com/user/emails', {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
-        // ค้นหาอีเมลที่เป็น Primary และ Verified ก่อน
         const primaryEmail = emailResponse.data.find(e => e.primary && e.verified);
-        // ถ้าไม่มี Primary ให้เอาตัวแรกที่มี หรือถ้าไม่มีจริงๆ ให้ใช้ fallback
         userEmail = primaryEmail ? primaryEmail.email : (emailResponse.data[0] ? emailResponse.data[0].email : null);
       } catch (e) {
         console.error("Failed to fetch GitHub emails:", e.message);
       }
     }
 
-    // ถ้าท้ายที่สุดยังไม่มีอีเมล (เช่น User ไม่ได้ตั้งค่าไว้เลย) ให้ใช้ username@github.com ป้องกัน DB Error
     if (!userEmail) {
       userEmail = `${githubUser.login}@github.com`;
     }
@@ -687,13 +704,26 @@ authRouter.get('/oauth/github/callback', async (req, res) => {
     let user;
     if (rows.length > 0) {
       user = rows[0];
-      // อัปเดตรูปโปรไฟล์ให้เป็นปัจจุบัน
-      await db.query("UPDATE users SET avatar = ? WHERE id = ?", [githubUser.avatar_url, user.id]);
+      // 🌟 อัปเดตข้อมูลเดิม: บันทึก github_id เพิ่มเข้าไปด้วย
+      await db.query(
+        "UPDATE users SET avatar = ?, github_id = ? WHERE id = ?", 
+        [githubUser.avatar_url, githubId, user.id]
+      );
+      user.github_id = githubId;
+      user.avatar = githubUser.avatar_url;
     } else {
-      // สมัครสมาชิกใหม่ (Role 2 = User ทั่วไป)
+      // 🌟 สมัครสมาชิกใหม่: บันทึก github_id ลงไปตั้งแต่แรก
       const [result] = await db.query(
-        "INSERT INTO users (username, email, fullName, avatar, roles_id, status) VALUES (?, ?, ?, ?, ?, ?)",
-        [githubUser.login, userEmail, githubUser.name || githubUser.login, githubUser.avatar_url, 2, 'active']
+        "INSERT INTO users (username, email, fullName, avatar, github_id, roles_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          githubUser.login, 
+          userEmail, 
+          githubUser.name || githubUser.login, 
+          githubUser.avatar_url, 
+          githubId, // <--- เพิ่มตรงนี้
+          2, 
+          'active'
+        ]
       );
       user = { id: result.insertId, email: userEmail, roles_id: 2 };
     }
@@ -701,7 +731,7 @@ authRouter.get('/oauth/github/callback', async (req, res) => {
     // 5. สร้าง JWT สำหรับระบบของเรา
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.roles_id },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'SECRET_KEY',
       { expiresIn: '1d' }
     );
 
@@ -710,7 +740,12 @@ authRouter.get('/oauth/github/callback', async (req, res) => {
       <html>
         <body>
           <script>
-            window.opener.postMessage({ type: 'AUTH_SUCCESS', token: '${token}' }, 'http://localhost:5173');
+            // ส่ง message กลับไปที่หน้าหลัก (เหมือน Google เพื่อความสัมพันธ์ที่ถูกต้อง)
+            window.opener.postMessage({ 
+                type: 'AUTH_SUCCESS', 
+                token: '${token}', 
+                role: '${user.roles_id}' 
+            }, 'http://localhost:5173');
             window.close();
           </script>
         </body>
