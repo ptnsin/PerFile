@@ -27,6 +27,10 @@ export default function AdminDashboard() {
   const [auditTotal, setAuditTotal] = useState(0);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const adminMenuRef = useRef(null);
+  const settingsRef = useRef(null);
+  const [settings, setSettings] = useState({ maxFileSize: 10485760, maintenanceMode: false });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState("");
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -80,6 +84,8 @@ useEffect(() => {
       await fetchAuditLogs();
       const usersRes = await axios.get("http://localhost:3000/admin/users?page=1", { headers });
       setUsers(usersRes.data.users);
+      const settingsRes = await axios.get("http://localhost:3000/admin/settings", { headers });
+      setSettings(settingsRes.data);
       setLoading(false);
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -201,6 +207,30 @@ useEffect(() => {
     }
   };
 
+  const scrollToSettings = () => {
+    if (settingsRef.current) {
+      settingsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true);
+    setSettingsMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put("http://localhost:3000/admin/settings", settings, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSettingsMsg("success");
+    } catch (err) {
+      console.error("Save Settings Error:", err);
+      setSettingsMsg("error");
+    } finally {
+      setSettingsSaving(false);
+      setTimeout(() => setSettingsMsg(""), 3000);
+    }
+  };
+
   const scrollToUserManagement = () => {
   if (userTableRef.current) {
     userTableRef.current.scrollIntoView({ 
@@ -270,7 +300,7 @@ useEffect(() => {
             
             <div className="section-title">System</div>
             <button className={`menu-item ${currentTab === "audit-logs" ? "active" : ""}`} onClick={() => { setCurrentTab("audit-logs"); scrollToAuditLogs(); }}><LuActivity /> <span>Audit Logs</span></button>
-            <button className="menu-item"><LuSettings /> <span>System Settings</span></button>
+            <button className={`menu-item ${currentTab === "settings" ? "active" : ""}`} onClick={() => { setCurrentTab("settings"); scrollToSettings(); }}><LuSettings /> <span>System Settings</span></button>
           </div>
 
           {/* ตัวสำหรับลากขยายซ้ายขวา */}
@@ -572,6 +602,177 @@ useEffect(() => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* ─── System Settings ─── */}
+          <div ref={settingsRef} style={{ background: '#fff', border: '1px solid #eeeeee', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div className="table-header">
+              <h2 style={{ fontSize: '16px', fontWeight: 700 }}>System Settings</h2>
+              {settingsMsg === "success" && (
+                <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600 }}>✓ บันทึกสำเร็จ</span>
+              )}
+              {settingsMsg === "error" && (
+                <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 600 }}>✗ เกิดข้อผิดพลาด</span>
+              )}
+            </div>
+
+            <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
+              {/* Max File Size */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Max File Size</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>ขนาดไฟล์สูงสุดที่อนุญาตให้อัปโหลด resume</div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[5, 10, 20, 50].map(mb => {
+                    const bytes = mb * 1024 * 1024;
+                    const active = settings.maxFileSize === bytes;
+                    return (
+                      <button
+                        key={mb}
+                        onClick={() => setSettings(s => ({ ...s, maxFileSize: bytes }))}
+                        style={{
+                          padding: '7px 18px',
+                          borderRadius: '8px',
+                          border: active ? '2px solid #4f46e5' : '1px solid #e5e7eb',
+                          background: active ? '#ede9fe' : '#fff',
+                          color: active ? '#4f46e5' : '#6b7280',
+                          fontWeight: active ? 700 : 500,
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {mb} MB
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ height: '1px', background: '#f0f0f0' }} />
+
+              {/* Maintenance Mode */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Maintenance Mode</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>เมื่อเปิด ผู้ใช้ทั่วไปจะไม่สามารถเข้าสู่ระบบได้</div>
+                </div>
+                <button
+                  onClick={() => setSettings(s => ({ ...s, maintenanceMode: !s.maintenanceMode }))}
+                  style={{
+                    width: '52px', height: '28px', borderRadius: '99px', border: 'none',
+                    background: settings.maintenanceMode ? '#4f46e5' : '#e5e7eb',
+                    cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: '4px',
+                    left: settings.maintenanceMode ? '28px' : '4px',
+                    width: '20px', height: '20px', borderRadius: '50%', background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s'
+                  }} />
+                </button>
+              </div>
+
+              <div style={{ height: '1px', background: '#f0f0f0' }} />
+
+              {/* Max Resumes Per User */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Max Resumes Per User</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>จำนวน resume สูงสุดที่ผู้ใช้แต่ละคนสร้างได้</div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[1, 3, 5, 10].map(n => {
+                    const active = settings.maxResumesPerUser === n;
+                    return (
+                      <button
+                        key={n}
+                        onClick={() => setSettings(s => ({ ...s, maxResumesPerUser: n }))}
+                        style={{
+                          padding: '7px 18px', borderRadius: '8px',
+                          border: active ? '2px solid #4f46e5' : '1px solid #e5e7eb',
+                          background: active ? '#ede9fe' : '#fff',
+                          color: active ? '#4f46e5' : '#6b7280',
+                          fontWeight: active ? 700 : 500, fontSize: '13px',
+                          cursor: 'pointer', transition: 'all 0.15s'
+                        }}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ height: '1px', background: '#f0f0f0' }} />
+
+              {/* Allow New Registration */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Allow New Registration</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>เมื่อปิด ผู้ใช้ใหม่จะไม่สามารถสมัครสมาชิกได้</div>
+                </div>
+                <button
+                  onClick={() => setSettings(s => ({ ...s, allowRegistration: !s.allowRegistration }))}
+                  style={{
+                    width: '52px', height: '28px', borderRadius: '99px', border: 'none',
+                    background: settings.allowRegistration ? '#4f46e5' : '#e5e7eb',
+                    cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: '4px',
+                    left: settings.allowRegistration ? '28px' : '4px',
+                    width: '20px', height: '20px', borderRadius: '50%', background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s'
+                  }} />
+                </button>
+              </div>
+
+              <div style={{ height: '1px', background: '#f0f0f0' }} />
+
+              {/* Auto Approve HR */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Auto Approve HR</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>เมื่อเปิด HR ที่สมัครใหม่จะได้รับการอนุมัติอัตโนมัติ โดยไม่ต้องรอ Admin</div>
+                </div>
+                <button
+                  onClick={() => setSettings(s => ({ ...s, autoApproveHr: !s.autoApproveHr }))}
+                  style={{
+                    width: '52px', height: '28px', borderRadius: '99px', border: 'none',
+                    background: settings.autoApproveHr ? '#4f46e5' : '#e5e7eb',
+                    cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: '4px',
+                    left: settings.autoApproveHr ? '28px' : '4px',
+                    width: '20px', height: '20px', borderRadius: '50%', background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s'
+                  }} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={handleSaveSettings}
+                  disabled={settingsSaving}
+                  style={{
+                    padding: '9px 24px', borderRadius: '8px', border: 'none',
+                    background: settingsSaving ? '#a5b4fc' : '#4f46e5',
+                    color: '#fff', fontWeight: 700, fontSize: '14px',
+                    cursor: settingsSaving ? 'not-allowed' : 'pointer', transition: 'background 0.2s'
+                  }}
+                >
+                  {settingsSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+                </button>
+              </div>
+
+            </div>
           </div>
 
         </main>

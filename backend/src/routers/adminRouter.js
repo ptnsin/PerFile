@@ -773,54 +773,130 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
  */
 router.put("/settings", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { maxFileSize, maintenanceMode } = req.body;
+    const { maxFileSize, maintenanceMode, maxResumesPerUser, allowRegistration, autoApproveHr } = req.body;
 
-    if (maxFileSize === undefined && maintenanceMode === undefined) {
+    if ([maxFileSize, maintenanceMode, maxResumesPerUser, allowRegistration, autoApproveHr].every(v => v === undefined)) {
       return res.status(400).json({ message: "No settings provided to update" });
     }
 
-    // 1. ดึงค่าปัจจุบันมาดู (และป้องกันกรณีไม่มีข้อมูลใน DB)
     const [rows] = await db.query("SELECT * FROM system_settings WHERE id = 1");
-    
-    // ถ้ายังไม่มีข้อมูลแถวที่ 1 ให้สร้างขึ้นมาใหม่ (Default)
+
     if (rows.length === 0) {
-      await db.query("INSERT INTO system_settings (id, max_file_size, maintenance_mode) VALUES (1, 10485760, 0)");
+      await db.query(`INSERT INTO system_settings 
+        (id, max_file_size, maintenance_mode, max_resumes_per_user, allow_registration, auto_approve_hr) 
+        VALUES (1, 10485760, 0, 5, 1, 0)`);
       return res.status(200).json({ message: "Settings initialized. Please try updating again." });
     }
 
-    const current = rows[0];
+    const c = rows[0];
 
-    // 2. เตรียมค่าที่จะอัปเดต
-    const updatedMaxFileSize = maxFileSize !== undefined ? parseInt(maxFileSize) : current.max_file_size;
-    
-    // แปลง boolean เป็น 1 หรือ 0 สำหรับ MySQL TinyInt
-    const updatedMaintenanceMode = maintenanceMode !== undefined ? (maintenanceMode ? 1 : 0) : current.maintenance_mode;
+    const updatedMaxFileSize      = maxFileSize        !== undefined ? parseInt(maxFileSize)           : c.max_file_size;
+    const updatedMaintenanceMode  = maintenanceMode    !== undefined ? (maintenanceMode    ? 1 : 0)    : c.maintenance_mode;
+    const updatedMaxResumes       = maxResumesPerUser  !== undefined ? parseInt(maxResumesPerUser)     : c.max_resumes_per_user;
+    const updatedAllowReg         = allowRegistration  !== undefined ? (allowRegistration  ? 1 : 0)    : c.allow_registration;
+    const updatedAutoApprove      = autoApproveHr      !== undefined ? (autoApproveHr      ? 1 : 0)    : c.auto_approve_hr;
 
-    // 3. อัปเดตลง Database
     await db.query(
-      "UPDATE system_settings SET max_file_size = ?, maintenance_mode = ? WHERE id = 1",
-      [updatedMaxFileSize, updatedMaintenanceMode]
+      `UPDATE system_settings SET 
+        max_file_size = ?, maintenance_mode = ?, 
+        max_resumes_per_user = ?, allow_registration = ?, auto_approve_hr = ?
+       WHERE id = 1`,
+      [updatedMaxFileSize, updatedMaintenanceMode, updatedMaxResumes, updatedAllowReg, updatedAutoApprove]
     );
 
-    // 4. บันทึก Log (ตอนนี้จะไม่ Error แล้วเพราะมี authMiddleware)
     if (typeof logAction === "function") {
-      await logAction(
-        req.user.id,
-        "UPDATE_SETTINGS",
-        null,
-        `maxFileSize: ${updatedMaxFileSize}, maintenanceMode: ${updatedMaintenanceMode}`
+      await logAction(req.user.id, "UPDATE_SETTINGS", null,
+        `maxFileSize: ${updatedMaxFileSize}, maintenanceMode: ${updatedMaintenanceMode}, ` +
+        `maxResumes: ${updatedMaxResumes}, allowReg: ${updatedAllowReg}, autoApproveHr: ${updatedAutoApprove}`
       );
     }
 
     res.status(200).json({
       message: "Settings updated successfully",
       settings: {
-        maxFileSize: updatedMaxFileSize,
-        maintenanceMode: !!updatedMaintenanceMode, // แปลงกลับเป็น boolean ส่งให้ Frontend
+        maxFileSize:        updatedMaxFileSize,
+        maintenanceMode:    !!updatedMaintenanceMode,
+        maxResumesPerUser:  updatedMaxResumes,
+        allowRegistration:  !!updatedAllowReg,
+        autoApproveHr:      !!updatedAutoApprove,
       },
     });
   } catch (err) {
     console.error("Update Settings Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────
+// 10. GET /admin/settings
+// ─────────────────────────────────────────────
+
+/**
+ * @swagger
+ * /admin/settings:
+ *   get:
+ *     summary: ดึงค่าการตั้งค่าระบบปัจจุบัน
+ *     description: ดึงค่าทั้งหมดจากตาราง system_settings ถ้ายังไม่มีข้อมูลจะสร้าง default ให้อัตโนมัติ
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ดึงค่าตั้งค่าสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 maxFileSize:
+ *                   type: integer
+ *                   description: ขนาดไฟล์สูงสุดที่อนุญาต (bytes)
+ *                   example: 10485760
+ *                 maintenanceMode:
+ *                   type: boolean
+ *                   description: สถานะ maintenance mode
+ *                   example: false
+ *                 maxResumesPerUser:
+ *                   type: integer
+ *                   description: จำนวน resume สูงสุดต่อ user
+ *                   example: 5
+ *                 allowRegistration:
+ *                   type: boolean
+ *                   description: เปิด/ปิดการสมัครสมาชิกใหม่
+ *                   example: true
+ *                 autoApproveHr:
+ *                   type: boolean
+ *                   description: อนุมัติ HR อัตโนมัติโดยไม่ต้องรอ Admin
+ *                   example: false
+ *       403:
+ *         description: Access denied - Admins only
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/settings", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT * FROM system_settings WHERE id = 1");
+
+    if (rows.length === 0) {
+      await db.query(`INSERT INTO system_settings 
+        (id, max_file_size, maintenance_mode, max_resumes_per_user, allow_registration, auto_approve_hr) 
+        VALUES (1, 10485760, 0, 5, 1, 0)`);
+      return res.status(200).json({
+        maxFileSize: 10485760, maintenanceMode: false,
+        maxResumesPerUser: 5, allowRegistration: true, autoApproveHr: false
+      });
+    }
+
+    const s = rows[0];
+    res.status(200).json({
+      maxFileSize:       s.max_file_size,
+      maintenanceMode:   !!s.maintenance_mode,
+      maxResumesPerUser: s.max_resumes_per_user ?? 5,
+      allowRegistration: s.allow_registration  !== undefined ? !!s.allow_registration : true,
+      autoApproveHr:     !!s.auto_approve_hr,
+    });
+  } catch (err) {
+    console.error("Get Settings Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
   }
 });
