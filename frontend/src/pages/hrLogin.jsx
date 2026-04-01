@@ -112,19 +112,19 @@ export default function HrLogin() {
           <div className="hr-side-left">
             <div className="hr-info-content">
               <LuBriefcase size={50} color="#a855f7" />
-              {/* เปลี่ยนหัวข้อให้ดูเป็นกลางขึ้นเล็กน้อย */}
-              <h3>Management Portal</h3>
-              <p>ระบบจัดการสำหรับผู้ประกอบการและผู้ดูแลระบบ</p>
+  
+              <h3>Employer Portal</h3>
+              <p>ระบบจัดการประกาศรับสมัครงานและค้นหาบุคลากรที่ใช่สำหรับองค์กรของคุณ</p>
               
               <div className="hr-social-gap">
                 <button 
                   className="hr-social-btn" 
                   onClick={() => handleSocialLogin('google')}
                 >
-                  <FaGoogle /> Sign in with Google
+                  <FaGoogle /> Sign in with Workspace
                 </button>
               </div>
-              <p className="hr-helper-text">Secure access for verified personnel.</p>
+              <p className="hr-helper-text">Secure access for verified organizations.</p>
             </div>
           </div>
 
@@ -135,8 +135,8 @@ export default function HrLogin() {
           <div className="hr-side-right">
             <div className="hr-form-container">
               <div className="hr-header">
-                <h1>Owner & Admin</h1>
-                <p>ก้าวเข้าสู่ระบบจัดการ PerFile</p>
+                <h1>Owner Login</h1>
+                <p>ก้าวเข้าสู่ระบบจัดการสำหรับผู้ประกอบการ</p>
               </div>
 
               <form className="hr-login-form" onSubmit={handleLogin}>
@@ -144,7 +144,7 @@ export default function HrLogin() {
                   <LuMail className="hr-icon" />
                   <input 
                     type="email" 
-                    placeholder="Email Address" 
+                    placeholder="Business Address" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required 
