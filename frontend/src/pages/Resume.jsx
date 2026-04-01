@@ -92,7 +92,6 @@ export default function ResumeBuilder() {
 
   const removeSkill = (s) => set("skills", data.skills.filter(x => x !== s));
 
-  const handlePrint = () => window.print();
 
   // ← บันทึกแบบ Private แล้วกลับ Profile
   const handleSavePrivate = () => {
