@@ -61,10 +61,18 @@
     display: flex;
     align-items: center;
     background: #f3f4f6;
-    border-radius: 8px;
-    padding: 6px 12px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 7px 14px;
     gap: 8px;
-    width: 300px;
+    width: 280px;
+    transition: all 0.2s;
+}
+
+.nav-search:focus-within {
+    background: #fff;
+    border-color: #a5b4fc;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .nav-search input {
@@ -73,6 +81,138 @@
     outline: none;
     font-size: 13px;
     width: 100%;
+}
+
+/* Nav Icon Button */
+.nav-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.nav-icon-btn:hover {
+    background: #f3f4f6;
+    color: var(--admin-primary);
+    border-color: #c7d2fe;
+}
+
+/* Admin Dropdown */
+.nav-admin-wrapper {
+    position: relative;
+}
+
+.nav-admin-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 6px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-admin-btn:hover {
+    background: #f5f3ff;
+    border-color: #c7d2fe;
+}
+
+.nav-admin-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #ede9fe;
+    color: var(--admin-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-admin-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.nav-admin-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 210px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    z-index: 9999;
+    overflow: hidden;
+    animation: dropdownFadeIn 0.15s ease;
+}
+
+@keyframes dropdownFadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.nav-admin-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fafafa;
+}
+
+.nav-admin-avatar-lg {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #ede9fe;
+    color: var(--admin-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.nav-admin-dropdown-divider {
+    height: 1px;
+    background: #f0f0f0;
+}
+
+.nav-admin-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.nav-admin-dropdown-item:hover {
+    background: #f9fafb;
+}
+
+.nav-admin-dropdown-item--danger {
+    color: #ef4444;
+}
+
+.nav-admin-dropdown-item--danger:hover {
+    background: #fff5f5;
 }
 
 /* 2. Admin Body (Sidebar + Main) */
@@ -183,21 +323,50 @@
 /* Stat Cards */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
+    /* ปรับให้รองรับหน้าจอหลายขนาด (Responsive) */
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
     margin-bottom: 32px;
 }
 
 .stat-card {
-    background: #fff;
+    background: #ffffff;
     border: 1px solid var(--admin-border);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* จัดให้อยู่กึ่งกลางแนวตั้ง */
+    min-height: 120px;       /* เพิ่มความสูงขั้นต่ำกันตัวหนังสือซ้อน */
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
 }
 
-.stat-num { font-size: 32px; font-weight: 800; color: var(--admin-primary); }
-.stat-label { font-size: 12px; color: var(--admin-text-sub); font-weight: 600; text-transform: uppercase; }
+.stat-card:hover {
+    transform: translateY(-4px); /* ลอยขึ้นนิดหน่อยเวลาชี้ */
+}
+
+.stat-num {
+    font-size: 36px;       /* ปรับขนาดให้ใหญ่ขึ้น */
+    font-weight: 800;
+    color: var(--admin-primary);
+    line-height: 1;        /* กันบรรทัดห่างเกินไป */
+    margin-top: 8px;
+}
+
+/* ตัวหนังสืออธิบาย */
+.stat-label {
+    font-size: 13px;
+    color: var(--admin-text-sub);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;        /* บังคับให้แยกบรรทัดกับตัวเลข */
+}
+
+
 
 /* 4. Common Table Styles (ใช้ร่วมกันทั้ง User และ Audit) */
 .data-section, .audit-section {
@@ -234,8 +403,8 @@
 /* ล็อคหัวคอลัมน์ (Timestamp, User Info, etc.) */
 .admin-table thead th {
     position: sticky;
-    top: 58px; /* ต้องตรงกับความสูงของ .table-header */
-    z-index: 58;
+    top: 68px; /* ความสูงของ .table-header แถวเดียว (padding 18px*2 + line-height ~21px) */
+    z-index: 48;
     background: #f9fafc;
     padding: 14px 20px;
     color: var(--admin-text-sub);
@@ -244,6 +413,11 @@
     text-transform: uppercase;
     text-align: left;
     border-bottom: 1px solid var(--admin-border);
+}
+
+/* User Management มี filter bar สูงกว่า ต้องดัน thead ลงเพิ่ม */
+.data-section .admin-table thead th {
+    top: 88px;
 }
 
 .admin-table td {
@@ -267,40 +441,108 @@
     max-width: 810px;
 }
 
+.pending-card h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 20px;
+}
+
 .pending-item {
-    display: grid;
-    grid-template-columns: 280px 1fr 100px;
+    display: flex;
     align-items: center;
-    gap: 20px;
+    justify-content: space-between; /* จัดให้ User Info อยู่ซ้ายสุด และ Action อยู่ขวาสุด */
     padding: 15px 20px;
-    background: #f8fafc;
+    background: #f8fafc; /* พื้นหลังเทาอ่อนๆ เหมือนในรูป */
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    margin-top: 15px;
+    margin-bottom: 12px;
     transition: all 0.2s ease;
 }
 
+.pending-item:hover {
+    border-color: #6366f1; /* สีกรอบเวลา Hover */
+}
+
+.user-info-brief {
+    display: flex;
+    align-items: center;
+    gap: 16px; /* ระยะห่างระหว่าง Avatar กับ Text */
+    flex: 1; /* กินพื้นที่ฝั่งซ้าย */
+}
+
 .mini-avatar {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #d97706, #a855f7);
+    width: 44px;
+    height: 44px;
+    /* Gradient สีตามรูปที่ 2 */
+    background: linear-gradient(135deg, #f97316, #a855f7); 
     color: white;
-    border-radius: 50%;
+    border-radius: 50%; /* ทรงกลมเป๊ะ */
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    flex-shrink: 0;
+    font-size: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.info-text .username {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 14px;
+    margin: 0;
+}
+
+.info-text .email {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+}
+
+.work-info {
+    flex: 1; /* กินพื้นที่ตรงกลาง */
+    /*text-align: center;*/ /* จัดตัวหนังสือให้อยู่ตรงกลาง */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%; /* ให้ความสูงเท่ากับ parent */
+}
+
+.work-info .fullname {
+    font-size: 14px;
+    font-weight: 500;
+    color: #334155;
+    margin: 0;
+}
+
+.work-info .company {
+    font-size: 12px;
+    color: #d97706; /* สีน้ำตาลส้มเหมือนในรูป */
+    font-weight: 600;
+    margin: 0;
+}
+
+.action-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* ชิดขวา */
+    width: 100px; /* ล็อคความกว้างโซนปุ่ม */
 }
 
 .approve-btn {
-    background: #d97706;
+    background: #d97706; /* สีส้มเข้ม */
     color: white;
     border: none;
-    padding: 8px 0;
-    border-radius: 8px;
+    padding: 8px 18px;
+    border-radius: 8px; /* ขอบมนเล็กน้อย */
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.2s;
+}
+
+.approve-btn:hover {
+    background: #b45309; /* สีส้มเข้มขึ้นเวลา Hover */
 }
 
 /* 6. Specific Components (Badges & Tags) */

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import "../styles/AdminDashboard.css";
 import { 
   LuSearch, LuBell, LuUsers, LuFileText, 
@@ -9,19 +10,29 @@ import { FiHome } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
 
 export default function AdminDashboard() {
-  const [currentTab, setCurrentTab] = useState("overview","User Management");
+  const [currentTab, setCurrentTab] = useState("overview");
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const userTableRef = useRef(null);
   const sidebarRef = useRef(null);
+  const overviewRef = useRef(null);
+  const auditLogsRef = useRef(null);
   const [isSidebarOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("");
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditTotal, setAuditTotal] = useState(0);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const adminMenuRef = useRef(null);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
+  };
 
   // --- 2. Helper Functions (ประกาศไว้ก่อนเพื่อให้ Effects เรียกใช้ได้) ---
   const fetchStats = async () => {
@@ -164,16 +175,31 @@ useEffect(() => {
     handleUpdateStatus(userId, newStatus);
   };
 
-  const goToOverview = () => {
-  // 1. สั่งสลับ Tab กลับไปที่ Overview
-  setCurrentTab("overview");
+  // ปิด Admin Menu เมื่อคลิกข้างนอก
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (adminMenuRef.current && !adminMenuRef.current.contains(e.target)) {
+        setShowAdminMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // 2. สั่งให้หน้าจอเลื่อนกลับไปบนสุด (Smooth Scroll to top)
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
-};
+  const goToOverview = () => {
+    setCurrentTab("overview");
+    setTimeout(() => {
+      if (overviewRef.current) {
+        overviewRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 50);
+  };
+
+  const scrollToAuditLogs = () => {
+    if (auditLogsRef.current) {
+      auditLogsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   const scrollToUserManagement = () => {
   if (userTableRef.current) {
@@ -198,10 +224,34 @@ useEffect(() => {
           </div>
         </div>
         <div className="nav-right">
-          <button className="icon-btn"><LuBell /></button>
-          <div className="user-dropdown">
-            <LuShieldCheck size={18} color="#4f46e5" />
-            <span>Admin {userData?.username || "Admin"}</span>
+          <button className="nav-icon-btn">
+            <LuBell size={18} />
+          </button>
+          <div className="nav-admin-wrapper" ref={adminMenuRef}>
+            <button className="nav-admin-btn" onClick={() => setShowAdminMenu(v => !v)}>
+              <div className="nav-admin-avatar">
+                <LuShieldCheck size={14} />
+              </div>
+              <span className="nav-admin-name">Admin {userData?.username || "Admin"}</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ color: '#9ca3af', transition: 'transform 0.2s', transform: showAdminMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {showAdminMenu && (
+              <div className="nav-admin-dropdown">
+                <div className="nav-admin-dropdown-header">
+                  <div className="nav-admin-avatar-lg"><LuShieldCheck size={18} /></div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Admin {userData?.username || "Admin"}</div>
+                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>Administrator</div>
+                  </div>
+                </div>
+                <div className="nav-admin-dropdown-divider" />
+                <button className="nav-admin-dropdown-item nav-admin-dropdown-item--danger" onClick={handleLogout}>
+                  <LuBan size={14} /> Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -219,7 +269,7 @@ useEffect(() => {
             <button className="menu-item"><LuFileText /> <span>Resume Controls</span></button>
             
             <div className="section-title">System</div>
-            <button className="menu-item"><LuActivity /> <span>Audit Logs</span></button>
+            <button className={`menu-item ${currentTab === "audit-logs" ? "active" : ""}`} onClick={() => { setCurrentTab("audit-logs"); scrollToAuditLogs(); }}><LuActivity /> <span>Audit Logs</span></button>
             <button className="menu-item"><LuSettings /> <span>System Settings</span></button>
           </div>
 
@@ -230,13 +280,18 @@ useEffect(() => {
         </aside>
 
         <main className="admin-main">
-          <header className="dashboard-header">
+          <header className="dashboard-header" ref={overviewRef}>
             <h1 className="dashboard-title">Dashboard Overview</h1>
             <p style={{ color: '#6b7280', fontSize: '14px' }}>ข้อมูลสรุปภาพรวมของระบบ PerFile</p>
           </header>
 
           {/* STATS CARDS (ใช้ข้อมูลจริงจาก API) */}
           <div className="stats-grid">
+
+            <div className="stat-card">
+              <span className="stat-label">Total Users</span>
+              <span className="stat-num">{users.length}</span>
+            </div>
             <div className="stat-card">
               <span className="stat-label">Total Seekers</span>
               <span className="stat-num">{stats?.userStats.generalUser || 0}</span>
@@ -249,6 +304,7 @@ useEffect(() => {
               <span className="stat-label">Pending Approval</span>
               <span className="stat-num" style={{ color: '#d97706' }}>{stats?.pendingHR || 0}</span>
             </div>
+            
             <div className="stat-card">
               <span className="stat-label">Total Resumes</span>
               <span className="stat-num">{stats?.resumeStats.public + stats?.resumeStats.private || 0}</span>
@@ -303,7 +359,10 @@ useEffect(() => {
           {/* ตารางแสดงข้อมูล User ล่าสุด */}
           <div className="data-section" ref={userTableRef} >
             <div className="table-header">
-              <h2 style={{ fontSize: '16px', fontWeight: 700 }}>User Management</h2>
+              
+                <h2 style={{ fontSize: '16px', fontWeight: 700 }}>User Management</h2>
+                
+              
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <div className="nav-search" style={{ width: '200px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={15} />
@@ -479,7 +538,7 @@ useEffect(() => {
             </table>
           </div>
 
-          <div className="audit-section">
+          <div className="audit-section" ref={auditLogsRef}>
             <div className="table-header">
               <h2>Audit Logs System</h2>
               {/* 🌟 แสดงจำนวนทั้งหมดจาก auditTotal */}
