@@ -178,7 +178,7 @@ resumeRouter.get("/my", authMiddleware, async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-resumeRouter.post("/resumes",authMiddleware, async (req, res) => {
+resumeRouter.post("/",authMiddleware, async (req, res) => {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -189,40 +189,43 @@ resumeRouter.post("/resumes",authMiddleware, async (req, res) => {
     // 1. บันทึกตารางหลัก
     const [resumeResult] = await connection.query(
       "INSERT INTO resumes (user_id, title, template, visibility) VALUES (?, ?, ?, ?)",
-      [userId, title, template, visibility]
+      [userId, title || "Untitled Resume", template || "template1", visibility || "private"]
     );
     const resumeId = resumeResult.insertId;
 
     // 2. บันทึกตารางย่อย (Sections)
-    if (sections && sections.length > 0) {
-      for (const section of sections) {
-        await connection.query(
-          "INSERT INTO resume_sections (resume_id, type, content, section_order) VALUES (?, ?, ?, ?)",
-          [resumeId, section.type, JSON.stringify(section.content), section.order]
-        );
-      }
+    if (sections && Array.isArray(sections) && sections.length > 0) {
+      // เตรียม Query สำหรับ Insert หลายแถวพร้อมกัน (Bulk Insert) เพื่อความเร็ว
+      const sectionValues = sections.map((section) => [
+        resumeId,
+        section.type,
+        JSON.stringify(section.content), // แปลงก้อนข้อมูลเป็น JSON string
+        section.order
+      ]);
+
+      await connection.query(
+        "INSERT INTO resume_sections (resume_id, type, content, section_order) VALUES ?",
+        [sectionValues]
+      );
     }
 
     await connection.commit();
 
     // ✅ จุดที่ต้องแก้: ส่งข้อมูลกลับไปให้ Swagger โชว์แทนที่จะส่ง {}
     res.status(201).json({
-      message: "Resume created successfully",
-      resume: {
-        id: resumeId,
-        title,
-        template,
-        visibility,
-        sections: sections || [], // ส่ง sections ที่รับมากลับไปโชว์
-        createdAt: new Date().toISOString()
-      }
+      message: "สร้าง Resume สำเร็จแล้ว!",
+      resumeId: resumeId,
+      data: { title, template, visibility, sections }
     });
 
   } catch (err) {
-    await connection.rollback();
-    res.status(500).json({ message: "Server error" });
+    // หากเกิดข้อผิดพลาด ให้ยกเลิกคำสั่งทั้งหมด (Rollback)
+    if (connection) await connection.rollback();
+    console.error("Post Resume Error:", err.message);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
   } finally {
-    connection.release();
+    // คืน Connection ให้กับ Database Pool
+    if (connection) connection.release();
   }
 });
 
