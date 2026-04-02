@@ -7,7 +7,8 @@ import "../styles/Resume.css";
 const defaultData = {
   name: "",
   title: "",
-  template: "template1",
+  template: "",
+  image: null,
   email: "",
   phone: "",
   location: "",
@@ -136,7 +137,8 @@ export default function ResumeBuilder() {
       setSavedToast(true);
       const payload = {
         title: data.name + " - Resume",
-        template: data.template || "template1",
+        template: data.template,
+        image: data.image,
         visibility: "private",
         sections: [
           { type: "summary", content: { text: data.summary }, order: 1 },
@@ -176,6 +178,7 @@ export default function ResumeBuilder() {
   };
 
   const tabs = [
+    { id: "template", label: "เทมเพลต" },
     { id: "info", label: "ข้อมูล" },
     { id: "exp", label: "ประสบการณ์" },
     { id: "edu", label: "การศึกษา" },
@@ -204,8 +207,106 @@ export default function ResumeBuilder() {
           </div>
 
           <div className="sidebar-body">
+            {tab === "template" && (
+              <>
+                <div className="section-label">1. เลือกรูปแบบ Resume</div>
+                <div className="template-grid" style={{ 
+                  display: "grid", 
+                  gridTemplateColumns: "1fr 1fr", 
+                  gap: "12px", 
+                  marginBottom: "25px" 
+                }}>
+                  {/* รูปแบบ Classic */}
+                  <div 
+                    className={`template-card ${data.template === 'classic' ? 'active' : ''}`}
+                    onClick={() => set("template", "classic")}
+                  >
+                    <div className="tm-icon">📜</div>
+                    <span>Classic</span>
+                  </div>
+
+                  {/* รูปแบบ Modern */}
+                  <div 
+                    className={`template-card ${data.template === 'modern' ? 'active' : ''}`}
+                    onClick={() => set("template", "modern")}
+                  >
+                    <div className="tm-icon">📱</div>
+                    <span>Modern</span>
+                  </div>
+
+                  {/* รูปแบบ Professional */}
+                  <div 
+                    className={`template-card ${data.template === 'professional' ? 'active' : ''}`}
+                    onClick={() => set("template", "professional")}
+                  >
+                    <div className="tm-icon">💼</div>
+                    <span>Professional</span>
+                  </div>
+                </div>
+
+                <div className="section-label">2. เลือกโทนสีที่ต้องการ</div>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  {[
+                    { name: "Gold", code: "#d4af37" },
+                    { name: "Blue", code: "#0044cc" },
+                    { name: "Green", code: "#10b981" },
+                    { name: "Dark", code: "#1f2937" }
+                  ].map(color => (
+                    <button
+                      key={color.code}
+                      onClick={() => set("themeColor", color.code)}
+                      style={{
+                        width: "35px", height: "35px", borderRadius: "50%",
+                        backgroundColor: color.code, border: data.themeColor === color.code ? "3px solid #fff" : "none",
+                        cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.2)"
+                      }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
             {tab === "info" && (
               <>
+                <div className="section-label">รูปถ่ายโปรไฟล์</div>
+                <div className="image-upload-wrapper" style={{ marginBottom: '20px', textAlign: 'center' }}>
+                  <div className="image-preview-circle" style={{ 
+                    width: '100px', height: '100px', borderRadius: '50%', 
+                    backgroundColor: '#222', margin: '0 auto 10px', 
+                    overflow: 'hidden', border: '2px dashed #444',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {data.image ? (
+                      <img src={data.image} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ color: '#666', fontSize: '12px' }}>ไม่มีรูป</span>
+                    )}
+                  </div>
+                  
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    id="profile-upload" 
+                    style={{ display: 'none' }} 
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => set("image", reader.result);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <label htmlFor="profile-upload" className="btn-add" style={{ display: 'inline-block', width: 'auto', padding: '8px 16px', cursor: 'pointer' }}>
+                    📸 เลือกรูปถ่าย
+                  </label>
+                  {data.image && (
+                    <button onClick={() => set("image", null)} style={{ background: 'none', border: 'none', color: '#e05555', fontSize: '12px', marginLeft: '10px', cursor: 'pointer' }}>
+                      ลบรูป
+                    </button>
+                  )}
+                </div>
                 <div className="section-label">ข้อมูลส่วนตัว</div>
                 <div className="field">
                   <label>ชื่อ-นามสกุล</label>
@@ -245,7 +346,7 @@ export default function ResumeBuilder() {
                   value={data.skillDisplayMode} 
                   onChange={(e) => set("skillDisplayMode", e.target.value)}
                   className="template-select"
-                  style={{ width: '100%', marginBottom: '15px' }}
+                  style={{ width: '100%', marginBottom: '15px', padding: '9px 12px', borderRadius: '6px', border: '2px solid #636363', backgroundColor: '#24262a', color: '#fff' }}
                 >
                   <option value="simple">รายการทั่วไป (Bullet Points)</option>
                   <option value="category">แยก Hard Skills & Soft Skills</option>
@@ -279,7 +380,7 @@ export default function ResumeBuilder() {
                     
                     {/* แสดง "ประเภททักษะ" เฉพาะเมื่อเลือกแบบแยกประเภท (category) */}
                     {data.skillDisplayMode === "category" && (
-                      <select id="skillType" style={{ flex: 1 }}>
+                      <select id="skillType" style={{ flex: 1, padding: '9px 12px', borderRadius: '6px', border: '2px solid #636363', backgroundColor: '#24262a', color: '#fff' }}>
                         <option value="Hard Skill">Hard Skill</option>
                         <option value="Soft Skill">Soft Skill</option>
                       </select>
@@ -287,7 +388,7 @@ export default function ResumeBuilder() {
 
                     {/* แสดง "ระดับทักษะ" เฉพาะเมื่อเลือกแบบบอกระดับ (level-text) หรือเปอร์เซ็นต์ (level-bar) */}
                     {(data.skillDisplayMode === "level-text" || data.skillDisplayMode === "level-bar") && (
-                      <select id="skillLevel" style={{ flex: 1 }}>
+                      <select id="skillLevel" style={{ flex: 1, padding: '9px 12px', borderRadius: '6px', border: '2px solid #636363', backgroundColor: '#24262a', color: '#fff' }}>
                         <option value="100|เชี่ยวชาญ">เชี่ยวชาญ (100%)</option>
                         <option value="80|ดีมาก">ดีมาก (80%)</option>
                         <option value="60|ปานกลาง">ปานกลาง (60%)</option>
@@ -312,12 +413,23 @@ export default function ResumeBuilder() {
 
         {/* PREVIEW AREA (ตรงตามโหมดการแสดงผลที่เลือก) */}
         <div className="preview-area">
-          <div className={`resume ${data.template}`} ref={resumeRef}>
-            <div className="resume-header">
+          <div 
+            className={`resume ${data.template}`} 
+            style={{ "--theme-color": data.themeColor || "#d4af37" }} 
+            ref={resumeRef}
+          >
+            <div className="resume-header" style={{ backgroundColor: "var(--theme-color)", display: 'flex', alignItems: 'center', gap: '30px' }}>
+              {data.image && (
+                <div className="resume-photo" style={{ 
+                  width: '120px', height: '120px', borderRadius: '50%', 
+                  border: '4px solid #fff', overflow: 'hidden', flexShrink: 0 
+                }}>
+                  <img src={data.image} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
               <div className="resume-name">{data.name || "ชื่อของคุณ"}</div>
               <div className="resume-title">{data.title || "ตำแหน่งงาน"}</div>
             </div>
-
             <div className="resume-body">
               <div className="resume-main">
                 {data.summary && (
@@ -326,7 +438,6 @@ export default function ResumeBuilder() {
                     <div className="r-summary">{data.summary}</div>
                   </div>
                 )}
-                {/* วนลูปแสดงผล Experience และ Education (ตามที่คุณทำไว้เดิม) */}
               </div>
 
               <div className="resume-side">

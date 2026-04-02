@@ -272,6 +272,11 @@ input::placeholder, textarea::placeholder { color: #3a3a3a; }
   box-shadow: 0 25px 80px rgba(0,0,0,0.5);
   position: relative;
   overflow: hidden;
+
+  /* 🟢 ส่วนที่เพิ่มเข้าไปเพื่อแก้ปัญหา Preview ใหญ่เกินไป */
+  transform: scale(0.55);      /* ย่อขนาดลงเหลือ 55% (ปรับตัวเลขนี้ได้ตามความเหมาะสม) */
+  transform-origin: top center; /* กำหนดให้จุดยึดในการย่อเริ่มจากกึ่งกลางด้านบน */
+  margin-bottom: -120mm;        /* ชดเชยพื้นที่ว่างด้านล่างที่เกิดขึ้นจากการย่อส่วน */
 }
 
 @page {
@@ -440,4 +445,53 @@ input::placeholder, textarea::placeholder { color: #3a3a3a; }
   .sidebar { display: none; }
   .preview-area { padding: 0; background: #fff; }
   .resume { box-shadow: none; }
+}
+
+.template-card {
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  background: #1a1a1a;
+}
+
+.template-card.active {
+  border-color: var(--gold); /* สีทองตามธีมของคุณ */
+  background: #2a2a2a;
+}
+
+.tm-preview {
+  height: 80px;
+  background: #eee;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+/* จำลองสีในตัวอย่าง */
+.tm-preview.t1 { background: linear-gradient(to bottom, #d4af37 20%, #fff 20%); }
+.tm-preview.t2 { background: linear-gradient(to right, #0044cc 30%, #fff 30%); }
+.tm-preview.t3 { background: #fff; border: 1px solid #ddd; }
+
+/* 1. สำหรับ Classic (แบบเดิมที่คุณมี) */
+.resume.classic .resume-body {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+}
+
+/* 2. สำหรับ Modern (ย้าย Sidebar ไปไว้ด้านซ้าย) */
+.resume.modern .resume-body {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+}
+
+/* 3. สำหรับ Professional (แสดงเป็นคอลัมน์เดียวเต็มหน้ากระดาษ) */
+.resume.professional .resume-body {
+  display: block;
+}
+.resume.professional .resume-side {
+  background: transparent;
+  border-top: 1px solid #eee;
+  padding: 20px 52px;
 }
