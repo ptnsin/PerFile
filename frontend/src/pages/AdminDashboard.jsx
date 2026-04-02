@@ -32,6 +32,8 @@ export default function AdminDashboard() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState("");
   const navigate = useNavigate();
+  const [resumes, setResumes] = useState([]); 
+  const [resumeSearch, setResumeSearch] = useState(""); 
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -64,6 +66,35 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchAllResumes = async () => {
+  try {
+    const token = localStorage.getItem("token"); //
+    const res = await axios.get("http://localhost:3000/admin/resumes", {
+      headers: { Authorization: `Bearer ${token}` } //
+    });
+    setResumes(res.data); //
+  } catch (err) {
+    console.error("Error fetching resumes:", err); //
+  }
+};
+
+const handleDeleteResume = async (resumeId) => {
+  if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบ Resume นี้ถาวร?")) return;
+  try {
+    const token = localStorage.getItem("token");
+    await axios.delete(`http://localhost:3000/resumes/${resumeId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    // Update state ทันทีเพื่อให้ UI เปลี่ยนแปลงโดยไม่ต้อง Refresh
+    setResumes(resumes.filter((r) => r.id !== resumeId));
+    await fetchStats(); // อัปเดตตัวเลข Stats บน Dashboard ด้วย
+    alert("ลบข้อมูล Resume สำเร็จ");
+  } catch (err) {
+    console.error("Delete Resume Error:", err);
+    alert("ไม่สามารถลบ Resume ได้");
+  }
+};
+
   // --- 3. Effects ---
 
   // ดึงข้อมูลครั้งแรกเมื่อโหลดหน้า
@@ -82,6 +113,7 @@ useEffect(() => {
       const headers = { Authorization: `Bearer ${token}` };
       await fetchStats();
       await fetchAuditLogs();
+      await fetchAllResumes();
       const usersRes = await axios.get("http://localhost:3000/admin/users?page=1", { headers });
       setUsers(usersRes.data.users);
       const settingsRes = await axios.get("http://localhost:3000/admin/settings", { headers });
@@ -247,7 +279,10 @@ useEffect(() => {
     <div className="admin-page">
       <nav className="admin-nav">
         <div className="nav-left">
-          <div className="nav-logo">PerFile Admin</div>
+          <div className="nav-logo">
+            Per<em>File</em>
+            <span className="nav-logo-badge">Admin</span>
+          </div>
           <div className="nav-search">
             <LuSearch color="#9ca3af" size={15} />
             <input placeholder="ค้นหา User, HR หรือระบบ..." />
@@ -296,8 +331,11 @@ useEffect(() => {
               setCurrentTab("user-management");
               scrollToUserManagement();
             }} ><LuUsers /> <span>User Management</span></button>
-            <button className="menu-item"><LuFileText /> <span>Resume Controls</span></button>
-            
+            <button className={`menu-item ${currentTab === "resume-controls" ? "active" : ""}`} onClick={() => {
+              setCurrentTab("resume-controls");
+              document.getElementById('resume-management')?.scrollIntoView({ behavior: 'smooth' });
+            }}><LuFileText /> <span>Resume Controls</span></button>
+
             <div className="section-title">System</div>
             <button className={`menu-item ${currentTab === "audit-logs" ? "active" : ""}`} onClick={() => { setCurrentTab("audit-logs"); scrollToAuditLogs(); }}><LuActivity /> <span>Audit Logs</span></button>
             <button className={`menu-item ${currentTab === "settings" ? "active" : ""}`} onClick={() => { setCurrentTab("settings"); scrollToSettings(); }}><LuSettings /> <span>System Settings</span></button>
@@ -337,7 +375,7 @@ useEffect(() => {
             
             <div className="stat-card">
               <span className="stat-label">Total Resumes</span>
-              <span className="stat-num">{stats?.resumeStats.public + stats?.resumeStats.private || 0}</span>
+              <span className="stat-num">{resumes.length}</span>
             </div>
           </div>
 
@@ -566,6 +604,77 @@ useEffect(() => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="data-section" id="resume-management">
+            <div className="table-header">
+              <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Resume Controls</h2>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
+                  <LuSearch color="#9ca3af" size={15} />
+                  <input 
+                    placeholder="ค้นหาชื่อ Resume หรือเจ้าของ..." 
+                    value={resumeSearch}
+                    onChange={(e) => setResumeSearch(e.target.value)}
+                    style={{ outline: 'none', color: '#111827' }} 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Resume Title</th>
+                  <th>Owner</th>
+                  <th>Template</th>
+                  <th>Visibility</th>
+                  <th>Created Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resumes
+                  .filter(r => 
+                    r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) || 
+                    r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase())
+                  )
+                  .map((resume) => (
+                    <tr key={resume.id}>
+                      <td style={{ fontWeight: 600 }}>{resume.title}</td>
+                      <td>
+                        <div>{resume.owner_name}</div>
+                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>{resume.owner_email}</div>
+                      </td>
+                      <td>
+                        <span className="action-tag" style={{ background: '#f3f4f6', color: '#374151' }}>
+                          {resume.template}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-select-box status-${resume.visibility}`}>
+                          {resume.visibility}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {new Date(resume.created_at).toLocaleDateString('th-TH')}
+                      </td>
+                      <td>
+                        <button 
+                          className="action-btn" 
+                          onClick={() => handleDeleteResume(resume.id)}
+                          style={{ color: '#ffffff', backgroundColor: '#ef4444', border: 'none' }}
+                        >
+                          <LuTrash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                ))}
+              </tbody>
+            </table>
+            {resumes.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>ไม่พบข้อมูล Resume</div>
+            )}
           </div>
 
           <div className="audit-section" ref={auditLogsRef}>

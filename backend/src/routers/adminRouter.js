@@ -901,4 +901,44 @@ router.get("/settings", authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// 11. GET /admin/resumes
+// ─────────────────────────────────────────────
+
+
+router.get("/resumes", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = `
+      SELECT 
+        r.id, 
+        r.title, 
+        r.template, 
+        r.visibility, 
+        r.created_at, 
+        r.updated_at,
+        u.username AS owner_name,
+        u.email AS owner_email
+      FROM resumes r
+      JOIN users u ON r.user_id = u.id
+    `;
+    
+    const params = [];
+    if (search) {
+      query += " WHERE r.title LIKE ? OR u.username LIKE ? OR u.email LIKE ?";
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    query += " ORDER BY r.created_at DESC";
+
+    const [resumes] = await db.query(query, params);
+    
+    res.status(200).json(resumes);
+  } catch (err) {
+    console.error("Fetch all resumes error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 export default router;
