@@ -25,6 +25,9 @@ export default function AdminDashboard() {
   const [selectedMethod, setSelectedMethod] = useState("");
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditTotal, setAuditTotal] = useState(0);
+  const [filterLogAdmin, setFilterLogAdmin] = useState("");
+  const [filterLogAction, setFilterLogAction] = useState("");
+  const [filterLogTarget, setFilterLogTarget] = useState("");
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const adminMenuRef = useRef(null);
   const settingsRef = useRef(null);
@@ -429,7 +432,9 @@ useEffect(() => {
             <div className="table-header">
               
                 <h2 style={{ fontSize: '16px', fontWeight: 700 }}>User Management</h2>
-                
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500  }}>
+                  Total {users.length} user
+                </span>
               
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <div className="nav-search" style={{ width: '200px', marginBottom: 0 }}>
@@ -678,13 +683,69 @@ useEffect(() => {
           </div>
 
           <div className="audit-section" ref={auditLogsRef}>
-            <div className="table-header">
-              <h2>Audit Logs System</h2>
-              {/* 🌟 แสดงจำนวนทั้งหมดจาก auditTotal */}
-              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                Total {auditTotal} activities
-              </span>
+            <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+  
+            {/* ฝั่งซ้าย: หัวข้อและฟิลเตอร์ */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Audit Logs System</h2>
+
+            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+              Total {auditTotal} activities
+            </span>
+
+              {/* กลุ่มฟิลเตอร์ */}
+              
             </div>
+
+            {/* ฝั่งขวา: จำนวนรายการทั้งหมด */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+                {/* ค้นหา Admin */}
+                <div className="nav-search" style={{ width: '160px', marginBottom: 0 }}>
+                  <LuSearch color="#9ca3af" size={14} />
+                  <input 
+                    placeholder="Filter Admin..." 
+                    value={filterLogAdmin}
+                    onChange={(e) => setFilterLogAdmin(e.target.value)}
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+
+                {/* ค้นหา Target User */}
+                <div className="nav-search" style={{ width: '160px', marginBottom: 0 }}>
+                  <LuSearch color="#9ca3af" size={14} />
+                  <input 
+                    placeholder="Filter Target..." 
+                    value={filterLogTarget}
+                    onChange={(e) => setFilterLogTarget(e.target.value)}
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+
+                {/* เลือก Action */}
+                <select 
+                  className="action-btn" 
+                  value={filterLogAction}
+                  onChange={(e) => setFilterLogAction(e.target.value)}
+                  style={{ fontSize: '12px', padding: '6px' }}
+                >
+                  <option value="">All Actions</option>
+                  <option value="CHANGE_STATUS">CHANGE_STATUS</option>
+                  <option value="APPROVE_HR">APPROVE_HR</option>
+                  <option value="CHANGE_ROLE">CHANGE_ROLE</option>
+                  <option value="DELETE_USER">DELETE_USER</option>
+                </select>
+
+                <button 
+                  className="action-btn" 
+                  onClick={() => {setFilterLogAdmin(""); setFilterLogAction(""); setFilterLogTarget("");}}
+                  style={{ padding: '3px 12px' }}
+                >
+                  Reset
+                </button>
+              </div>
+
+          </div>
+
 
             <table className="admin-table">
               <thead>
@@ -692,6 +753,7 @@ useEffect(() => {
                   <th>Timestamp</th>
                   <th>Admin</th>
                   <th>Action</th>
+                  <th>Target User</th>
                   <th>Details</th>
                 </tr>
               </thead>
@@ -700,11 +762,14 @@ useEffect(() => {
                 {auditLogs.map((log) => (
                   <tr key={log.id}>
                     <td>{new Date(log.created_at).toLocaleString('th-TH')}</td>
-                    <td>{log.admin_name}</td>
+                    <td style={{ fontWeight: 600 }}>{log.admin_name}</td>
                     <td>
                       <span className={`action-tag action-${log.action.toLowerCase()}`}>
                         {log.action}
                       </span>
+                    </td>
+                    <td style={{ color: '#4f46e5', fontWeight: 500 }}>
+                      {log.target_name || "-"}
                     </td>
                     <td>{log.detail}</td>
                   </tr>

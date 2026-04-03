@@ -430,7 +430,7 @@
 /* ล็อคหัวคอลัมน์ (Timestamp, User Info, etc.) */
 .admin-table thead th {
     position: sticky;
-    top: 68px; /* ความสูงของ .table-header แถวเดียว (padding 18px*2 + line-height ~21px) */
+    top: 57px; /* ความสูงของ .table-header แถวเดียว (padding 18px*2 + line-height ~21px) */
     z-index: 48;
     background: #f9fafc;
     padding: 14px 20px;

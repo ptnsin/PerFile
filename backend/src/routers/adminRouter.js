@@ -606,10 +606,16 @@ router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
 
     // แก้ u.name เป็น u.username ให้ตรงกับ Database จริงของคุณ
     const [logs] = await db.query(
-      `SELECT al.id, al.action, al.target_id, al.detail, al.created_at,
-              u.username AS admin_name, u.email AS admin_email
+      `SELECT al.id, 
+              al.action, 
+              al.target_id, 
+              al.detail, 
+              al.created_at,
+              u1.username AS admin_name, 
+              u2.username AS target_name
        FROM audit_logs al
-       LEFT JOIN users u ON u.id = al.admin_id
+       LEFT JOIN users u1 ON al.admin_id = u1.id
+       LEFT JOIN users u2 ON al.target_id = u2.id
        ORDER BY al.created_at DESC
        LIMIT ? OFFSET ?`,
       [parsedLimit, offset]
