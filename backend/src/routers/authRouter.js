@@ -580,10 +580,18 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
     // 3. ตรวจสอบว่ามี Email นี้ในระบบหรือยัง
     const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [googleUser.email]);
     
+    const isHRPath = state === 'hr_login' || state === 'hr_register';
+
     let user;
     if (rows.length > 0) {
       user = rows[0];
-      // 🌟 อัปเดตข้อมูลเดิม: บันทึก google_id เพิ่มเข้าไปด้วย
+
+      // 1. ตรวจสอบและอัปเดต Role ในฐานข้อมูล
+      if (isHRPath && user.roles_id === 2) {
+        await db.query("UPDATE users SET roles_id = 3, status = 'pending' WHERE id = ?", [user.id]);
+        user.roles_id = 3;
+        user.status = 'pending';
+      }
       await db.query(
         "UPDATE users SET avatar = ?, fullName = ?, google_id = ? WHERE id = ?",
         [googleUser.picture, googleUser.name, googleId, user.id]
@@ -594,9 +602,8 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
       user.fullName = googleUser.name;
     } else {
       // 🌟 สมัครสมาชิกใหม่: บันทึก google_id ลงไปตั้งแต่แรก
-      const isHR = state === 'hr_register'; 
-      const defaultRole = isHR ? 3 : 2;
-      const defaultStatus = isHR ? 'pending' : 'active';
+      const assignedRole = isHRPath ? 3 : 2;
+      const assignedStatus = isHRPath ? 'pending' : 'active';
 
       const [result] = await db.query(
         "INSERT INTO users (username, email, fullName, avatar, google_id, password, roles_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -607,11 +614,11 @@ authRouter.get('/oauth/google/callback', async (req, res) => {
           googleUser.picture, 
           googleId, // <--- เพิ่มตรงนี้
           null, 
-          defaultRole, 
-          defaultStatus
+          assignedRole, 
+          assignedStatus
         ]
       );
-      user = { id: result.insertId, email: googleUser.email, roles_id: defaultRole, status: defaultStatus };
+      user = { id: result.insertId, email: googleUser.email, roles_id: assignedRole, status: assignedStatus };
     }
 
     // 🔒 เช็คสถานะ (HR ต้องรอ Admin Approve)
