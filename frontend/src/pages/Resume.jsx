@@ -540,19 +540,32 @@ function A4PreviewModal({ data, onClose }) {
    SPLIT-SCREEN LIVE PREVIEW PANEL
 ───────────────────────────────────────────── */
 function LivePreviewPanel({ data, onOpenA4 }) {
-  const [previewScale, setPreviewScale] = useState(0.45);
+  const [previewScale, setPreviewScale] = useState(0.55);
+  const [manualScale, setManualScale] = useState(null); // null = auto
   const containerRef = useRef();
 
   useEffect(() => {
+    if (manualScale !== null) return; // user is controlling manually, skip auto
     if (!containerRef.current) return;
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
       const a4w = 794;
-      setPreviewScale(Math.max(0.3, Math.min(0.55, (w - 32) / a4w)));
+      const autoScale = Math.max(0.3, Math.min(0.75, (w - 48) / a4w));
+      setPreviewScale(autoScale);
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [manualScale]);
+
+  const handleSliderChange = (e) => {
+    const val = parseFloat(e.target.value);
+    setManualScale(val);
+    setPreviewScale(val);
+  };
+
+  const handleResetAuto = () => {
+    setManualScale(null);
+  };
 
   const a4HeightPx = 1123; // 297mm ≈ 1123px
 
@@ -569,7 +582,7 @@ function LivePreviewPanel({ data, onOpenA4 }) {
         position: "relative",
       }}
     >
-      {/* Preview label */}
+      {/* Preview toolbar */}
       <div style={{
         position: "sticky",
         top: 0,
@@ -578,33 +591,76 @@ function LivePreviewPanel({ data, onOpenA4 }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "10px 16px",
-        backgroundColor: "rgba(20,20,26,0.95)",
+        padding: "8px 16px",
+        backgroundColor: "rgba(20,20,26,0.97)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
         backdropFilter: "blur(4px)",
+        gap: "12px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {/* Left: live dot + label */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
           <div style={{
             width: "6px", height: "6px", borderRadius: "50%",
             backgroundColor: "#22c55e",
             boxShadow: "0 0 6px #22c55e",
             animation: "pulse 2s infinite",
           }} />
-          <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.45)", letterSpacing: "0.5px" }}>
-            LIVE PREVIEW · {Math.round(previewScale * 100)}%
+          <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.45)", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
+            LIVE PREVIEW
           </span>
         </div>
+
+        {/* Center: zoom slider */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
+          <button
+            onClick={() => handleSliderChange({ target: { value: Math.max(0.25, previewScale - 0.05) } })}
+            style={{ background: "none", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "4px", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "14px", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, lineHeight: 1 }}
+          >−</button>
+          <input
+            type="range"
+            min="0.25"
+            max="0.90"
+            step="0.05"
+            value={previewScale}
+            onChange={handleSliderChange}
+            style={{
+              flex: 1,
+              height: "3px",
+              accentColor: "#d4af37",
+              cursor: "pointer",
+              minWidth: 0,
+            }}
+          />
+          <button
+            onClick={() => handleSliderChange({ target: { value: Math.min(0.90, previewScale + 0.05) } })}
+            style={{ background: "none", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "4px", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "14px", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, lineHeight: 1 }}
+          >+</button>
+          <span style={{ fontSize: "11px", color: "#d4af37", fontWeight: "700", minWidth: "34px", textAlign: "right", flexShrink: 0 }}>
+            {Math.round(previewScale * 100)}%
+          </span>
+          {manualScale !== null && (
+            <button
+              onClick={handleResetAuto}
+              title="รีเซ็ตเป็นอัตโนมัติ"
+              style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: "10px", flexShrink: 0, padding: "0 2px" }}
+            >auto</button>
+          )}
+        </div>
+
+        {/* Right: A4 button */}
         <button
           onClick={onOpenA4}
           style={{
             fontSize: "11px",
-            padding: "5px 12px",
+            padding: "5px 10px",
             borderRadius: "6px",
             border: "1px solid rgba(212,175,55,0.3)",
             background: "rgba(212,175,55,0.08)",
             color: "#d4af37",
             cursor: "pointer",
             fontWeight: "600",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           📄 A4 เต็มหน้า
@@ -616,16 +672,21 @@ function LivePreviewPanel({ data, onOpenA4 }) {
           0%, 100% { opacity: 1 }
           50% { opacity: 0.4 }
         }
+        input[type=range]::-webkit-slider-thumb {
+          width: 14px;
+          height: 14px;
+        }
       `}</style>
 
       {/* Scaled A4 */}
-      <div style={{ padding: "20px 16px 32px", width: "100%" }}>
+      <div style={{ padding: "16px 16px 40px", width: "100%", display: "flex", justifyContent: "center" }}>
         <div
           style={{
             transform: `scale(${previewScale})`,
             transformOrigin: "top center",
             height: `${a4HeightPx * previewScale}px`,
             position: "relative",
+            width: "794px",
           }}
         >
           <div style={{
@@ -917,18 +978,26 @@ export default function ResumeBuilder() {
             )}
           </div>
 
-          {/* ACTION BUTTONS */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "0 16px 16px" }}>
+          {/* ACTION BUTTONS — fixed at bottom, outside scroll area */}
+          <div style={{
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            padding: "12px 16px 16px",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            backgroundColor: "#181818",
+          }}>
             <button
               onClick={() => setShowA4Preview(true)}
               style={{
-                padding: "11px",
+                padding: "10px",
                 borderRadius: "8px",
                 border: "1.5px solid rgba(212,175,55,0.5)",
                 background: "rgba(212,175,55,0.08)",
                 color: "#d4af37",
                 fontWeight: "700",
-                fontSize: "13px",
+                fontSize: "12px",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
