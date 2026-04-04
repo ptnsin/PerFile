@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "../styles/AdminDashboard.css";
@@ -56,18 +56,30 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchAuditLogs = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:3000/admin/audit-logs?page=1&limit=20", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAuditLogs(res.data.logs);
-      setAuditTotal(res.data.total);
-    } catch (err) {
-      console.error("Error fetching audit logs:", err);
-    }
-  };
+  const fetchAuditLogs = useCallback(async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const params = new URLSearchParams({
+      page: 1,
+      limit: 20,
+      action: filterLogAction,
+      admin: filterLogAdmin,
+      target: filterLogTarget
+    });
+
+    const res = await axios.get(`http://localhost:3000/admin/audit-logs?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setAuditLogs(res.data.logs);
+    setAuditTotal(res.data.total);
+  } catch (err) {
+    console.error("Error fetching audit logs:", err);
+  }
+}, [filterLogAction, filterLogAdmin, filterLogTarget]); // ใส่ค่าที่ฟังก์ชันนี้ใช้งาน
+
+useEffect(() => {
+  fetchAuditLogs(); // ทุกครั้งที่ค่าใน [] เปลี่ยน ให้เรียกฟังก์ชันดึงข้อมูลใหม่
+}, [filterLogAction, filterLogAdmin, filterLogTarget, fetchAuditLogs]);
 
   const fetchAllResumes = async () => {
   try {
@@ -430,12 +442,12 @@ useEffect(() => {
           {/* ตารางแสดงข้อมูล User ล่าสุด */}
           <div className="data-section" ref={userTableRef} >
             <div className="table-header">
-              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <h2 style={{ fontSize: '16px', fontWeight: 700 }}>User Management</h2>
                 <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500  }}>
                   Total {users.length} user
                 </span>
-              
+              </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <div className="nav-search" style={{ width: '200px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={15} />
@@ -613,7 +625,13 @@ useEffect(() => {
 
           <div className="data-section" id="resume-management">
             <div className="table-header">
-              <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Resume Controls</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Resume Controls</h2>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                  Total {resumes.length} resumes
+                </span>
+              </div>  
+
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={15} />
@@ -686,17 +704,14 @@ useEffect(() => {
             <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
   
             {/* ฝั่งซ้าย: หัวข้อและฟิลเตอร์ */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Audit Logs System</h2>
-
-            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
-              Total {auditTotal} activities
-            </span>
-
-              {/* กลุ่มฟิลเตอร์ */}
-              
+              <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                Total {auditTotal} activities
+              </span>
             </div>
-
+            
+          {/* กลุ่มฟิลเตอร์ */}
             {/* ฝั่งขวา: จำนวนรายการทั้งหมด */}
             <div style={{ display: 'flex', gap: '10px' }}>
                 {/* ค้นหา Admin */}

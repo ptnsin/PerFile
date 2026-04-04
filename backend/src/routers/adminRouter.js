@@ -600,11 +600,33 @@ router.delete("/hr/revoke/:id", authMiddleware, requireAdmin, async (req, res) =
  */
 router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, action, admin, target } = req.query; // รับค่าจาก query
     const parsedLimit = parseInt(limit);
     const offset = (parseInt(page) - 1) * parsedLimit;
 
-    // แก้ u.name เป็น u.username ให้ตรงกับ Database จริงของคุณ
+    let conditions = [];
+    let params = [];
+
+    // ฟิลเตอร์ตามประเภทการกระทำ
+    if (action) {
+      conditions.push("al.action = ?");
+      params.push(action);
+    }
+
+    // ฟิลเตอร์ตามชื่อ Admin
+    if (admin) {
+      conditions.push("u1.username LIKE ?");
+      params.push(`%${admin}%`);
+    }
+
+    // ฟิลเตอร์ตามชื่อ Target User
+    if (target) {
+      conditions.push("u2.username LIKE ?");
+      params.push(`%${target}%`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
     const [logs] = await db.query(
       `SELECT al.id, 
               al.action, 
@@ -616,13 +638,20 @@ router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
        FROM audit_logs al
        LEFT JOIN users u1 ON al.admin_id = u1.id
        LEFT JOIN users u2 ON al.target_id = u2.id
+       ${whereClause}
        ORDER BY al.created_at DESC
        LIMIT ? OFFSET ?`,
-      [parsedLimit, offset]
+      [...params, parsedLimit, offset]
     );
 
-    // ดึงจำนวนทั้งหมดเพื่อทำ Pagination
-    const [[{ total }]] = await db.query("SELECT COUNT(*) AS total FROM audit_logs");
+    const [[{ total }]] = await db.query(
+      `SELECT COUNT(*) AS total 
+       FROM audit_logs al
+       LEFT JOIN users u1 ON al.admin_id = u1.id
+       LEFT JOIN users u2 ON al.target_id = u2.id
+       ${whereClause}`, 
+      params
+    );
 
     res.status(200).json({ logs, total });
   } catch (err) {
