@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuBriefcase,
-  LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers
+  LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers,
+  LuMapPin, LuClock, LuBadgeCheck,
 } from "react-icons/lu";
+import PostJobModal from "./PostJobModal";         // ← import modal
 import "../styles/HRFeed.css";
 
 const STATS = [
@@ -15,14 +17,16 @@ const STATS = [
 
 const TABS = [
   { key: "candidates", label: "Candidates", icon: <LuUsers />, count: 340 },
-  { key: "jobs",       label: "My Job Posts", icon: <LuBriefcase />, count: 12 },
+  { key: "jobs",       label: "My Job Posts", icon: <LuBriefcase /> },   // count is dynamic
 ];
 
 export default function HrFeed() {
-  const [activeTab, setActiveTab]       = useState("candidates");
-  const [userData, setUserData]         = useState(null);
-  const [menuOpen, setMenuOpen]         = useState(false);
-  const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [activeTab, setActiveTab]     = useState("candidates");
+  const [userData, setUserData]       = useState(null);
+  const [menuOpen, setMenuOpen]       = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [modalOpen, setModalOpen]     = useState(false);
+  const [jobs, setJobs]               = useState([]);          // ← posted jobs list
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
@@ -33,7 +37,6 @@ export default function HrFeed() {
     const handle = sidebar.querySelector(".hrf-resize-handle");
     if (!handle) return;
     let drag = false, startX = 0, startW = 0;
-
     const down = (e) => {
       drag = true; startX = e.clientX; startW = sidebar.offsetWidth;
       document.body.style.userSelect = "none";
@@ -51,7 +54,6 @@ export default function HrFeed() {
       document.removeEventListener("mousemove", move);
       document.removeEventListener("mouseup", up);
     };
-
     handle.addEventListener("mousedown", down);
     return () => handle.removeEventListener("mousedown", down);
   }, []);
@@ -82,7 +84,7 @@ export default function HrFeed() {
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  const initial = userData?.username?.[0]?.toUpperCase() ?? "H";
+  const initial   = userData?.username?.[0]?.toUpperCase() ?? "H";
   const firstName = userData?.fullName?.split(" ")[0] ?? "HR";
 
   const toggleSidebar = () => {
@@ -90,8 +92,24 @@ export default function HrFeed() {
     setSidebarOpen((v) => !v);
   };
 
+  /* ── Add job from modal ── */
+  const handleJobPosted = (job) => {
+    setJobs((prev) => [{ id: Date.now(), time: "เพิ่งโพสต์", ...job }, ...prev]);
+    setActiveTab("jobs");   // switch to jobs tab automatically
+  };
+
+  /* ── Open modal from sidebar OR nav button ── */
+  const openModal = () => setModalOpen(true);
+
   return (
     <div className="hrf-page">
+
+      {/* ─── MODAL ─── */}
+      <PostJobModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleJobPosted}
+      />
 
       {/* ─── NAV ─── */}
       <nav className="hrf-nav">
@@ -115,10 +133,7 @@ export default function HrFeed() {
           <button className="hrf-icon-btn" title="Notifications"><LuBell /></button>
 
           <div className="hrf-user-area" style={{ position: "relative" }}>
-            <div
-              className="hrf-user-chip"
-              onClick={() => setMenuOpen((v) => !v)}
-            >
+            <div className="hrf-user-chip" onClick={() => setMenuOpen((v) => !v)}>
               <div className="hrf-avatar">
                 {userData?.avatar
                   ? <img src={userData.avatar} alt="avatar" />
@@ -146,22 +161,19 @@ export default function HrFeed() {
       <div className="hrf-body">
 
         {/* ─── SIDEBAR ─── */}
-        <aside
-          ref={sidebarRef}
-          className={`hrf-sidebar${sidebarOpen ? "" : " closed"}`}
-        >
+        <aside ref={sidebarRef} className={`hrf-sidebar${sidebarOpen ? "" : " closed"}`}>
           <div className="hrf-resize-handle">
             <div className="hrf-resize-bar" />
           </div>
 
-          <button className="hrf-post-btn" onClick={() => navigate("/create-job")}>
+          <button className="hrf-post-btn" onClick={openModal}>
             <LuPlus /> Post Job
           </button>
 
           <Link to="/hr-feed" className="hrf-menu-item active">
             <LuLayoutDashboard /> Dashboard
           </Link>
-          <button className="hrf-menu-item">
+          <button className="hrf-menu-item" onClick={() => setActiveTab("jobs")}>
             <LuBriefcase /> My Jobs
           </button>
           <button className="hrf-menu-item">
@@ -184,17 +196,20 @@ export default function HrFeed() {
             </div>
 
             <div className="hrf-tab-bar">
-              {TABS.map((t) => (
-                <button
-                  key={t.key}
-                  className={`hrf-tab${activeTab === t.key ? " active" : ""}`}
-                  onClick={() => setActiveTab(t.key)}
-                >
-                  {t.icon}
-                  {t.label}
-                  <span className="hrf-tab-badge">{t.count}</span>
-                </button>
-              ))}
+              {TABS.map((t) => {
+                const count = t.key === "jobs" ? jobs.length : t.count;
+                return (
+                  <button
+                    key={t.key}
+                    className={`hrf-tab${activeTab === t.key ? " active" : ""}`}
+                    onClick={() => setActiveTab(t.key)}
+                  >
+                    {t.icon}
+                    {t.label}
+                    <span className="hrf-tab-badge">{count}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -212,6 +227,15 @@ export default function HrFeed() {
           <div className="hrf-panel">
             <div className="hrf-filter-bar">
               <button className="hrf-filter-btn"><LuFilter /> กรอง</button>
+              {activeTab === "jobs" && (
+                <button
+                  className="hrf-filter-btn"
+                  style={{ marginLeft: "auto", background: "#1e3a8a", color: "#fff", border: "none" }}
+                  onClick={openModal}
+                >
+                  <LuPlus /> โพสต์งานใหม่
+                </button>
+              )}
             </div>
 
             <div className="hrf-cards-grid">
@@ -221,18 +245,50 @@ export default function HrFeed() {
                   <div className="hrf-empty-title">ยังไม่มีผู้สมัคร</div>
                   <div className="hrf-empty-desc">รายการผู้สมัครงานจะแสดงที่นี่</div>
                 </div>
-              ) : (
+              ) : jobs.length === 0 ? (
                 <div className="hrf-empty">
                   <div className="hrf-empty-icon">📋</div>
                   <div className="hrf-empty-title">ยังไม่มีประกาศงาน</div>
-                  <div className="hrf-empty-desc">กด Post Job เพื่อลงประกาศงานใหม่</div>
+                  <div className="hrf-empty-desc">
+                    กด{" "}
+                    <span
+                      style={{ color: "#1d4ed8", cursor: "pointer", fontWeight: 700 }}
+                      onClick={openModal}
+                    >
+                      Post Job
+                    </span>{" "}
+                    เพื่อลงประกาศงานใหม่
+                  </div>
                 </div>
+              ) : (
+                jobs.map((job) => <JobCard key={job.id} job={job} />)
               )}
             </div>
           </div>
 
         </main>
       </div>
+    </div>
+  );
+}
+
+/* ── Job Card ── */
+function JobCard({ job }) {
+  return (
+    <div className="hrf-job-card">
+      <div className="hrf-job-header">
+        <div className="hrf-job-icon"><LuBriefcase /></div>
+        <span className="hrf-job-type">{job.type}</span>
+      </div>
+      <div className="hrf-job-title">{job.title}</div>
+      <div className="hrf-job-meta">
+        {job.category && <span><LuBadgeCheck /> {job.category}</span>}
+        {job.location  && <span><LuMapPin /> {job.location}</span>}
+        {(job.salaryMin || job.salaryMax) && (
+          <span>฿ {job.salaryMin || "?"} – {job.salaryMax || "?"}</span>
+        )}
+      </div>
+      {job.time && <div className="hrf-job-time">{job.time}</div>}
     </div>
   );
 }
