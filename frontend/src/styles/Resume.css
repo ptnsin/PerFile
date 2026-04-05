@@ -15,8 +15,8 @@ body { font-family: 'DM Sans', sans-serif; background: #0e0e0e; color: #f0ede6; 
 }
 
 .back-link {
-  
-  border: #2a1a1a solid 1px;
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.85);
   border-radius: 6px;
   padding: 8px 14px;
   display: block;
@@ -26,7 +26,10 @@ body { font-family: 'DM Sans', sans-serif; background: #0e0e0e; color: #f0ede6; 
   font-size: 14px;
 }
 
-.back-link:hover { color: var(--gold-light); }
+.back-link:hover {
+  color: var(--gold-light);
+  background: rgba(201, 168, 76, 0.08);
+}
 
 .app { display: flex; height: 100vh; overflow: hidden; }
 
