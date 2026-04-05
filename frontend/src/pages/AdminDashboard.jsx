@@ -40,6 +40,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [resumes, setResumes] = useState([]); 
   const [resumeSearch, setResumeSearch] = useState(""); 
+  const [resumeVisibility, setResumeVisibility] = useState("");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -710,6 +711,19 @@ useEffect(() => {
                     style={{ outline: 'none', color: '#111827' }} 
                   />
                 </div>
+
+                <select
+                  className="action-btn"
+                  value={resumeVisibility}
+                  onChange={(e) => setResumeVisibility(e.target.value)}
+                  style={{ fontSize: '12px' }}
+                >
+                  <option value="">All Visibility</option>
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                </select>
+
+                <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => { setResumeSearch(""); setResumeVisibility(""); }}>Reset</button>
               </div>
             </div>
 
@@ -726,10 +740,13 @@ useEffect(() => {
               </thead>
               <tbody>
                 {resumes
-                  .filter(r => 
-                    r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) || 
-                    r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase())
-                  )
+                  .filter(r => {
+                    const matchesSearch =
+                      r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) || 
+                      r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase());
+                    const matchesVisibility = resumeVisibility === "" || r.visibility === resumeVisibility;
+                    return matchesSearch && matchesVisibility;
+                  })
                   .map((resume) => (
                     <tr key={resume.id}>
                       <td style={{ fontWeight: 600 }}>{resume.title}</td>
