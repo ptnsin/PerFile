@@ -10,6 +10,9 @@ import { FiHome } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
 
 export default function AdminDashboard() {
+  const [userFeedPosts, setUserFeedPosts] = useState([]); // สำหรับหน้า User Feed
+  const [hrJobPosts, setHrJobPosts] = useState([]);      // สำหรับหน้า HR Feed
+  const [feedLoading, setFeedLoading] = useState(false);
   const [currentTab, setCurrentTab] = useState("overview");
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -37,11 +40,44 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [resumes, setResumes] = useState([]); 
   const [resumeSearch, setResumeSearch] = useState(""); 
+  const [resumeVisibility, setResumeVisibility] = useState("");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/");
   };
+
+  const fetchUserFeed = async () => {
+  setFeedLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    // ตัวอย่าง Endpoint สำหรับดึงโพสต์ของผู้ใช้ทั่วไป
+    const res = await axios.get("http://localhost:3000/posts", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setUserFeedPosts(res.data);
+  } catch (err) {
+    console.error("Error fetching user feed:", err);
+  } finally {
+    setFeedLoading(false);
+  }
+};
+
+const fetchHRFeed = async () => {
+  setFeedLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    // ตัวอย่าง Endpoint สำหรับดึงประกาศรับสมัครงาน
+    const res = await axios.get("http://localhost:3000/jobs", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setHrJobPosts(res.data);
+  } catch (err) {
+    console.error("Error fetching HR feed:", err);
+  } finally {
+    setFeedLoading(false);
+  }
+};
 
   // --- 2. Helper Functions (ประกาศไว้ก่อนเพื่อให้ Effects เรียกใช้ได้) ---
   const fetchStats = async () => {
@@ -339,6 +375,32 @@ useEffect(() => {
       <div className="admin-body">
         <aside ref={sidebarRef} className={`admin-sidebar ${isSidebarOpen ? "open" : "closed"}`}>
           <div className="sidebar-content-wrapper">
+            <div className="section-title">Page</div>
+            <button className={`page-nav-btn ${currentTab === "overview" ? "active" : ""}`} 
+                    onClick={() => setCurrentTab("overview")}
+                    style={{
+                      backgroundColor: currentTab === "overview" ? "#6366f1" : "transparent",
+                      color: currentTab === "overview" ? "#fff" : "#6b7280"
+                    }}
+                    >Admin Page
+            </button>
+            <button className={`page-nav-btn ${currentTab === "user-feed" ? "active" : ""}`} 
+                    onClick={() => { setCurrentTab("user-feed"); fetchUserFeed(); }}
+                    style={{
+                      backgroundColor: currentTab === "user-feed" ? "#4f46e5" : "transparent",
+                      color: currentTab === "user-feed" ? "#fff" : "#6b7280"
+                    }}
+                    >User Feed
+            </button>
+            <button className={`page-nav-btn ${currentTab === "hr-feed" ? "active" : ""}`} 
+                    onClick={() => { setCurrentTab("hr-feed"); fetchHRFeed(); }}
+                    style={{
+                      backgroundColor: currentTab === "hr-feed" ? "#3b82f6" : "transparent",
+                      color: currentTab === "hr-feed" ? "#fff" : "#6b7280"
+                    }}
+                    >HR Feed
+            </button>
+
             <div className="section-title">Main Menu</div>
             <button className={`menu-item ${currentTab === "overview" ? "active" : ""}`} 
             onClick={goToOverview}><FiHome /> <span>Overview</span></button>
@@ -363,6 +425,13 @@ useEffect(() => {
         </aside>
 
         <main className="admin-main">
+          {/* --- หน้า ADMIN PAGE (เดิม) --- */}
+          {(currentTab === "overview" || 
+            currentTab === "user-management" || 
+            currentTab === "resume-controls" || 
+            currentTab === "audit-logs" || 
+            currentTab === "settings") && (
+            <>
           <header className="dashboard-header" ref={overviewRef}>
             <h1 className="dashboard-title">Dashboard Overview</h1>
             <p style={{ color: '#6b7280', fontSize: '14px' }}>ข้อมูลสรุปภาพรวมของระบบ PerFile</p>
@@ -642,6 +711,19 @@ useEffect(() => {
                     style={{ outline: 'none', color: '#111827' }} 
                   />
                 </div>
+
+                <select
+                  className="action-btn"
+                  value={resumeVisibility}
+                  onChange={(e) => setResumeVisibility(e.target.value)}
+                  style={{ fontSize: '12px' }}
+                >
+                  <option value="">All Visibility</option>
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                </select>
+
+                <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => { setResumeSearch(""); setResumeVisibility(""); }}>Reset</button>
               </div>
             </div>
 
@@ -658,10 +740,13 @@ useEffect(() => {
               </thead>
               <tbody>
                 {resumes
-                  .filter(r => 
-                    r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) || 
-                    r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase())
-                  )
+                  .filter(r => {
+                    const matchesSearch =
+                      r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) || 
+                      r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase());
+                    const matchesVisibility = resumeVisibility === "" || r.visibility === resumeVisibility;
+                    return matchesSearch && matchesVisibility;
+                  })
                   .map((resume) => (
                     <tr key={resume.id}>
                       <td style={{ fontWeight: 600 }}>{resume.title}</td>
@@ -963,7 +1048,69 @@ useEffect(() => {
 
             </div>
           </div>
+          </>
+          )}
 
+          {/* --- หน้า USER FEED VIEW --- */}
+          {currentTab === "user-feed" && (
+            <div className="feed-view-section">
+              <header className="dashboard-header">
+                <h1 className="dashboard-title">User Social Feed</h1>
+                <p style={{ color: '#6b7280', fontSize: '14px' }}>มุมมองแอดมิน: ตรวจสอบโพสต์และกิจกรรมของผู้ใช้งานทั่วไป</p>
+              </header>
+              {feedLoading ? <p>Loading Feed...</p> : (
+                <div className="feed-grid">
+                  {userFeedPosts.map(post => (
+                    <div key={post.id} className="feed-card">
+                      <div className="feed-card-header">
+                          <strong>{post.username}</strong>
+                          <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <p>{post.content}</p>
+                      {post.image && <img src={post.image} alt="post" />}
+                      <button className="delete-min-btn" onClick={() => {/* Logic ลบโพสต์ไม่เหมาะสม */}}>ลบโพสต์</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* --- หน้า HR FEED VIEW --- */}
+          {currentTab === "hr-feed" && (
+            <div className="feed-view-section">
+              <header className="dashboard-header">
+                <h1 className="dashboard-title">HR Job Feed</h1>
+                <p>มุมมองแอดมิน: ตรวจสอบประกาศรับสมัครงานจากบริษัทต่างๆ</p>
+              </header>
+              {feedLoading ? <p>Loading Jobs...</p> : (
+                <div className="job-list">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Company</th>
+                        <th>Job Title</th>
+                        <th>Location</th>
+                        <th>Salary</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {hrJobPosts.map(job => (
+                        <tr key={job.id}>
+                          <td>{job.company_name}</td>
+                          <td style={{ fontWeight: 600 }}>{job.title}</td>
+                          <td>{job.location}</td>
+                          <td>{job.salary_range}</td>
+                          <td><button className="action-btn">View Detail</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>

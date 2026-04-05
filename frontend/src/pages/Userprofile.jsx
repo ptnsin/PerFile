@@ -245,7 +245,12 @@ export default function UserProfile() {
               <>
                 {privateResumes.length > 0 ? (
                   privateResumes.map((p, i) => (
-                    <div key={p.id} className="up-card" style={{ position: "relative" }}>
+                    <div
+                      key={p.id}
+                      className="up-card"
+                      onClick={() => navigate(`/view-resume/${p.id}`)}
+                      style={{ position: "relative", cursor: "pointer" }}
+                    >
                       <div
                         className="up-card-thumb"
                         style={{ background: `linear-gradient(135deg, #ede9fe ${i * 10}%, #c7d2fe 100%)` }}

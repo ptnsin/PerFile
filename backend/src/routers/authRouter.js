@@ -284,7 +284,7 @@ authRouter.post('/login', async (req, res) => {
 
         // 3. ถ้าถูกต้อง สร้าง Token (JWT) เพื่อส่งกลับไปให้ User ใช้
         const token = jwt.sign(
-          { id: user.id, email: user.email, roles_id: user.roles_id },
+          { id: user.id, username: user.username, email: user.email, roles_id: user.roles_id },
           process.env.JWT_SECRET || 'SECRET_KEY', 
           { expiresIn: '1d' }
         );
@@ -531,19 +531,19 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
 
 authRouter.get('/oauth/:provider', (req, res) => {
   const { provider } = req.params;
+  const { state } = req.query;
 
   if (provider === 'google') {
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID; // ดึงจาก .env
     const REDIRECT_URI = "http://localhost:3000/auth/oauth/google/callback";
-
-    const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=email%20profile`;
+    const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=email%20profile&state=${state || ''}`;
     return res.redirect(googleUrl);
   }
 
   if (provider === 'github') {
     const CLIENT_ID = process.env.GITHUB_CLIENT_ID; // ดึงจาก .env
     const REDIRECT_URI = "http://localhost:3000/auth/oauth/github/callback";
-    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user:email`;
+    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=user:email&state=${state || ''}`;
     return res.redirect(githubUrl);
   }
 

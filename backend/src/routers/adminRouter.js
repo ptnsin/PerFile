@@ -976,4 +976,27 @@ router.get("/resumes", authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// 12. DELETE /admin/resumes/:id
+// ─────────────────────────────────────────────
+router.delete("/resumes/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [[resume]] = await db.query("SELECT id FROM resumes WHERE id = ?", [id]);
+    if (!resume) {
+      return res.status(404).json({ message: "ไม่พบ Resume ที่ต้องการลบ" });
+    }
+
+    await db.query("DELETE FROM resumes WHERE id = ?", [id]);
+
+    await logAction(req.user.id, "DELETE_RESUME", id, `Admin deleted resume ID: ${id}`);
+
+    res.status(200).json({ message: "Resume deleted successfully" });
+  } catch (err) {
+    console.error("Admin Delete Resume Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 export default router;
