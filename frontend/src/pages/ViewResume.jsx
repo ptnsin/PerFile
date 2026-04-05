@@ -223,10 +223,10 @@ export default function ViewResume() {
                   {data.education.map(edu => (
                     <div key={edu.id} className="entry">
                       <div className="entry-header">
-                        <div className="entry-title">{edu.role}</div>
+                        <div className="entry-title">{edu.degree || edu.role || "วุฒิการศึกษา"}</div>
                         <div className="entry-period">{edu.period}</div>
                       </div>
-                      <div className="entry-org">{edu.org}</div>
+                      <div className="entry-org">{edu.school || edu.org}</div>
                       {edu.desc && <div className="entry-desc">{edu.desc}</div>}
                     </div>
                   ))}
@@ -238,9 +238,12 @@ export default function ViewResume() {
                 <div className="resume-section">
                   <div className="section-title">ทักษะ</div>
                   <div className="skills-grid">
-                    {data.skills.map((skill, i) => (
-                      <div key={i} className="skill-tag">{skill}</div>
-                    ))}
+                    {data.skills.map((skill, i) => {
+                      const label = typeof skill === "string"
+                        ? skill
+                        : (skill.name || skill.label || skill.type || "Skill");
+                      return <div key={i} className="skill-tag">{label}</div>;
+                    })}
                   </div>
                 </div>
               )}
@@ -249,13 +252,13 @@ export default function ViewResume() {
               {data.languages && data.languages.length > 0 && (
                 <div className="resume-section">
                   <div className="section-title">ภาษา</div>
-                  {data.languages.map(lang => (
-                    <div key={lang.id} className="entry">
+                  {data.languages.map((lang, i) => (
+                    <div key={i} className="entry">
                       <div className="entry-header">
-                        <div className="entry-title">{lang.role}</div>
-                        <div className="entry-period">{lang.period}</div>
+                        <div className="entry-title">{lang.name || lang.role || lang}</div>
+                        <div className="entry-period">{lang.level || lang.period || ""}</div>
                       </div>
-                      <div className="entry-org">{lang.org}</div>
+                      {lang.notes && <div className="entry-org">{lang.notes}</div>}
                     </div>
                   ))}
                 </div>

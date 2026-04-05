@@ -4,7 +4,39 @@ const ResumeContext = createContext(null);
 
 export function ResumeProvider({ children }) {
   const [publishedResumes, setPublishedResumes] = useState([]);
-  const [privateResumes, setPrivateResumes] = useState([]);   // ← เพิ่มใหม่
+  const [privateResumes, setPrivateResumes] = useState([
+    {
+      id: 1680000000000,
+      title: "Resume ทดสอบ",
+      owner: "Demo User",
+      createdAt: new Date().toLocaleDateString("th-TH"),
+      data: {
+        name: "Demo User",
+        title: "Frontend Developer",
+        template: "classic",
+        image: null,
+        email: "demo@example.com",
+        phone: "081-234-5678",
+        location: "กรุงเทพมหานคร, ประเทศไทย",
+        linkedin: "linkedin.com/in/demo",
+        website: "demo-portfolio.com",
+        summary: "นักพัฒนาซอฟต์แวร์ที่ชอบสร้าง UI สวยงามและประสบการณ์การใช้งานที่ลื่นไหล",
+        experience: [
+          { id: 1, role: "Frontend Developer", org: "Tech Startup Co.", period: "2022 – ปัจจุบัน", desc: "พัฒนาแอปเว็บด้วย React, Vite และ CSS Module เพื่อเพิ่มประสิทธิภาพการใช้งาน." },
+          { id: 2, role: "UI/UX Intern", org: "Creative Studio", period: "2021 – 2022", desc: "ออกแบบหน้าจอและร่วมสร้างแนวทางการใช้งานสำหรับทีมผลิตภัณฑ์." },
+        ],
+        education: [
+          { id: 1, degree: "ปริญญาตรี วิทยาการคอมพิวเตอร์", school: "มหาวิทยาลัยกรุงเทพ", period: "2018 – 2022", desc: "เกรดเฉลี่ย 3.78, โครงการวิจัยด้าน Web Performance." },
+        ],
+        skillDisplayMode: "simple",
+        skills: [
+          { id: 1, name: "React", type: "Hard Skill", level: 90, label: "Advanced" },
+          { id: 2, name: "JavaScript", type: "Hard Skill", level: 85, label: "Advanced" },
+          { id: 3, name: "UI Design", type: "Soft Skill", level: 80, label: "Good" },
+        ],
+      },
+    },
+  ]);   // ← ตัวอย่าง Resume สำหรับทดสอบหน้าโปรไฟล์
 
   // บันทึกแบบ Private (ไม่โชว์ใน Feed)
   const savePrivate = (resumeData) => {
