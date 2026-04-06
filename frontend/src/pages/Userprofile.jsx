@@ -7,7 +7,7 @@ import {
 } from "react-icons/lu";
 import { FiPlusSquare, FiHome, FiGrid } from "react-icons/fi";
 import { useResumes } from "./ResumeContext"; // ← import Context
-import "../styles/UserProfile.css";
+import "../styles/Userprofile.css";
 
 // ---- Mock Data ----
 const SKILLS = ["React", "TypeScript", "Figma", "Node.js", "Tailwind CSS", "Python", "PostgreSQL", "Git"];
