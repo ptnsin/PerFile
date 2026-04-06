@@ -1,5 +1,5 @@
 import { Router } from 'express'
-
+import prisma from '../config/prisma.js'
 import { verifyJWT } from '../middleware/verifyJWT.js'
 import { requireRole } from '../middleware/requireRole.js'
 import { checkAccountStatus } from '../middleware/checkAccountStatus.js'
@@ -8,7 +8,7 @@ const hrRouter = Router()
 
 // middleware ทุก route ใน hrRouter ต้อง login และเป็น HR ที่ approved แล้วเท่านั้น
 hrRouter.use(verifyJWT)
-hrRouter.use(requireRole('HR'))
+hrRouter.use(requireRole(3))
 hrRouter.use(checkAccountStatus)
 
 // ─────────────────────────────────────────────────────────────
@@ -615,6 +615,47 @@ hrRouter.put('/profile', async (req, res) => {
   } catch (err) {
     console.error('HR profile update error:', err.message)
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการแก้ไขโปรไฟล์' })
+  }
+})
+
+// ─────────────────────────────────────────────────────────────
+
+hrRouter.post('/jobs', async (req, res) => {
+  try {
+    const { 
+      title, category, type, location, 
+      salaryMin, salaryMax, experience, 
+      description, requirements, benefits 
+    } = req.body
+
+    // รวมเงินเดือนให้เป็นช่วงตาม Logic ของ Frontend
+    const salary = salaryMin && salaryMax 
+      ? `${salaryMin}-${salaryMax}` 
+      : (salaryMin || salaryMax || "ไม่ระบุ")
+
+    const newJob = await prisma.job.create({
+      data: {
+        title,
+        category,
+        job_type     : type, // ระวังชื่อ Field ให้ตรงกับ Database (เช่น job_type หรือ type)
+        location,
+        salary,
+        experience,
+        description,
+        requirements : requirements || '',
+        benefits     : benefits || '',
+        hrId: Number(req.user.id), // ใช้ ID จาก JWT ที่ผ่าน middleware มาแล้ว
+      }
+    })
+
+    return res.status(201).json({
+      message: 'ลงประกาศงานสำเร็จ',
+      job: newJob
+    })
+
+  } catch (err) {
+    console.error('Post job error:', err.message)
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการลงประกาศงาน' })
   }
 })
 

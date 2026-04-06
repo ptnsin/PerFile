@@ -999,4 +999,4 @@ router.delete("/resumes/:id", authMiddleware, requireAdmin, async (req, res) => 
   }
 });
 
-export default router;
+export default router; 

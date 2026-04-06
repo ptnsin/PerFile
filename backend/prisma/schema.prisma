@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id           Int      @id @default(autoincrement())
+  title        String
+  category     String
+  job_type     String   
+  location     String
+  salary       String   
+  experience   String
+  description  String   @db.Text
+  requirements String   @db.Text
+  benefits     String   @db.Text
+  createdAt    DateTime @default(now())
+  
+  // เชื่อมกับ HR ผู้โพสต์
+  hrId         Int      // ต้องเป็น Int ตาม id ของ User
+  hr           User     @relation(fields: [hrId], references: [id])   
+}
+
+model User {
+  id           Int      @id @default(autoincrement()) // จากคอลัมน์ id (Int)
+  username     String?                                // จากคอลัมน์ username
+  email        String   @unique                       // จากคอลัมน์ email
+  google_id    String?                                // จากคอลัมน์ google_id
+  github_id    String?                                // จากคอลัมน์ github_id
+  password     String?                                // จากคอลัมน์ password
+  fullName     String?                                // จากคอลัมน์ fullName
+  avatar       String?  @db.Text                      // จากคอลัมน์ avatar
+  company      String?                                // จากคอลัมน์ company
+  roles_id     Int?                                   // จากคอลัมน์ roles_id
+  status       String   @default("active")            // จากคอลัมน์ status
+  created_at   DateTime @default(now())               // จากคอลัมน์ created_at
+  jobs         Job[]                                  
+}

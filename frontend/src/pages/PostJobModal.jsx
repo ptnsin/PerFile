@@ -4,6 +4,7 @@ import {
   LuClock, LuChevronDown, LuSparkles, LuCheck
 } from "react-icons/lu";
 
+
 /* ─── Minimal inline styles to avoid extra CSS file ─── */
 const overlay = {
   position: "fixed", inset: 0, zIndex: 500,
@@ -44,6 +45,9 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors]   = useState({});
   const topRef = useRef(null);
+  const [customCategory, setCustomCategory] = useState("");
+  
+
 
   /* reset on open */
   useEffect(() => {
@@ -85,7 +89,8 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/jobs", {
+      const finalCategory = form.category === "Other" ? customCategory : form.category;
+      const res = await fetch("http://localhost:3000/hr/jobs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,6 +98,7 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
         },
         body: JSON.stringify({
           ...form,
+          category: finalCategory,
           salary: form.salaryMin && form.salaryMax
             ? `${form.salaryMin}-${form.salaryMax}`
             : form.salaryMin || form.salaryMax || "ไม่ระบุ",
@@ -231,10 +237,20 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
                     <div className="pjm-select-wrap">
                       <select value={form.category} onChange={set("category")}>
                         <option value="">เลือกหมวดหมู่</option>
-                        {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                        {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                       <LuChevronDown />
                     </div>
+                    {form.category === "Other" && (
+                      <input
+                        type="text"
+                        placeholder="ระบุหมวดหมู่ของคุณ..."
+                        style={{ marginTop: "8px", borderColor: "#3b82f6" }}
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        autoFocus
+                      />
+                    )}
                     {errors.category && <div className="pjm-err">{errors.category}</div>}
                   </div>
 
