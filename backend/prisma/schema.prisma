@@ -7,36 +7,159 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                  Int                   @id @default(autoincrement())
+  username            String                @db.VarChar(50)
+  email               String                @db.VarChar(100)
+  google_id           String?               @db.VarChar(255)
+  github_id           String?               @db.VarChar(255)
+  password            String?               @db.VarChar(255)
+  fullName            String?               @db.VarChar(255)
+  avatar              String?               @db.VarChar(255)
+  company             String?               @db.VarChar(255)
+  roles_id            Int
+  status              users_status?         @default(active)
+  created_at          DateTime?             @default(now()) @db.Timestamp(0)
+  audit_logs          audit_logs[]
+  posts               posts[]
+  resume_share_tokens resume_share_tokens[]
+  resumes             resumes[]
+  roles               roles                 @relation(fields: [roles_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_ibfk_1")
+  Job                 Job[]
+
+  @@index([roles_id], map: "roles_id")
+  @@map("users")
+}
+
+model audit_logs {
+  id         Int       @id @default(autoincrement())
+  admin_id   Int
+  action     String    @db.VarChar(100)
+  target_id  Int?
+  detail     String?   @db.Text
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  users      User      @relation(fields: [admin_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "audit_logs_ibfk_1")
+
+  @@index([admin_id], map: "admin_id")
+}
+
+model post_attachments {
+  id        Int                        @id @default(autoincrement())
+  post_id   Int
+  file_path String                     @db.VarChar(255)
+  file_type post_attachments_file_type
+  posts     posts                      @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "post_attachments_ibfk_1")
+
+  @@index([post_id], map: "post_id")
+}
+
+model posts {
+  id               Int                @id @default(autoincrement())
+  user_id          Int
+  resume_id        Int
+  content          String?            @db.Text
+  created_at       DateTime?          @default(now()) @db.Timestamp(0)
+  post_attachments post_attachments[]
+  users            User               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "posts_ibfk_1")
+  resumes          resumes            @relation(fields: [resume_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "posts_ibfk_2")
+
+  @@index([resume_id], map: "resume_id")
+  @@index([user_id], map: "user_id")
+}
+
+model resume_sections {
+  id            Int     @id @default(autoincrement())
+  resume_id     Int
+  type          String  @db.VarChar(50)
+  content       Json
+  section_order Int?    @default(1)
+  resumes       resumes @relation(fields: [resume_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_resume_section")
+
+  @@index([resume_id], map: "fk_resume_section")
+}
+
+model resume_share_tokens {
+  id         Int       @id @default(autoincrement())
+  token      String    @unique(map: "token") @db.VarChar(100)
+  resume_id  Int
+  created_by Int
+  is_active  Boolean   @default(true)
+  view_count Int       @default(0) @db.UnsignedInt
+  expires_at DateTime? @db.DateTime(0)
+  created_at DateTime  @default(now()) @db.DateTime(0)
+  updated_at DateTime  @default(now()) @db.DateTime(0)
+  resumes    resumes   @relation(fields: [resume_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_share_resume")
+  users      User      @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_share_user")
+
+  @@index([created_by], map: "idx_created_by")
+  @@index([resume_id], map: "idx_resume_id")
+}
+
+model resumes {
+  id                  Int                   @id @default(autoincrement())
+  user_id             Int
+  title               String?               @default("My Resume") @db.VarChar(100)
+  template            String?               @default("modern") @db.VarChar(50)
+  visibility          resumes_visibility?   @default(private)
+  created_at          DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(0)
+  posts               posts[]
+  resume_sections     resume_sections[]
+  resume_share_tokens resume_share_tokens[]
+  users               User                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "resumes_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model roles {
+  id    Int    @id
+  name  String @unique(map: "name") @db.VarChar(50)
+  level String @unique(map: "level") @db.VarChar(100)
+  users User[]
+}
+
+model system_settings {
+  id                   Int      @id
+  max_file_size        BigInt?  @default(10485760)
+  maintenance_mode     Boolean? @default(false)
+  max_resumes_per_user Int      @default(5)
+  allow_registration   Boolean  @default(true)
+  auto_approve_hr      Boolean  @default(false)
+}
+
+enum post_attachments_file_type {
+  image
+  video
+}
+
+enum resumes_visibility {
+  public
+  private
+}
+
+enum users_status {
+  active
+  suspended
+  banned
+  pending
+}
+
 model Job {
   id           Int      @id @default(autoincrement())
-  title        String
-  category     String
-  job_type     String   
-  location     String
-  salary       String   
-  experience   String
+  title        String   @db.VarChar(255)
+  category     String   @db.VarChar(100)
+  job_type     String   @db.VarChar(50)
+  location     String   @db.VarChar(255)
+  salary       String   @db.VarChar(100)
+  experience   String   @db.VarChar(100)
   description  String   @db.Text
   requirements String   @db.Text
   benefits     String   @db.Text
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @db.Timestamp(0)
   
-  // เชื่อมกับ HR ผู้โพสต์
-  hrId         Int      // ต้องเป็น Int ตาม id ของ User
-  hr           User     @relation(fields: [hrId], references: [id])   
-}
+  // เชื่อมกับตาราง users (ตัวเล็ก)
+  hrId         Int
+  users        User     @relation(fields: [hrId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-model User {
-  id           Int      @id @default(autoincrement()) // จากคอลัมน์ id (Int)
-  username     String?                                // จากคอลัมน์ username
-  email        String   @unique                       // จากคอลัมน์ email
-  google_id    String?                                // จากคอลัมน์ google_id
-  github_id    String?                                // จากคอลัมน์ github_id
-  password     String?                                // จากคอลัมน์ password
-  fullName     String?                                // จากคอลัมน์ fullName
-  avatar       String?  @db.Text                      // จากคอลัมน์ avatar
-  company      String?                                // จากคอลัมน์ company
-  roles_id     Int?                                   // จากคอลัมน์ roles_id
-  status       String   @default("active")            // จากคอลัมน์ status
-  created_at   DateTime @default(now())               // จากคอลัมน์ created_at
-  jobs         Job[]                                  
+  @@index([hrId], map: "hrId_idx")
 }
