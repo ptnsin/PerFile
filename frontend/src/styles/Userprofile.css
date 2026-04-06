@@ -412,6 +412,8 @@
 
 /* ===== RESUME CARD ===== */
 .uf-resume-card {
+  position: relative;
+  overflow: visible;
   background: #fff;
   border: 1.5px solid #e4e4e7;
   border-radius: 14px;
@@ -760,6 +762,72 @@
   border: 1px solid #ddd6fe;
   border-radius: 99px;
   padding: 3px 10px;
+}
+.up-badge-public {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #047857;
+  background: #dcfce7;
+  border: 1px solid #a7f3d0;
+  border-radius: 99px;
+  padding: 3px 10px;
+}
+
+.uf-action-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.15s, transform 0.15s;
+}
+.uf-action-btn:hover {
+  background: #2563eb;
+  transform: scale(1.02);
+}
+.uf-action-menu {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  min-width: 170px;
+  padding: 8px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgba(15,23,42,0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.uf-action-menu-item {
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+.uf-action-menu-item:hover {
+  background: #eef2ff;
+}
+.uf-action-menu-item--danger {
+  color: #dc2626;
+}
+.uf-action-menu-item--accent {
+  color: #1d4ed8;
 }
 
 /* ===== DELETE BUTTON (inside card) ===== */

@@ -29,13 +29,14 @@ export default function UserProfile() {
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [menuOpen, setMenuOpen]         = useState(false);
   const [userData, setUserData]         = useState(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [actionMenuId, setActionMenuId] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const sidebarRef    = useRef(null);
   const savedSectionRef = useRef(null);
   const navigate      = useNavigate();
 
-  const { privateResumes, removePrivate } = useResumes();
+  const { publishedResumes, privateResumes, removePrivate, removeResume, unpublishToPrivate, publishPrivate } = useResumes();
 
   /* ── fetch current user ── */
   useEffect(() => {
@@ -107,24 +108,29 @@ export default function UserProfile() {
     }
   };
 
-  const handleDelete = (id) => {
-    removePrivate(id);
-    setDeleteConfirmId(null);
+  const handleDelete = () => {
+    if (!deleteConfirm) return;
+    if (deleteConfirm.type === "private") {
+      removePrivate(deleteConfirm.id);
+    } else if (deleteConfirm.type === "public") {
+      removeResume(deleteConfirm.id);
+    }
+    setDeleteConfirm(null);
   };
 
   return (
     <div className="uf-page">
 
       {/* ── Delete Confirm Modal ── */}
-      {deleteConfirmId !== null && (
+      {deleteConfirm !== null && (
         <div className="up-modal-overlay">
           <div className="up-modal">
             <div className="up-modal-icon">🗑️</div>
             <div className="up-modal-title">ลบ Resume นี้?</div>
             <div className="up-modal-desc">ไม่สามารถกู้คืนได้หลังจากลบแล้ว</div>
             <div className="up-modal-actions">
-              <button className="up-modal-cancel" onClick={() => setDeleteConfirmId(null)}>ยกเลิก</button>
-              <button className="up-modal-confirm" onClick={() => handleDelete(deleteConfirmId)}>ลบ</button>
+              <button className="up-modal-cancel" onClick={() => setDeleteConfirm(null)}>ยกเลิก</button>
+              <button className="up-modal-confirm" onClick={handleDelete}>ลบ</button>
             </div>
           </div>
         </div>
@@ -317,19 +323,46 @@ export default function UserProfile() {
                       >
                         <div className="uf-resume-header">
                           <div className="uf-resume-icon"><LuFileText /></div>
-                          <span className="up-badge-private">Private</span>
                         </div>
                         <div className="uf-resume-title">{p.title}</div>
                         <div className="uf-resume-meta">
                           <span><LuBadgeCheck /> {p.owner ?? "You"}</span>
                           {p.createdAt && <span style={{ color: "#9ca3af", fontSize: 11 }}>🔒 {p.createdAt}</span>}
                         </div>
-                        <button
-                          className="up-del-btn"
-                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id); }}
-                        >
-                          <LuTrash2 size={12} /> ลบ
-                        </button>
+                        <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            className="uf-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionMenuId((prev) => (prev === p.id ? null : p.id));
+                            }}
+                          >
+                            ⋮
+                          </button>
+                          {actionMenuId === p.id && (
+                            <div className="uf-action-menu" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className="uf-action-menu-item uf-action-menu-item--danger"
+                                onClick={() => {
+                                  setActionMenuId(null);
+                                  setDeleteConfirm({ id: p.id, type: "private" });
+                                }}
+                              >
+                                ลบ Resume
+                              </button>
+                              <button
+                                className="uf-action-menu-item uf-action-menu-item--accent"
+                                onClick={() => {
+                                  setActionMenuId(null);
+                                  publishPrivate(p.id);
+                                  setActiveTab("jobs");
+                                }}
+                              >
+                                เปลี่ยนเป็น public
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                     <div className="uf-resume-card up-add-card" onClick={() => navigate("/resume")}>
@@ -357,10 +390,62 @@ export default function UserProfile() {
             {/* ── Public Resumes ── */}
             {activeTab === "jobs" && (
               <div className="uf-cards-grid">
-                <div className="uf-empty">
-                  <div className="uf-empty-icon">💼</div>
-                  <div className="uf-empty-title">ยังไม่มีตำแหน่งงานที่โพสต์ไว้</div>
-                </div>
+                {publishedResumes.length > 0 ? (
+                  publishedResumes.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className="uf-resume-card"
+                      onClick={() => navigate(`/view-resume/${p.id}`)}
+                    >
+                      <div className="uf-resume-header">
+                        <div className="uf-resume-icon"><LuFileText /></div>
+                      </div>
+                      <div className="uf-resume-title">{p.title}</div>
+                      <div className="uf-resume-meta">
+                        <span><LuBadgeCheck /> {p.owner ?? "Guest"}</span>
+                        {p.publishedAt && <span style={{ color: "#16a34a", fontSize: 11 }}>🌐 {p.publishedAt}</span>}
+                      </div>
+                      <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className="uf-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActionMenuId((prev) => (prev === p.id ? null : p.id));
+                          }}
+                        >
+                          ⋮
+                        </button>
+                        {actionMenuId === p.id && (
+                          <div className="uf-action-menu" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="uf-action-menu-item uf-action-menu-item--accent"
+                              onClick={() => {
+                                setActionMenuId(null);
+                                setDeleteConfirm({ id: p.id, type: "public" });
+                              }}
+                            >
+                              ลบ Resume
+                            </button>
+                            <button
+                              className="uf-action-menu-item uf-action-menu-item--accent"
+                              onClick={() => {
+                                setActionMenuId(null);
+                                unpublishToPrivate(p.id);
+                              }}
+                            >
+                              เปลี่ยนเป็น private
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="uf-empty">
+                    <div className="uf-empty-icon">💼</div>
+                    <div className="uf-empty-title">ยังไม่มีตำแหน่งงานที่โพสต์ไว้</div>
+                  </div>
+                )}
               </div>
             )}
 
