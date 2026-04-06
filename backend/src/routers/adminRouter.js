@@ -1,5 +1,6 @@
 import { Router } from "express";
 import db from '../config/db.js'
+import prisma from '../config/prisma.js'
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { requireRole } from '../middleware/requireRole.js'
 
@@ -996,6 +997,28 @@ router.delete("/resumes/:id", authMiddleware, requireAdmin, async (req, res) => 
   } catch (err) {
     console.error("Admin Delete Resume Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────
+// 12. GET /admin/all-jobs
+// ─────────────────────────────────────────────
+
+router.get('/all-jobs', authMiddleware, requireRole(1), async (req, res) => {
+  try {
+    const [jobs] = await db.query(`
+      SELECT 
+        j.*, 
+        u.company AS company_name, 
+        u.fullName AS hr_name 
+      FROM Job j
+      LEFT JOIN users u ON j.hrId = u.id
+      ORDER BY j.createdAt DESC
+    `);
+    res.json({ jobs });
+  } catch (err) {
+    console.error("Fetch all jobs error:", err.message);
+    res.status(500).json({ message: "Error fetching all jobs" });
   }
 });
 

@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const [resumes, setResumes] = useState([]); 
   const [resumeSearch, setResumeSearch] = useState(""); 
   const [resumeVisibility, setResumeVisibility] = useState("");
+  const [allJobs, setAllJobs] = useState([]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -67,11 +68,15 @@ const fetchHRFeed = async () => {
   setFeedLoading(true);
   try {
     const token = localStorage.getItem("token");
-    // ตัวอย่าง Endpoint สำหรับดึงประกาศรับสมัครงาน
-    const res = await axios.get("http://localhost:3000/jobs", {
+    // 💡 เปลี่ยน URL ให้ชี้ไปที่ /admin/all-jobs ตามที่คุณเขียนใน Backend
+    const res = await axios.get("http://localhost:3000/admin/all-jobs", {
       headers: { Authorization: `Bearer ${token}` }
     });
-    setHrJobPosts(res.data);
+
+    console.log("Response Data:", res.data);
+    
+    // 💡 Backend ส่งมาในรูปแบบ { jobs: [...] } ดังนั้นต้องเข้าถึง res.data.jobs
+    setHrJobPosts(res.data.jobs); 
   } catch (err) {
     console.error("Error fetching HR feed:", err);
   } finally {
@@ -1078,39 +1083,111 @@ useEffect(() => {
 
           {/* --- หน้า HR FEED VIEW --- */}
           {currentTab === "hr-feed" && (
-            <div className="feed-view-section">
-              <header className="dashboard-header">
-                <h1 className="dashboard-title">HR Job Feed</h1>
-                <p>มุมมองแอดมิน: ตรวจสอบประกาศรับสมัครงานจากบริษัทต่างๆ</p>
-              </header>
-              {feedLoading ? <p>Loading Jobs...</p> : (
-                <div className="job-list">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Company</th>
-                        <th>Job Title</th>
-                        <th>Location</th>
-                        <th>Salary</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {hrJobPosts.map(job => (
-                        <tr key={job.id}>
-                          <td>{job.company_name}</td>
-                          <td style={{ fontWeight: 600 }}>{job.title}</td>
-                          <td>{job.location}</td>
-                          <td>{job.salary_range}</td>
-                          <td><button className="action-btn">View Detail</button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="data-section"> {/* 💡 ใช้ Class เดียวกับ User Management */}
+                <div className="table-header">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <h2 style={{ fontSize: '16px', fontWeight: 700 }}>HR Job Feed</h2>
+                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                      Total {hrJobPosts.length} job posts
+                    </span>
+                  </div>
+                  {/* ส่วน Search Bar ของตาราง Job */}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
+                      <LuSearch color="#9ca3af" size={15} />
+                      <input placeholder="ค้นหาชื่องาน หรือบริษัท..." />
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                <table className="admin-table"> {/* 💡 ใช้ Class admin-table หลัก */}
+                  <thead>
+                    <tr>
+                      <th>Company Info</th>
+                      <th>Job Details</th>
+                      <th>Location</th>
+                      <th>Salary</th>
+                      <th>Posted Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hrJobPosts.map((job) => (
+                      <tr key={job.id}>
+                        {/* ส่วน Company Info เหมือนช่อง User Info */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ 
+                              width: '32px', height: '32px', borderRadius: '50%', 
+                              background: '#4f46e5', color: '#fff', 
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontWeight: 'bold', fontSize: '12px'
+                            }}>
+                              {job.company_name?.charAt(0).toUpperCase() || "C"}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600 }}>{job.company_name || "General HR"}</div>
+                              <div style={{ fontSize: '11px', color: '#9ca3af' }}>By: {job.hr_name}</div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* ส่วน Job Details เหมือนช่อง Full Name */}
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{job.title}</div>
+                          <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 600 }}>
+                            📂 {job.category}
+                          </div>
+                        </td>
+
+                        {/* ส่วน Location */}
+                        <td>
+                          <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                            📍 {job.location}
+                          </span>
+                        </td>
+
+                        {/* ส่วน Salary เหมือนช่อง Role (มีสีสัน) */}
+                        <td>
+                          <span style={{ 
+                            fontSize: '12px', fontWeight: 600, color: '#059669' 
+                          }}>
+                            ฿ {job.salary}
+                          </span>
+                        </td>
+
+                        {/* ส่วน Joined Date */}
+                        <td style={{ fontSize: '12px', color: '#6b7280' }}>
+                          {new Date(job.createdAt).toLocaleDateString('th-TH', {
+                            year: 'numeric', month: 'short', day: 'numeric'
+                          })}
+                        </td>
+
+                        {/* ส่วน Delete/Actions */}
+                        <td>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            <button 
+                              className="action-btn" 
+                              style={{ color: '#ffffff', backgroundColor: '#6366f1' }}
+                              title="View Detail"
+                            >
+                              <LuFileText size={14} />
+                            </button>
+                            <button 
+                              className="action-btn" 
+                              style={{ color: '#ffffff', backgroundColor: '#ef4444' }}
+                              title="Delete Post"
+                            >
+                              <LuTrash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
         </main>
       </div>
     </div>
