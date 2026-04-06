@@ -100,6 +100,8 @@ body { font-family: 'DM Sans', sans-serif; background: #0e0e0e; color: #f0ede6; 
   margin-top: 24px;
 }
 
+
+
 .section-label:first-child { margin-top: 0; }
 
 .field { margin-bottom: 14px; }
@@ -111,6 +113,7 @@ label {
   margin-bottom: 5px;
   font-weight: 500;
   letter-spacing: 0.04em;
+  color: #f4f5f7;
 }
 
 input, textarea {
@@ -180,6 +183,7 @@ input::placeholder, textarea::placeholder { color: #3a3a3a; }
   cursor: pointer;
   transition: all 0.2s;
   letter-spacing: 0.04em;
+  color: #f4f5f7;
 }
 
 .btn-add:hover { border-color: var(--gold); color: var(--gold); }
