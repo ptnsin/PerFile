@@ -111,6 +111,8 @@ function ResumeContent({ data, highlightField }) {
           flexDirection: "column",
           position: "relative",
           overflow: "hidden",
+          WebkitPrintColorAdjust: "exact",
+          printColorAdjust: "exact",
         }}
       >
         {/* ── HEADER: full-color band ── */}
@@ -267,6 +269,8 @@ function ResumeContent({ data, highlightField }) {
         boxSizing: "border-box",
         position: "relative",
         overflow: "hidden",
+        WebkitPrintColorAdjust: "exact",
+        printColorAdjust: "exact",
       }}
     >
       {/* HEADER */}
@@ -623,13 +627,31 @@ function A4PreviewModal({ data, onClose }) {
         <head>
           <meta charset="utf-8" />
           <title>${data.name || "Resume"}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Georgia&display=swap');
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { background: #fff; }
-            @page { size: A4; margin: 0; }
+            *,
+            *::before,
+            *::after {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            html, body {
+              width: 210mm;
+              background: #fff;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
             @media print {
-              html, body { width: 210mm; height: 297mm; }
+              html, body { width: 210mm; min-height: 297mm; }
               .no-print { display: none !important; }
             }
           </style>

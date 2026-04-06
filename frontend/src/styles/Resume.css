@@ -15,8 +15,8 @@ body { font-family: 'DM Sans', sans-serif; background: #0e0e0e; color: #f0ede6; 
 }
 
 .back-link {
-  background: transparent;
-  border: 1px solid rgba(201, 168, 76, 0.85);
+  
+  border: #2a1a1a solid 1px;
   border-radius: 6px;
   padding: 8px 14px;
   display: block;
@@ -26,10 +26,7 @@ body { font-family: 'DM Sans', sans-serif; background: #0e0e0e; color: #f0ede6; 
   font-size: 14px;
 }
 
-.back-link:hover {
-  color: var(--gold-light);
-  background: rgba(201, 168, 76, 0.08);
-}
+.back-link:hover { color: var(--gold-light); }
 
 .app { display: flex; height: 100vh; overflow: hidden; }
 
@@ -445,6 +442,14 @@ input::placeholder, textarea::placeholder { color: #3a3a3a; }
   .sidebar { display: none; }
   .preview-area { padding: 0; background: #fff; }
   .resume { box-shadow: none; }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
 }
 
 .template-card {
