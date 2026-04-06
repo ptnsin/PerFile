@@ -221,6 +221,7 @@
   border-radius: 2px;
   transition: background 0.15s, height 0.15s;
 }
+
 .uf-sidebar:hover .uf-resize-bar { background: #1e3a8a; height: 56px; }
 
 .uf-create-btn {
@@ -324,10 +325,12 @@ background: #1d4ed8;
   font-size: 24px;
   color: #18181b;
   margin-bottom: 3px;
+  padding-left: 30px;
 }
 .uf-welcome p {
   font-size: 13px;
   color: #71717a;
+  padding-left: 30px;
 }
 
 .uf-tab-bar {

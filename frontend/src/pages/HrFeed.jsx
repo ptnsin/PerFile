@@ -5,7 +5,8 @@ import {
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers,
   LuMapPin, LuClock, LuBadgeCheck,
 } from "react-icons/lu";
-import PostJobModal from "./PostJobModal";         // ← import modal
+import PostJobModal from "./PostJobModal";
+import JobDetailModal from "./JobDetailModal";
 import "../styles/HRFeed.css";
 
 const STATS = [
@@ -26,7 +27,8 @@ export default function HrFeed() {
   const [menuOpen, setMenuOpen]       = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen]     = useState(false);
-  const [jobs, setJobs]               = useState([]);          // ← posted jobs list
+  const [jobs, setJobs]               = useState([]);
+  const [selectedJob, setSelectedJob] = useState(null); // ← job detail modal
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
@@ -135,6 +137,13 @@ useEffect(() => {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleJobPosted}
+      />
+
+      {/* ─── JOB DETAIL MODAL ─── */}
+      <JobDetailModal
+        open={!!selectedJob}
+        job={selectedJob}
+        onClose={() => setSelectedJob(null)}
       />
 
       {/* ─── NAV ─── */}
@@ -287,7 +296,7 @@ useEffect(() => {
                   </div>
                 </div>
               ) : (
-                jobs.map((job) => <JobCard key={job.id} job={job} />)
+                jobs.map((job) => <JobCard key={job.id} job={job} onClick={() => setSelectedJob(job)} />)
               )}
             </div>
           </div>
@@ -299,9 +308,21 @@ useEffect(() => {
 }
 
 /* ── Job Card ── */
-function JobCard({ job }) {
+function JobCard({ job, onClick }) {
   return (
-    <div className="hrf-job-card">
+    <div
+      className="hrf-job-card"
+      onClick={onClick}
+      style={{ cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s" }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 8px 24px rgba(29,78,216,0.12)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "";
+        e.currentTarget.style.boxShadow = "";
+      }}
+    >
       <div className="hrf-job-header">
         <div className="hrf-job-icon"><LuBriefcase /></div>
         <span className="hrf-job-type">{job.type}</span>

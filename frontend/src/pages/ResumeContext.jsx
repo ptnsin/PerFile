@@ -70,6 +70,27 @@ export function ResumeProvider({ children }) {
     setPublishedResumes((prev) => prev.filter((r) => r.id !== id));
   };
 
+  const unpublishToPrivate = (id) => {
+    const resume = publishedResumes.find((r) => r.id === id);
+    if (!resume) return;
+    const card = {
+      id: Date.now(),
+      title: resume.title || resume.owner || "Resume",
+      owner: resume.owner || "Unknown",
+      createdAt: new Date().toLocaleDateString("th-TH"),
+      data: resume.data,
+    };
+    setPrivateResumes((prev) => [card, ...prev]);
+    removeResume(id);
+  };
+
+  const publishPrivate = (id) => {
+    const resume = privateResumes.find((r) => r.id === id);
+    if (!resume) return;
+    publish(resume.data);
+    removePrivate(id);
+  };
+
   // ลบ private resume
   const removePrivate = (id) => {
     setPrivateResumes((prev) => prev.filter((r) => r.id !== id));
@@ -81,6 +102,8 @@ export function ResumeProvider({ children }) {
         publishedResumes,
         publish,
         removeResume,
+        unpublishToPrivate,
+        publishPrivate,
         privateResumes,      // ← export ใหม่
         savePrivate,         // ← export ใหม่
         removePrivate,       // ← export ใหม่
