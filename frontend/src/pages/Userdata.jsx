@@ -5,7 +5,7 @@ import {
   LuBriefcase, LuWrench, LuPlus, LuChevronRight, LuChevronLeft, LuCheck,
   LuBuilding
 } from "react-icons/lu";
-import DatePicker from "react-datePicker";
+import DatePicker from "react-datePicker ";
 import "react-datepicker/dist/react-datepicker.css";
 import "../styles/Userdata.css";
 

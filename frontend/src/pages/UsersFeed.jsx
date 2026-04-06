@@ -129,7 +129,7 @@ function UsersFeed() {
           <button className="sidebar-toggle-btn" onClick={toggleSidebar}>
             <LuPanelLeft />
           </button>
-          <div className="nav-logo">PerFile</div>
+          <div className="nav-logo1">PerFile</div>
           <div className="nav-search-wrapper">
             <LuSearch className="search-icon" />
             <input
