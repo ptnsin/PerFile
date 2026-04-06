@@ -659,4 +659,19 @@ hrRouter.post('/jobs', async (req, res) => {
   }
 })
 
+// ─────────────────────────────────────────────────────────────
+
+// ใน hrRouter.js
+hrRouter.get('/jobs', async (req, res) => {
+  try {
+    const jobs = await prisma.job.findMany({
+      where: { hrId: Number(req.user.id) }, // ดึงเฉพาะงานของ HR คนนี้
+      orderBy: { createdAt: 'desc' } // เอาอันใหม่ขึ้นก่อน
+    });
+    res.json({ jobs });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching jobs" });
+  }
+});
+
 export default hrRouter
