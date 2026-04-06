@@ -75,6 +75,31 @@ export default function HrFeed() {
     })();
   }, [navigate]);
 
+  /* ── Fetch Jobs from DB ── */
+useEffect(() => {
+  const fetchJobs = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      // เรียกไปที่ Route ใน hrRouter.js ที่เราทำไว้
+      const res = await fetch("http://localhost:3000/hr/jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // ถ้า Backend ส่งมาเป็น { jobs: [...] } ให้ใช้ data.jobs
+        setJobs(data.jobs || data); 
+      }
+    } catch (err) {
+      console.error("Fetch jobs error:", err);
+    }
+  };
+
+  fetchJobs();
+}, []);
+
   /* ── Close dropdown on outside click ── */
   useEffect(() => {
     const close = (e) => {
@@ -92,10 +117,11 @@ export default function HrFeed() {
     setSidebarOpen((v) => !v);
   };
 
-  /* ── Add job from modal ── */
-  const handleJobPosted = (job) => {
-    setJobs((prev) => [{ id: Date.now(), time: "เพิ่งโพสต์", ...job }, ...prev]);
-    setActiveTab("jobs");   // switch to jobs tab automatically
+  /* ── Refresh jobs after posting ── */
+  const handleJobPosted = () => {
+    // แทนที่จะเซ็ต State เอง ให้เรียกฟังก์ชันดึงข้อมูลใหม่ (หรือรีเฟรชหน้า)
+    window.location.reload(); 
+    // หรือถ้าเขียนฟังก์ชัน fetchJobs แยกไว้ ก็เรียกใช้ฟังก์ชันนั้นแทนครับ
   };
 
   /* ── Open modal from sidebar OR nav button ── */
