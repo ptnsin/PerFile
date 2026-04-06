@@ -176,7 +176,7 @@ export default function HrFeed() {
           <button className="hrf-menu-item" onClick={() => setActiveTab("jobs")}>
             <LuBriefcase /> My Jobs
           </button>
-          <button className="hrf-menu-item">
+          <button className="hrf-menu-item" onClick={() => navigate("/hr-profile", { state: { scrollTo: "saved" } })}>
             <LuBookmark /> Shortlisted
           </button>
 

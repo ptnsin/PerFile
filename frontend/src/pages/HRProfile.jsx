@@ -1,177 +1,201 @@
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import "../styles/HRProfile.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
-// ---- Mock Data ----
-const INITIAL_HR_DATA = {
-  name: "Pavinee Wongchai",
-  handle: "@pavinee.hr",
-  role: "Senior HR Manager",
-  company: "Innovate Solutions Co., Ltd.",
-  companyLogo: "IS",
-  bio: "Passionate about connecting great talent with great opportunities. 8+ years in tech recruitment & people operations 🌟",
-  location: "Bangkok, Thailand",
-  email: "pavinee@innovate.co.th",
-  linkedin: "linkedin.com/in/pavinee",
-  website: "innovate.co.th/careers",
-  industry: "Technology",
-  companySize: "200–500 คน",
-  founded: "2015",
-  companyDesc:
-    "Innovate Solutions เป็นบริษัท SaaS ชั้นนำในไทย พัฒนาซอฟต์แวร์ ERP และ HRM สำหรับองค์กรขนาดกลาง–ใหญ่ มุ่งสร้างวัฒนธรรมการทำงานที่เปิดกว้างและให้โอกาสทุกคนเติบโต",
-  perks: ["Remote/Hybrid", "Health Insurance", "Learning Budget", "Flexible Hours", "Team Retreats"],
-};
+// ═══════════════════════════════════════════════════════════════
+//  TODO: เชื่อม Backend — แก้ฟังก์ชันด้านล่างให้ fetch จาก API จริง
+//  ตัวอย่าง: const res = await fetch("/api/hr/profile"); return res.json();
+// ═══════════════════════════════════════════════════════════════
 
-const INITIAL_ABOUT_ITEMS = [
-  { icon: "🎓", title: "การศึกษา", detail: "M.A. HRM, Chulalongkorn University" },
-  { icon: "💼", title: "ประสบการณ์", detail: "8+ ปี ในสาย Tech Recruitment" },
-  { icon: "🏆", title: "ความเชี่ยวชาญ", detail: "Tech Hiring, Employer Branding, People Ops" },
-];
+async function getHrProfile()    { /* TODO */ return null; }
+async function getAboutItems()   { /* TODO */ return []; }
+async function getStats()        { /* TODO */ return []; }
+async function getOpenJobs()     { /* TODO */ return []; }
+async function getClosedJobs()   { /* TODO */ return []; }
+async function getApplicants()   { /* TODO */ return []; }
+async function getInterviews()   { /* TODO */ return []; }
+async function getReportData()   { /* TODO */ return null; }
+async function getActivities()   { /* TODO */ return []; }
+async function getQuickActions() { /* TODO */ return []; }
 
-const STATS = [
-  { num: "12", label: "ตำแหน่งเปิดรับ" },
-  { num: "340", label: "ผู้สมัครทั้งหมด" },
-  { num: "28", label: "สัมภาษณ์เดือนนี้" },
-  { num: "94%", label: "อัตราตอบรับ" },
-];
+// TODO: เชื่อม update กลับ backend
+async function saveHrProfile(/*payload*/)  { /* TODO */ }
+async function saveAboutItems(/*items*/)   { /* TODO */ }
 
-const OPEN_JOBS = [
-  { id: 1, title: "Senior Frontend Developer", dept: "Engineering", type: "Full-time", location: "Bangkok / Remote", salary: "80,000–120,000 ฿", posted: "2 วันที่แล้ว", applicants: 47, urgent: true },
-  { id: 2, title: "Product Designer (UX/UI)", dept: "Design", type: "Full-time", location: "Bangkok", salary: "60,000–90,000 ฿", posted: "5 วันที่แล้ว", applicants: 31, urgent: false },
-  { id: 3, title: "DevOps Engineer", dept: "Infrastructure", type: "Full-time", location: "Remote", salary: "90,000–130,000 ฿", posted: "1 สัปดาห์ที่แล้ว", applicants: 19, urgent: false },
-  { id: 4, title: "Data Analyst", dept: "Analytics", type: "Contract", location: "Bangkok", salary: "50,000–70,000 ฿", posted: "3 วันที่แล้ว", applicants: 22, urgent: true },
-];
-
-const CLOSED_JOBS = [
-  { id: 5, title: "iOS Developer", dept: "Engineering", type: "Full-time", location: "Bangkok", salary: "75,000–100,000 ฿", closedDate: "15 มี.ค. 2568", applicants: 63, hired: "Thanakorn S." },
-  { id: 6, title: "Marketing Manager", dept: "Marketing", type: "Full-time", location: "Bangkok", salary: "55,000–80,000 ฿", closedDate: "2 มี.ค. 2568", applicants: 89, hired: "Nattaporn K." },
-  { id: 7, title: "Backend Developer (Node.js)", dept: "Engineering", type: "Full-time", location: "Remote", salary: "70,000–100,000 ฿", closedDate: "20 ก.พ. 2568", applicants: 41, hired: "Wirut P." },
-];
-
+// ── Dept color map ────────────────────────────────────────────
 const DEPT_COLORS = {
-  Engineering:    { bg: "#eff6ff", text: "#1d4ed8", accent: "#3b82f6" },
-  Design:         { bg: "#fdf4ff", text: "#7e22ce", accent: "#a855f7" },
-  Infrastructure: { bg: "#f0fdf4", text: "#15803d", accent: "#22c55e" },
-  Analytics:      { bg: "#fff7ed", text: "#c2410c", accent: "#f97316" },
-  Marketing:      { bg: "#fff1f2", text: "#be123c", accent: "#f43f5e" },
+  Engineering:    { bg: "#eff6ff", text: "#1d4ed8" },
+  Design:         { bg: "#fdf4ff", text: "#7e22ce" },
+  Infrastructure: { bg: "#f0fdf4", text: "#15803d" },
+  Analytics:      { bg: "#fff7ed", text: "#c2410c" },
+  Marketing:      { bg: "#fff1f2", text: "#be123c" },
 };
 
-const ACTIVITIES = [
-  { text: "ตำแหน่ง Frontend Dev มีผู้สมัครใหม่ 3 คน", time: "10 นาทีที่แล้ว" },
-  { text: "นัดสัมภาษณ์กับ Somsak W. พรุ่งนี้ 14:00", time: "1 ชั่วโมงที่แล้ว" },
-  { text: "ตำแหน่ง DevOps ถูก save โดย 5 คน", time: "3 ชั่วโมงที่แล้ว" },
-];
+// ── Skeleton block ────────────────────────────────────────────
+function Skeleton({ w = "100%", h = 14, radius = 6, style = {} }) {
+  return (
+    <span style={{
+      display: "inline-block", width: w, height: h,
+      borderRadius: radius,
+      background: "linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)",
+      backgroundSize: "200% 100%",
+      animation: "hr-shimmer 1.4s infinite",
+      verticalAlign: "middle", ...style,
+    }} />
+  );
+}
 
-const QUICK_ACTIONS = [
-  { icon: "📋", label: "ดูผู้สมัครทั้งหมด", sub: "340 คน" },
-  { icon: "📅", label: "ตารางสัมภาษณ์", sub: "5 นัดสัปดาห์นี้" },
-  { icon: "📊", label: "รายงานการสรรหา", sub: "อัปเดตล่าสุด" },
-];
-
-// Mock applicant data
-const APPLICANTS = [
-  { id: 1, name: "Somsak Wirachai", role: "Senior Frontend Developer", status: "สัมภาษณ์รอบ 2", applied: "3 วันที่แล้ว", avatar: "S" },
-  { id: 2, name: "Nattaya Pornpan", role: "Product Designer (UX/UI)", status: "รอการตรวจสอบ", applied: "1 วันที่แล้ว", avatar: "N" },
-  { id: 3, name: "Krit Tanawat", role: "DevOps Engineer", status: "ผ่านคัดกรอง", applied: "5 วันที่แล้ว", avatar: "K" },
-  { id: 4, name: "Pimchanok Suri", role: "Data Analyst", status: "รอการตรวจสอบ", applied: "2 วันที่แล้ว", avatar: "P" },
-  { id: 5, name: "Thanakorn Siri", role: "Senior Frontend Developer", status: "เสนอ offer", applied: "7 วันที่แล้ว", avatar: "T" },
-];
-
-// Mock interview schedule
-const INTERVIEWS = [
-  { id: 1, candidate: "Somsak Wirachai", role: "Senior Frontend Developer", date: "พรุ่งนี้", time: "14:00", type: "Video Call", interviewer: "คุณ Pavinee + Tech Lead" },
-  { id: 2, candidate: "Krit Tanawat", role: "DevOps Engineer", date: "1 เม.ย. 2568", time: "10:30", type: "On-site", interviewer: "คุณ Pavinee" },
-  { id: 3, candidate: "Pimchanok Suri", role: "Data Analyst", date: "2 เม.ย. 2568", time: "13:00", type: "Video Call", interviewer: "คุณ Pavinee + Data Team" },
-];
-
-// Mock report data
-const REPORT_DATA = {
-  thisMonth: { applications: 87, interviews: 28, offers: 5, hired: 3 },
-  lastMonth: { applications: 62, interviews: 21, offers: 4, hired: 4 },
-  topSources: [
-    { name: "LinkedIn", pct: 45 },
-    { name: "PerFile", pct: 30 },
-    { name: "Referral", pct: 15 },
-    { name: "อื่นๆ", pct: 10 },
-  ],
-};
-
-// ---- Inline Edit Field ----
+// ── Inline Edit Field ─────────────────────────────────────────
 function EditableField({ value, onChange, multiline = false, className = "", style = {} }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
+  const [draft, setDraft]     = useState(value);
 
   const commit = () => { onChange(draft); setEditing(false); };
   const cancel = () => { setDraft(value); setEditing(false); };
+
+  if (!value && value !== 0) return <Skeleton w={120} />;
 
   if (editing) {
     return (
       <span className="hr-edit-inline-wrap">
         {multiline ? (
-          <textarea
-            className={`hr-edit-textarea ${className}`}
-            style={style}
-            value={draft}
-            autoFocus
+          <textarea className={`hr-edit-textarea ${className}`} style={style}
+            value={draft} autoFocus
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === "Escape") cancel(); }}
           />
         ) : (
-          <input
-            className={`hr-edit-input ${className}`}
-            style={style}
-            value={draft}
-            autoFocus
+          <input className={`hr-edit-input ${className}`} style={style}
+            value={draft} autoFocus
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") cancel(); }}
           />
         )}
         <span className="hr-edit-actions">
           <button className="hr-edit-confirm" onClick={commit} title="บันทึก">✓</button>
-          <button className="hr-edit-cancel" onClick={cancel} title="ยกเลิก">✕</button>
+          <button className="hr-edit-cancel"  onClick={cancel} title="ยกเลิก">✕</button>
         </span>
       </span>
     );
   }
 
   return (
-    <span
-      className={`hr-editable ${className}`}
-      style={style}
+    <span className={`hr-editable ${className}`} style={style}
       onClick={() => { setDraft(value); setEditing(true); }}
       title="คลิกเพื่อแก้ไข"
     >
-      {value}
-      <span className="hr-edit-pencil">✏️</span>
+      {value}<span className="hr-edit-pencil">✏️</span>
     </span>
   );
 }
 
-// ---- Page Views ----
+// ── Empty placeholder ─────────────────────────────────────────
+function EmptySlot({ icon, text }) {
+  return (
+    <div style={{ padding: "2.5rem 1rem", textAlign: "center", color: "#9ca3af" }}>
+      <div style={{ fontSize: "2rem", marginBottom: 8 }}>{icon}</div>
+      <div style={{ fontSize: "0.85rem" }}>{text}</div>
+    </div>
+  );
+}
 
-function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk, savedJobs, setSavedJobs, setActivePage }) {
-  const [activeTab, setActiveTab] = useState("jobs");
+// ── Reusable Job Cards ────────────────────────────────────────
+function JobCard({ job, savedJobs, toggleSave, setActivePage }) {
+  const dept    = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
+  const isSaved = savedJobs.includes(job.id);
+  return (
+    <div className="hr-job-card">
+      <div className="hr-job-top">
+        <div className="hr-job-title-wrap">
+          <div className="hr-job-title">{job.title}</div>
+          <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
+        </div>
+        <div className="hr-job-actions">
+          {job.urgent && <span className="hr-urgent-badge">⚡ ด่วน</span>}
+          <button className={`hr-save-btn${isSaved ? " saved" : ""}`} onClick={() => toggleSave(job.id)} title={isSaved ? "ยกเลิก save" : "บันทึกงาน"}>
+            {isSaved ? "🔖" : "🏷️"}
+          </button>
+        </div>
+      </div>
+      <div className="hr-job-meta">
+        <span className="hr-job-meta-item">📍 {job.location}</span>
+        <span className="hr-job-meta-item">⏱ {job.type}</span>
+        <span className="hr-job-meta-item">💰 {job.salary}</span>
+      </div>
+      <div className="hr-job-footer">
+        <div>
+          <div className="hr-job-posted">โพสต์เมื่อ {job.posted}</div>
+          <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
+        </div>
+        <button className="hr-apply-btn" onClick={() => setActivePage("applicants")}>ดูผู้สมัคร →</button>
+      </div>
+    </div>
+  );
+}
 
-  const updateHr = (key) => (val) => setHr(prev => ({ ...prev, [key]: val }));
-  const updateAbout = (idx, key) => (val) =>
-    setAboutItems(prev => prev.map((item, i) => i === idx ? { ...item, [key]: val } : item));
+function ClosedJobCard({ job }) {
+  const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
+  return (
+    <div className="hr-closed-card">
+      <div className="hr-closed-left">
+        <div className="hr-closed-icon" style={{ background: dept.bg, color: dept.text }}>
+          {job.dept === "Engineering" ? "⚙️" : job.dept === "Marketing" ? "📣" : "🎨"}
+        </div>
+        <div className="hr-closed-info">
+          <div className="hr-closed-title">{job.title}</div>
+          <div className="hr-closed-meta">
+            <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
+            <span className="hr-closed-date">ปิดเมื่อ {job.closedDate}</span>
+          </div>
+          <div className="hr-closed-stats">
+            <span>👥 {job.applicants} ผู้สมัคร</span>
+            <span className="hr-hired-chip">✓ รับ: {job.hired}</span>
+          </div>
+        </div>
+      </div>
+      <div className="hr-closed-actions">
+        <button className="hr-reopen-btn">↩ เปิดใหม่</button>
+      </div>
+    </div>
+  );
+}
 
-  const toggleSave = (id) =>
-    setSavedJobs((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+// ── Profile View ──────────────────────────────────────────────
+function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, savedJobs, setSavedJobs, setActivePage, initialTab }) {
+  const [activeTab, setActiveTab] = useState(initialTab === "saved" ? "saved" : "jobs");
+  const savedSectionRef = useRef(null);
+  const hasScrolled     = useRef(false);
 
-  const removePerk = (p) => setHr(prev => ({ ...prev, perks: prev.perks.filter(x => x !== p) }));
-  const addPerk = () => {
-    if (newPerk.trim()) {
-      setHr(prev => ({ ...prev, perks: [...prev.perks, newPerk.trim()] }));
-      setNewPerk("");
+  // scroll ครั้งเดียวตอน mount เท่านั้น — ใช้ [] dependency
+  useEffect(() => {
+    if (initialTab === "saved" && !hasScrolled.current) {
+      hasScrolled.current = true;
+      window.history.replaceState({}, document.title); // ลบ state ออกทันที
+      setTimeout(() => {
+        savedSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     }
-  };
+  }, []); // eslint-disable-line
 
-  const savedJobsList = OPEN_JOBS.filter(j => savedJobs.includes(j.id));
+  const updateHr = (key) => (val) => {
+    const updated = { ...(hr || {}), [key]: val };
+    setHr(updated);
+    saveHrProfile({ [key]: val });
+  };
+  const updateAbout = (idx, key) => (val) => {
+    const updated = aboutItems.map((item, i) => i === idx ? { ...item, [key]: val } : item);
+    setAboutItems(updated);
+    saveAboutItems(updated);
+  };
+  const toggleSave = (id) => setSavedJobs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const removePerk = (p) => { const u = { ...(hr||{}), perks: (hr?.perks||[]).filter(x => x !== p) }; setHr(u); saveHrProfile({ perks: u.perks }); };
+  const addPerk    = () => { if (newPerk.trim()) { const u = { ...(hr||{}), perks: [...(hr?.perks||[]), newPerk.trim()] }; setHr(u); saveHrProfile({ perks: u.perks }); setNewPerk(""); } };
+
+  const savedJobsList = openJobs.filter(j => savedJobs.includes(j.id));
   const TABS = [
-    { key: "jobs", label: "ตำแหน่งงาน", count: OPEN_JOBS.length },
-    { key: "closed", label: "ปิดแล้ว", count: CLOSED_JOBS.length },
-    { key: "saved", label: "Saved", count: savedJobsList.length },
+    { key: "jobs",   label: "ตำแหน่งงาน", count: openJobs.length },
+    { key: "closed", label: "ปิดแล้ว",     count: closedJobs.length },
+    { key: "saved",  label: "Saved",        count: savedJobsList.length },
   ];
 
   return (
@@ -184,25 +208,23 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
         </div>
         <div className="hr-profile-body">
           <div className="hr-avatar-row">
-            <div className="hr-avatar">P</div>
+            <div className="hr-avatar">{hr?.name?.[0] ?? "?"}</div>
           </div>
-          <div className="hr-profile-name">
-            <EditableField value={hr.name} onChange={updateHr("name")} />
-          </div>
+          <div className="hr-profile-name"><EditableField value={hr?.name}   onChange={updateHr("name")} /></div>
           <div className="hr-profile-role">
-            <EditableField value={hr.role} onChange={updateHr("role")} /> ·{" "}
-            <EditableField value={hr.company} onChange={updateHr("company")} />
+            <EditableField value={hr?.role}    onChange={updateHr("role")} /> ·{" "}
+            <EditableField value={hr?.company} onChange={updateHr("company")} />
           </div>
           <div className="hr-profile-handle">
-            <EditableField value={hr.handle} onChange={updateHr("handle")} /> · PerFile HR
+            <EditableField value={hr?.handle}  onChange={updateHr("handle")} /> · PerFile HR
           </div>
           <div className="hr-profile-bio">
-            <EditableField value={hr.bio} onChange={updateHr("bio")} multiline />
+            <EditableField value={hr?.bio}     onChange={updateHr("bio")} multiline />
           </div>
           <div className="hr-meta-row">
-            <span className="hr-meta-item">📍 <EditableField value={hr.location} onChange={updateHr("location")} /></span>
-            <span className="hr-meta-item">🔗 <EditableField value={hr.website} onChange={updateHr("website")} /></span>
-            <span className="hr-meta-item">✉️ <EditableField value={hr.email} onChange={updateHr("email")} /></span>
+            <span className="hr-meta-item">📍 <EditableField value={hr?.location} onChange={updateHr("location")} /></span>
+            <span className="hr-meta-item">🔗 <EditableField value={hr?.website}  onChange={updateHr("website")} /></span>
+            <span className="hr-meta-item">✉️ <EditableField value={hr?.email}    onChange={updateHr("email")} /></span>
           </div>
           <div className="hr-social-row">
             <button className="hr-social-btn">💼 LinkedIn</button>
@@ -213,10 +235,15 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
 
       {/* Stats */}
       <div className="hr-stats-row">
-        {STATS.map((s) => (
+        {stats.length > 0 ? stats.map(s => (
           <div key={s.label} className="hr-stat-card">
             <div className="hr-stat-num">{s.num}</div>
             <div className="hr-stat-label">{s.label}</div>
+          </div>
+        )) : [1,2,3,4].map(i => (
+          <div key={i} className="hr-stat-card">
+            <Skeleton w={40} h={28} style={{ marginBottom: 8 }} />
+            <Skeleton w={80} h={12} />
           </div>
         ))}
       </div>
@@ -229,35 +256,27 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
         </div>
         <div className="hr-company-body">
           <div className="hr-company-top">
-            <div className="hr-company-logo">{hr.companyLogo}</div>
+            <div className="hr-company-logo">{hr?.companyLogo ?? "?"}</div>
             <div>
-              <div className="hr-company-name">
-                <EditableField value={hr.company} onChange={updateHr("company")} />
-              </div>
-              <div className="hr-company-industry">
-                <EditableField value={hr.industry} onChange={updateHr("industry")} />
-              </div>
+              <div className="hr-company-name"><EditableField value={hr?.company}  onChange={updateHr("company")} /></div>
+              <div className="hr-company-industry"><EditableField value={hr?.industry} onChange={updateHr("industry")} /></div>
             </div>
           </div>
-          <div className="hr-company-desc">
-            <EditableField value={hr.companyDesc} onChange={updateHr("companyDesc")} multiline />
-          </div>
+          <div className="hr-company-desc"><EditableField value={hr?.companyDesc} onChange={updateHr("companyDesc")} multiline /></div>
           <div className="hr-company-meta">
-            <div className="hr-company-meta-item">👥 <strong><EditableField value={hr.companySize} onChange={updateHr("companySize")} /></strong></div>
-            <div className="hr-company-meta-item">📅 ก่อตั้ง <strong><EditableField value={hr.founded} onChange={updateHr("founded")} /></strong></div>
-            <div className="hr-company-meta-item">🌏 <strong><EditableField value={hr.location} onChange={updateHr("location")} /></strong></div>
+            <div className="hr-company-meta-item">👥 <strong><EditableField value={hr?.companySize} onChange={updateHr("companySize")} /></strong></div>
+            <div className="hr-company-meta-item">📅 ก่อตั้ง <strong><EditableField value={hr?.founded}     onChange={updateHr("founded")} /></strong></div>
+            <div className="hr-company-meta-item">🌏 <strong><EditableField value={hr?.location}    onChange={updateHr("location")} /></strong></div>
           </div>
           <div className="hr-perks-row">
-            {hr.perks.map((p) => (
+            {(hr?.perks ?? []).map(p => (
               <span key={p} className="hr-perk-chip">
                 {p}
                 <button className="hr-perk-remove" onClick={() => removePerk(p)} title="ลบ">×</button>
               </span>
             ))}
             <span className="hr-perk-add-wrap">
-              <input
-                className="hr-perk-input"
-                value={newPerk}
+              <input className="hr-perk-input" value={newPerk}
                 onChange={e => setNewPerk(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addPerk()}
                 placeholder="+ เพิ่ม perk"
@@ -275,16 +294,20 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
           <span className="hr-edit-hint-badge">คลิกข้อความเพื่อแก้ไข</span>
         </div>
         <div className="hr-about-body">
-          {aboutItems.map((a, idx) => (
-            <div key={a.title} className="hr-about-item">
+          {aboutItems.length > 0 ? aboutItems.map((a, idx) => (
+            <div key={idx} className="hr-about-item">
               <div className="hr-about-icon">{a.icon}</div>
               <div>
-                <div className="hr-about-title">
-                  <EditableField value={a.title} onChange={updateAbout(idx, "title")} />
-                </div>
-                <div className="hr-about-detail">
-                  <EditableField value={a.detail} onChange={updateAbout(idx, "detail")} />
-                </div>
+                <div className="hr-about-title"><EditableField value={a.title}  onChange={updateAbout(idx, "title")} /></div>
+                <div className="hr-about-detail"><EditableField value={a.detail} onChange={updateAbout(idx, "detail")} /></div>
+              </div>
+            </div>
+          )) : [1,2,3].map(i => (
+            <div key={i} className="hr-about-item">
+              <Skeleton w={36} h={36} radius={50} />
+              <div style={{ flex: 1, marginLeft: 12 }}>
+                <Skeleton w={100} h={12} style={{ marginBottom: 6 }} />
+                <Skeleton w={200} h={12} />
               </div>
             </div>
           ))}
@@ -292,15 +315,11 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
       </div>
 
       {/* Job Postings */}
-      <div className="hr-card">
+      <div className="hr-card" ref={savedSectionRef}>
         <div className="hr-card-header">
           <div className="hr-tab-bar">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                className={`hr-tab${activeTab === t.key ? " active" : ""}`}
-                onClick={() => setActiveTab(t.key)}
-              >
+            {TABS.map(t => (
+              <button key={t.key} className={`hr-tab${activeTab === t.key ? " active" : ""}`} onClick={() => setActiveTab(t.key)}>
                 {t.label}
                 <span className={`hr-tab-count${activeTab === t.key ? " active" : ""}`}>{t.count}</span>
               </button>
@@ -308,79 +327,20 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
           </div>
           <button className="hr-card-action">+ โพสต์งานใหม่</button>
         </div>
-
         <div className="hr-jobs-list">
-          {/* OPEN JOBS */}
-          {activeTab === "jobs" && OPEN_JOBS.map((job) => {
-            const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b", accent: "#71717a" };
-            const isSaved = savedJobs.includes(job.id);
-            return (
-              <div key={job.id} className="hr-job-card">
-                <div className="hr-job-top">
-                  <div className="hr-job-title-wrap">
-                    <div className="hr-job-title">{job.title}</div>
-                    <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
-                  </div>
-                  <div className="hr-job-actions">
-                    {job.urgent && <span className="hr-urgent-badge">⚡ ด่วน</span>}
-                    <button
-                      className={`hr-save-btn${isSaved ? " saved" : ""}`}
-                      onClick={() => toggleSave(job.id)}
-                      title={isSaved ? "ยกเลิก save" : "บันทึกงาน"}
-                    >
-                      {isSaved ? "🔖" : "🏷️"}
-                    </button>
-                  </div>
-                </div>
-                <div className="hr-job-meta">
-                  <span className="hr-job-meta-item">📍 {job.location}</span>
-                  <span className="hr-job-meta-item">⏱ {job.type}</span>
-                  <span className="hr-job-meta-item">💰 {job.salary}</span>
-                </div>
-                <div className="hr-job-footer">
-                  <div>
-                    <div className="hr-job-posted">โพสต์เมื่อ {job.posted}</div>
-                    <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
-                  </div>
-                  <button className="hr-apply-btn" onClick={() => setActivePage("applicants")}>ดูผู้สมัคร →</button>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* CLOSED JOBS */}
+          {activeTab === "jobs" && (
+            openJobs.length === 0
+              ? <EmptySlot icon="💼" text="รอข้อมูลตำแหน่งงานจาก Backend" />
+              : openJobs.map(job => <JobCard key={job.id} job={job} savedJobs={savedJobs} toggleSave={toggleSave} setActivePage={setActivePage} />)
+          )}
           {activeTab === "closed" && (
             <div className="hr-closed-list">
-              {CLOSED_JOBS.map(job => {
-                const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
-                return (
-                  <div key={job.id} className="hr-closed-card">
-                    <div className="hr-closed-left">
-                      <div className="hr-closed-icon" style={{ background: dept.bg, color: dept.text }}>
-                        {job.dept === "Engineering" ? "⚙️" : job.dept === "Marketing" ? "📣" : "🎨"}
-                      </div>
-                      <div className="hr-closed-info">
-                        <div className="hr-closed-title">{job.title}</div>
-                        <div className="hr-closed-meta">
-                          <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
-                          <span className="hr-closed-date">ปิดเมื่อ {job.closedDate}</span>
-                        </div>
-                        <div className="hr-closed-stats">
-                          <span>👥 {job.applicants} ผู้สมัคร</span>
-                          <span className="hr-hired-chip">✓ รับ: {job.hired}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="hr-closed-actions">
-                      <button className="hr-reopen-btn">↩ เปิดใหม่</button>
-                    </div>
-                  </div>
-                );
-              })}
+              {closedJobs.length === 0
+                ? <EmptySlot icon="📁" text="รอข้อมูลตำแหน่งที่ปิดแล้วจาก Backend" />
+                : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} />)
+              }
             </div>
           )}
-
-          {/* SAVED JOBS */}
           {activeTab === "saved" && (
             savedJobsList.length === 0 ? (
               <div className="hr-empty-tab">
@@ -388,36 +348,30 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
                 <div className="hr-empty-title">ยังไม่มีงานที่ save</div>
                 <div className="hr-empty-desc">กด 🏷️ ที่ตำแหน่งงานไหนก็ได้เพื่อบันทึก</div>
               </div>
-            ) : (
-              savedJobsList.map(job => {
-                const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
-                return (
-                  <div key={job.id} className="hr-saved-card">
-                    <div className="hr-saved-ribbon">🔖 Saved</div>
-                    <div className="hr-job-top">
-                      <div className="hr-job-title-wrap">
-                        <div className="hr-job-title">{job.title}</div>
-                        <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
-                      </div>
-                      <button
-                        className="hr-save-btn saved"
-                        onClick={() => toggleSave(job.id)}
-                        title="ยกเลิก save"
-                      >🔖</button>
+            ) : savedJobsList.map(job => {
+              const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
+              return (
+                <div key={job.id} className="hr-saved-card">
+                  <div className="hr-saved-ribbon">🔖 Saved</div>
+                  <div className="hr-job-top">
+                    <div className="hr-job-title-wrap">
+                      <div className="hr-job-title">{job.title}</div>
+                      <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
                     </div>
-                    <div className="hr-job-meta">
-                      <span className="hr-job-meta-item">📍 {job.location}</span>
-                      <span className="hr-job-meta-item">⏱ {job.type}</span>
-                      <span className="hr-job-meta-item">💰 {job.salary}</span>
-                    </div>
-                    <div className="hr-job-footer">
-                      <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
-                      <button className="hr-apply-btn">ดูผู้สมัคร →</button>
-                    </div>
+                    <button className="hr-save-btn saved" onClick={() => toggleSave(job.id)} title="ยกเลิก save">🔖</button>
                   </div>
-                );
-              })
-            )
+                  <div className="hr-job-meta">
+                    <span className="hr-job-meta-item">📍 {job.location}</span>
+                    <span className="hr-job-meta-item">⏱ {job.type}</span>
+                    <span className="hr-job-meta-item">💰 {job.salary}</span>
+                  </div>
+                  <div className="hr-job-footer">
+                    <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
+                    <button className="hr-apply-btn">ดูผู้สมัคร →</button>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -425,43 +379,48 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, newPerk, setNewPerk
   );
 }
 
-function ApplicantsView() {
+// ── Applicants View ───────────────────────────────────────────
+function ApplicantsView({ applicants }) {
   const statusColor = {
-    "รอการตรวจสอบ": { bg: "#fff7ed", text: "#c2410c" },
-    "ผ่านคัดกรอง": { bg: "#eff6ff", text: "#1d4ed8" },
+    "รอการตรวจสอบ":  { bg: "#fff7ed", text: "#c2410c" },
+    "ผ่านคัดกรอง":   { bg: "#eff6ff", text: "#1d4ed8" },
     "สัมภาษณ์รอบ 2": { bg: "#fdf4ff", text: "#7e22ce" },
-    "เสนอ offer": { bg: "#f0fdf4", text: "#15803d" },
+    "เสนอ offer":    { bg: "#f0fdf4", text: "#15803d" },
   };
   return (
     <div className="hr-card">
       <div className="hr-card-header">
         <div className="hr-card-title">📋 ผู้สมัครทั้งหมด</div>
-        <span className="hr-edit-hint-badge">340 คน</span>
+        <span className="hr-edit-hint-badge">{applicants.length} คน</span>
       </div>
       <div className="hr-jobs-list">
-        {APPLICANTS.map(a => {
-          const sc = statusColor[a.status] || { bg: "#f4f4f5", text: "#52525b" };
-          return (
-            <div key={a.id} className="hr-job-card" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-              <div className="hr-avatar" style={{ width: 44, height: 44, fontSize: "1rem", flexShrink: 0 }}>{a.avatar}</div>
-              <div style={{ flex: 1 }}>
-                <div className="hr-job-title">{a.name}</div>
-                <div className="hr-job-meta" style={{ marginTop: 4 }}>
-                  <span className="hr-job-meta-item">💼 {a.role}</span>
-                  <span className="hr-job-meta-item">🕐 {a.applied}</span>
+        {applicants.length === 0
+          ? <EmptySlot icon="👥" text="รอข้อมูลผู้สมัครจาก Backend" />
+          : applicants.map(a => {
+            const sc = statusColor[a.status] || { bg: "#f4f4f5", text: "#52525b" };
+            return (
+              <div key={a.id} className="hr-job-card" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div className="hr-avatar" style={{ width: 44, height: 44, fontSize: "1rem", flexShrink: 0 }}>{a.avatar}</div>
+                <div style={{ flex: 1 }}>
+                  <div className="hr-job-title">{a.name}</div>
+                  <div className="hr-job-meta" style={{ marginTop: 4 }}>
+                    <span className="hr-job-meta-item">💼 {a.role}</span>
+                    <span className="hr-job-meta-item">🕐 {a.applied}</span>
+                  </div>
                 </div>
+                <span className="hr-job-dept" style={{ background: sc.bg, color: sc.text }}>{a.status}</span>
+                <button className="hr-apply-btn">ดูโปรไฟล์ →</button>
               </div>
-              <span className="hr-job-dept" style={{ background: sc.bg, color: sc.text }}>{a.status}</span>
-              <button className="hr-apply-btn">ดูโปรไฟล์ →</button>
-            </div>
-          );
-        })}
+            );
+          })
+        }
       </div>
     </div>
   );
 }
 
-function InterviewView() {
+// ── Interview View ────────────────────────────────────────────
+function InterviewView({ interviews }) {
   return (
     <div className="hr-card">
       <div className="hr-card-header">
@@ -469,47 +428,57 @@ function InterviewView() {
         <button className="hr-card-action">+ นัดสัมภาษณ์</button>
       </div>
       <div className="hr-jobs-list">
-        {INTERVIEWS.map(iv => (
-          <div key={iv.id} className="hr-job-card">
-            <div className="hr-job-top">
-              <div className="hr-job-title-wrap">
-                <div className="hr-job-title">{iv.candidate}</div>
-                <span className="hr-job-dept" style={{ background: "#eff6ff", color: "#1d4ed8" }}>{iv.type}</span>
+        {interviews.length === 0
+          ? <EmptySlot icon="📅" text="รอข้อมูลตารางสัมภาษณ์จาก Backend" />
+          : interviews.map(iv => (
+            <div key={iv.id} className="hr-job-card">
+              <div className="hr-job-top">
+                <div className="hr-job-title-wrap">
+                  <div className="hr-job-title">{iv.candidate}</div>
+                  <span className="hr-job-dept" style={{ background: "#eff6ff", color: "#1d4ed8" }}>{iv.type}</span>
+                </div>
+                <span className="hr-urgent-badge" style={{ background: "#f0fdf4", color: "#15803d" }}>📅 {iv.date} · {iv.time}</span>
               </div>
-              <span className="hr-urgent-badge" style={{ background: "#f0fdf4", color: "#15803d" }}>📅 {iv.date} · {iv.time}</span>
-            </div>
-            <div className="hr-job-meta">
-              <span className="hr-job-meta-item">💼 {iv.role}</span>
-              <span className="hr-job-meta-item">👤 {iv.interviewer}</span>
-            </div>
-            <div className="hr-job-footer">
-              <div />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="hr-reopen-btn">✏️ แก้ไข</button>
-                <button className="hr-apply-btn">เข้าร่วม →</button>
+              <div className="hr-job-meta">
+                <span className="hr-job-meta-item">💼 {iv.role}</span>
+                <span className="hr-job-meta-item">👤 {iv.interviewer}</span>
+              </div>
+              <div className="hr-job-footer">
+                <div />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="hr-reopen-btn">✏️ แก้ไข</button>
+                  <button className="hr-apply-btn">เข้าร่วม →</button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        }
       </div>
     </div>
   );
 }
 
-function ReportView() {
-  const { thisMonth, lastMonth, topSources } = REPORT_DATA;
+// ── Report View ───────────────────────────────────────────────
+function ReportView({ reportData }) {
+  if (!reportData) return (
+    <div className="hr-card" style={{ padding: "3rem", textAlign: "center", color: "#9ca3af" }}>
+      <div style={{ fontSize: "2rem", marginBottom: 8 }}>📊</div>
+      <div style={{ fontSize: "0.85rem" }}>รอข้อมูลรายงานจาก Backend</div>
+    </div>
+  );
+  const { thisMonth, lastMonth, topSources } = reportData;
   const metrics = [
-    { label: "ผู้สมัคร", cur: thisMonth.applications, prev: lastMonth.applications, icon: "📋" },
-    { label: "สัมภาษณ์", cur: thisMonth.interviews, prev: lastMonth.interviews, icon: "📅" },
-    { label: "เสนอ Offer", cur: thisMonth.offers, prev: lastMonth.offers, icon: "📨" },
-    { label: "รับเข้าทำงาน", cur: thisMonth.hired, prev: lastMonth.hired, icon: "✅" },
+    { label: "ผู้สมัคร",      cur: thisMonth.applications, prev: lastMonth.applications, icon: "📋" },
+    { label: "สัมภาษณ์",      cur: thisMonth.interviews,   prev: lastMonth.interviews,   icon: "📅" },
+    { label: "เสนอ Offer",    cur: thisMonth.offers,        prev: lastMonth.offers,        icon: "📨" },
+    { label: "รับเข้าทำงาน", cur: thisMonth.hired,         prev: lastMonth.hired,         icon: "✅" },
   ];
   return (
     <>
       <div className="hr-stats-row">
         {metrics.map(m => {
           const diff = m.cur - m.prev;
-          const up = diff >= 0;
+          const up   = diff >= 0;
           return (
             <div key={m.label} className="hr-stat-card">
               <div style={{ fontSize: "1.4rem", marginBottom: 4 }}>{m.icon}</div>
@@ -523,9 +492,7 @@ function ReportView() {
         })}
       </div>
       <div className="hr-card">
-        <div className="hr-card-header">
-          <div className="hr-card-title">📊 แหล่งที่มาของผู้สมัคร</div>
-        </div>
+        <div className="hr-card-header"><div className="hr-card-title">📊 แหล่งที่มาของผู้สมัคร</div></div>
         <div style={{ padding: "1rem 1.25rem" }}>
           {topSources.map(s => (
             <div key={s.name} style={{ marginBottom: "1rem" }}>
@@ -544,7 +511,8 @@ function ReportView() {
   );
 }
 
-function OpenJobsView() {
+// ── Open/Closed Jobs Views ────────────────────────────────────
+function OpenJobsView({ openJobs }) {
   return (
     <div className="hr-card">
       <div className="hr-card-header">
@@ -552,71 +520,50 @@ function OpenJobsView() {
         <button className="hr-card-action">+ โพสต์งานใหม่</button>
       </div>
       <div className="hr-jobs-list">
-        {OPEN_JOBS.map((job) => {
-          const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
-          return (
-            <div key={job.id} className="hr-job-card">
-              <div className="hr-job-top">
-                <div className="hr-job-title-wrap">
-                  <div className="hr-job-title">{job.title}</div>
-                  <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
+        {openJobs.length === 0
+          ? <EmptySlot icon="💼" text="รอข้อมูลตำแหน่งงานจาก Backend" />
+          : openJobs.map(job => {
+            const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
+            return (
+              <div key={job.id} className="hr-job-card">
+                <div className="hr-job-top">
+                  <div className="hr-job-title-wrap">
+                    <div className="hr-job-title">{job.title}</div>
+                    <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
+                  </div>
+                  {job.urgent && <span className="hr-urgent-badge">⚡ ด่วน</span>}
                 </div>
-                {job.urgent && <span className="hr-urgent-badge">⚡ ด่วน</span>}
-              </div>
-              <div className="hr-job-meta">
-                <span className="hr-job-meta-item">📍 {job.location}</span>
-                <span className="hr-job-meta-item">⏱ {job.type}</span>
-                <span className="hr-job-meta-item">💰 {job.salary}</span>
-              </div>
-              <div className="hr-job-footer">
-                <div>
-                  <div className="hr-job-posted">โพสต์เมื่อ {job.posted}</div>
-                  <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
+                <div className="hr-job-meta">
+                  <span className="hr-job-meta-item">📍 {job.location}</span>
+                  <span className="hr-job-meta-item">⏱ {job.type}</span>
+                  <span className="hr-job-meta-item">💰 {job.salary}</span>
                 </div>
-                <button className="hr-apply-btn">ดูผู้สมัคร →</button>
+                <div className="hr-job-footer">
+                  <div>
+                    <div className="hr-job-posted">โพสต์เมื่อ {job.posted}</div>
+                    <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
+                  </div>
+                  <button className="hr-apply-btn">ดูผู้สมัคร →</button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        }
       </div>
     </div>
   );
 }
 
-function ClosedJobsView() {
+function ClosedJobsView({ closedJobs }) {
   return (
     <div className="hr-card">
-      <div className="hr-card-header">
-        <div className="hr-card-title">⚫ ตำแหน่งที่ปิดแล้ว</div>
-      </div>
+      <div className="hr-card-header"><div className="hr-card-title">⚫ ตำแหน่งที่ปิดแล้ว</div></div>
       <div className="hr-jobs-list">
         <div className="hr-closed-list">
-          {CLOSED_JOBS.map(job => {
-            const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
-            return (
-              <div key={job.id} className="hr-closed-card">
-                <div className="hr-closed-left">
-                  <div className="hr-closed-icon" style={{ background: dept.bg, color: dept.text }}>
-                    {job.dept === "Engineering" ? "⚙️" : job.dept === "Marketing" ? "📣" : "🎨"}
-                  </div>
-                  <div className="hr-closed-info">
-                    <div className="hr-closed-title">{job.title}</div>
-                    <div className="hr-closed-meta">
-                      <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
-                      <span className="hr-closed-date">ปิดเมื่อ {job.closedDate}</span>
-                    </div>
-                    <div className="hr-closed-stats">
-                      <span>👥 {job.applicants} ผู้สมัคร</span>
-                      <span className="hr-hired-chip">✓ รับ: {job.hired}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="hr-closed-actions">
-                  <button className="hr-reopen-btn">↩ เปิดใหม่</button>
-                </div>
-              </div>
-            );
-          })}
+          {closedJobs.length === 0
+            ? <EmptySlot icon="📁" text="รอข้อมูลตำแหน่งที่ปิดแล้วจาก Backend" />
+            : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} />)
+          }
         </div>
       </div>
     </div>
@@ -624,89 +571,95 @@ function ClosedJobsView() {
 }
 
 function CompanyView({ hr, setHr }) {
-  const updateHr = (key) => (val) => setHr(prev => ({ ...prev, [key]: val }));
+  const updateHr = (key) => (val) => {
+    setHr(prev => ({ ...(prev || {}), [key]: val }));
+    saveHrProfile({ [key]: val });
+  };
   return (
     <div className="hr-card">
       <div className="hr-card-header">
-        <div className="hr-card-title">🏢 Innovate Solutions</div>
+        <div className="hr-card-title">🏢 {hr?.company ?? <Skeleton w={160} />}</div>
         <span className="hr-edit-hint-badge">คลิกข้อความเพื่อแก้ไข</span>
       </div>
       <div className="hr-company-body">
         <div className="hr-company-top">
-          <div className="hr-company-logo">{hr.companyLogo}</div>
+          <div className="hr-company-logo">{hr?.companyLogo ?? "?"}</div>
           <div>
-            <div className="hr-company-name">
-              <EditableField value={hr.company} onChange={updateHr("company")} />
-            </div>
-            <div className="hr-company-industry">
-              <EditableField value={hr.industry} onChange={updateHr("industry")} />
-            </div>
+            <div className="hr-company-name"><EditableField value={hr?.company}  onChange={updateHr("company")} /></div>
+            <div className="hr-company-industry"><EditableField value={hr?.industry} onChange={updateHr("industry")} /></div>
           </div>
         </div>
-        <div className="hr-company-desc">
-          <EditableField value={hr.companyDesc} onChange={updateHr("companyDesc")} multiline />
-        </div>
+        <div className="hr-company-desc"><EditableField value={hr?.companyDesc} onChange={updateHr("companyDesc")} multiline /></div>
         <div className="hr-company-meta">
-          <div className="hr-company-meta-item">👥 <strong><EditableField value={hr.companySize} onChange={updateHr("companySize")} /></strong></div>
-          <div className="hr-company-meta-item">📅 ก่อตั้ง <strong><EditableField value={hr.founded} onChange={updateHr("founded")} /></strong></div>
-          <div className="hr-company-meta-item">🌏 <strong><EditableField value={hr.location} onChange={updateHr("location")} /></strong></div>
+          <div className="hr-company-meta-item">👥 <strong><EditableField value={hr?.companySize} onChange={updateHr("companySize")} /></strong></div>
+          <div className="hr-company-meta-item">📅 ก่อตั้ง <strong><EditableField value={hr?.founded}     onChange={updateHr("founded")} /></strong></div>
+          <div className="hr-company-meta-item">🌏 <strong><EditableField value={hr?.location}    onChange={updateHr("location")} /></strong></div>
         </div>
       </div>
     </div>
   );
 }
 
-// ---- Component ----
+// ── Main Component ────────────────────────────────────────────
 export default function HRProfile() {
   const [activePage, setActivePage] = useState("profile");
-  const [savedJobs, setSavedJobs] = useState([]);
-  const [hr, setHr] = useState(INITIAL_HR_DATA);
-  const [aboutItems, setAboutItems] = useState(INITIAL_ABOUT_ITEMS);
-  const [newPerk, setNewPerk] = useState("");
-  const navigate = useNavigate();
+  const [savedJobs, setSavedJobs]   = useState([]);
+  const [newPerk, setNewPerk]       = useState("");
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
-  const PAGE_TITLES = {
-    profile: "Profile",
-    applicants: "ผู้สมัคร",
-    interviews: "สัมภาษณ์",
-    report: "รายงาน",
-    open: "เปิดรับ",
-    closed: "ปิดแล้ว",
-    company: "Innovate Solutions",
-  };
+  // ถ้ามา navigate พร้อม state { scrollTo: "saved" } ให้ scroll ไปที่ saved tab
+  const initialTab = location.state?.scrollTo ?? null;
+
+  // state ทั้งหมดเริ่มว่าง — โครงสร้างพร้อม รอ backend เติมข้อมูล
+  const [hr, setHr]                   = useState(null);
+  const [aboutItems, setAboutItems]   = useState([]);
+  const [stats, setStats]             = useState([]);
+  const [openJobs, setOpenJobs]       = useState([]);
+  const [closedJobs, setClosedJobs]   = useState([]);
+  const [applicants, setApplicants]   = useState([]);
+  const [interviews, setInterviews]   = useState([]);
+  const [reportData, setReportData]   = useState(null);
+  const [activities, setActivities]   = useState([]);
+  const [quickActions, setQuickActions] = useState([]);
+
+  // ── TODO: แก้ getXxx() ด้านบนให้เรียก backend จริง ──────────
+  useEffect(() => {
+    getHrProfile().then(setHr);
+    getAboutItems().then(setAboutItems);
+    getStats().then(setStats);
+    getOpenJobs().then(setOpenJobs);
+    getClosedJobs().then(setClosedJobs);
+    getApplicants().then(setApplicants);
+    getInterviews().then(setInterviews);
+    getReportData().then(setReportData);
+    getActivities().then(setActivities);
+    getQuickActions().then(setQuickActions);
+  }, []);
 
   const renderMain = () => {
     switch (activePage) {
-      case "profile":
-        return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} newPerk={newPerk} setNewPerk={setNewPerk} savedJobs={savedJobs} setSavedJobs={setSavedJobs} setActivePage={setActivePage} />;
-      case "applicants":
-        return <ApplicantsView />;
-      case "interviews":
-        return <InterviewView />;
-      case "report":
-        return <ReportView />;
-      case "open":
-        return <OpenJobsView />;
-      case "closed":
-        return <ClosedJobsView />;
-      case "company":
-        return <CompanyView hr={hr} setHr={setHr} />;
-      default:
-        return null;
+      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} savedJobs={savedJobs} setSavedJobs={setSavedJobs} setActivePage={setActivePage} initialTab={initialTab} />;
+      case "applicants": return <ApplicantsView applicants={applicants} />;
+      case "interviews": return <InterviewView interviews={interviews} />;
+      case "report":     return <ReportView reportData={reportData} />;
+      case "open":       return <OpenJobsView openJobs={openJobs} />;
+      case "closed":     return <ClosedJobsView closedJobs={closedJobs} />;
+      case "company":    return <CompanyView hr={hr} setHr={setHr} />;
+      default:           return null;
     }
   };
 
   return (
     <div className="hr-page">
 
+      {/* shimmer animation */}
+      <style>{`@keyframes hr-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+
       {/* ── NAV ── */}
       <nav className="hr-nav">
         <div className="hr-nav-left">
-          <div
-            className="hr-nav-logo"
-            onClick={() => navigate("/hr-feed")}
-            style={{ cursor: "pointer" }}
-          >
+          <div className="hr-nav-logo" onClick={() => navigate("/hr-feed")} style={{ cursor: "pointer" }}>
             Per<span>File</span>
           </div>
           <div className="hr-nav-search">
@@ -717,7 +670,7 @@ export default function HRProfile() {
         <div className="hr-nav-right">
           <button className="hr-icon-btn">🔔</button>
           <button className="hr-icon-btn">💬</button>
-          <div className="hr-nav-avatar">P</div>
+          <div className="hr-nav-avatar">{hr?.name?.[0] ?? "?"}</div>
         </div>
       </nav>
 
@@ -727,100 +680,87 @@ export default function HRProfile() {
         <aside className="hr-sidebar">
           <button className="hr-post-btn">＋ โพสต์งาน</button>
 
-          <button
-            className={`hr-menu-item${activePage === "profile" ? " active" : ""}`}
-            onClick={() => setActivePage("profile")}
-          >
-            <span className="hr-menu-icon">🏠</span> Profile
-          </button>
-
-          <button
-            className={`hr-menu-item${activePage === "applicants" ? " active" : ""}`}
-            onClick={() => setActivePage("applicants")}
-          >
-            <span className="hr-menu-icon">📋</span> ผู้สมัคร
-            <span className="hr-menu-badge">12</span>
-          </button>
-
-          <button
-            className={`hr-menu-item${activePage === "interviews" ? " active" : ""}`}
-            onClick={() => setActivePage("interviews")}
-          >
-            <span className="hr-menu-icon">📅</span> สัมภาษณ์
-          </button>
-
-          <button
-            className={`hr-menu-item${activePage === "report" ? " active" : ""}`}
-            onClick={() => setActivePage("report")}
-          >
-            <span className="hr-menu-icon">📊</span> รายงาน
-          </button>
+          {[
+            { key: "profile",    icon: "🏠", label: "Profile" },
+            { key: "applicants", icon: "📋", label: "ผู้สมัคร",   badge: applicants.length || null },
+            { key: "interviews", icon: "📅", label: "สัมภาษณ์" },
+            { key: "report",     icon: "📊", label: "รายงาน" },
+          ].map(m => (
+            <button key={m.key} className={`hr-menu-item${activePage === m.key ? " active" : ""}`} onClick={() => setActivePage(m.key)}>
+              <span className="hr-menu-icon">{m.icon}</span> {m.label}
+              {m.badge ? <span className="hr-menu-badge">{m.badge}</span> : null}
+            </button>
+          ))}
 
           <div className="hr-section-title">ตำแหน่งงาน</div>
-
-          <button
-            className={`hr-menu-item${activePage === "open" ? " active" : ""}`}
-            onClick={() => setActivePage("open")}
-          >
-            <span>🟢</span> เปิดรับ (12)
+          <button className={`hr-menu-item${activePage === "open"   ? " active" : ""}`} onClick={() => setActivePage("open")}>
+            <span>🟢</span> เปิดรับ ({openJobs.length})
           </button>
-
-          <button
-            className={`hr-menu-item${activePage === "closed" ? " active" : ""}`}
-            onClick={() => setActivePage("closed")}
-          >
-            <span>⚫</span> ปิดแล้ว (8)
+          <button className={`hr-menu-item${activePage === "closed" ? " active" : ""}`} onClick={() => setActivePage("closed")}>
+            <span>⚫</span> ปิดแล้ว ({closedJobs.length})
           </button>
 
           <div className="hr-section-title">บริษัท</div>
-
-          <button
-            className={`hr-menu-item${activePage === "company" ? " active" : ""}`}
-            onClick={() => setActivePage("company")}
-          >
-            <span>🏢</span> Innovate Solutions
+          <button className={`hr-menu-item${activePage === "company" ? " active" : ""}`} onClick={() => setActivePage("company")}>
+            <span>🏢</span> {hr?.company ?? "—"}
           </button>
         </aside>
 
         {/* ── MAIN ── */}
-        <main className="hr-main">
-          {renderMain()}
-        </main>
+        <main className="hr-main">{renderMain()}</main>
 
         {/* ── RIGHT PANEL ── */}
         <div className="hr-right">
           <div className="hr-right-card">
             <div className="hr-right-title">กิจกรรมล่าสุด</div>
-            {ACTIVITIES.map((a, i) => (
-              <div key={i} className="hr-activity-item">
-                <div className="hr-activity-dot" />
-                <div>
-                  <div className="hr-activity-text">{a.text}</div>
-                  <div className="hr-activity-time">{a.time}</div>
+            {activities.length === 0
+              ? [1,2,3].map(i => (
+                <div key={i} className="hr-activity-item">
+                  <div className="hr-activity-dot" />
+                  <div style={{ flex: 1 }}>
+                    <Skeleton w="90%" h={12} style={{ marginBottom: 6 }} />
+                    <Skeleton w={60} h={10} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+              : activities.map((a, i) => (
+                <div key={i} className="hr-activity-item">
+                  <div className="hr-activity-dot" />
+                  <div>
+                    <div className="hr-activity-text">{a.text}</div>
+                    <div className="hr-activity-time">{a.time}</div>
+                  </div>
+                </div>
+              ))
+            }
           </div>
 
           <div className="hr-right-card">
             <div className="hr-right-title">Quick Actions</div>
-            {QUICK_ACTIONS.map((q) => (
-              <button
-                key={q.label}
-                className="hr-quick-action"
-                onClick={() => {
-                  if (q.label === "ดูผู้สมัครทั้งหมด") setActivePage("applicants");
-                  if (q.label === "ตารางสัมภาษณ์") setActivePage("interviews");
-                  if (q.label === "รายงานการสรรหา") setActivePage("report");
-                }}
-              >
-                <div className="hr-quick-icon">{q.icon}</div>
-                <div>
-                  <div className="hr-quick-label">{q.label}</div>
-                  <div className="hr-quick-sub">{q.sub}</div>
+            {quickActions.length === 0
+              ? [1,2,3].map(i => (
+                <div key={i} className="hr-quick-action" style={{ pointerEvents: "none" }}>
+                  <Skeleton w={32} h={32} radius={8} />
+                  <div style={{ flex: 1, marginLeft: 10 }}>
+                    <Skeleton w={100} h={12} style={{ marginBottom: 5 }} />
+                    <Skeleton w={60} h={10} />
+                  </div>
                 </div>
-              </button>
-            ))}
+              ))
+              : quickActions.map(q => (
+                <button key={q.label} className="hr-quick-action" onClick={() => {
+                  if (q.label === "ดูผู้สมัครทั้งหมด") setActivePage("applicants");
+                  if (q.label === "ตารางสัมภาษณ์")    setActivePage("interviews");
+                  if (q.label === "รายงานการสรรหา")    setActivePage("report");
+                }}>
+                  <div className="hr-quick-icon">{q.icon}</div>
+                  <div>
+                    <div className="hr-quick-label">{q.label}</div>
+                    <div className="hr-quick-sub">{q.sub}</div>
+                  </div>
+                </button>
+              ))
+            }
           </div>
 
           <div className="hr-right-card hr-right-card--upgrade">
