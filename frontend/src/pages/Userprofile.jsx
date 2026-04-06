@@ -1,12 +1,13 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  LuSearch, LuBookmark, LuBell, LuUser, LuPanelLeft,
+  LuSearch, LuBookmark, LuBell, LuPanelLeft,
   LuFileText, LuBriefcase, LuMapPin, LuLink, LuPencil,
-  LuGithub, LuLinkedin, LuMail, LuStar, LuEye, LuPlus, LuTrash2
+  LuGithub, LuLinkedin, LuMail, LuStar, LuPlus, LuTrash2,
+  LuLayoutDashboard, LuBadgeCheck,
 } from "react-icons/lu";
-import { FiPlusSquare, FiHome, FiGrid } from "react-icons/fi";
-import { useResumes } from "./ResumeContext"; // ← import Context
+import { FiHome, FiGrid } from "react-icons/fi";
+import { useResumes } from "./ResumeContext";
 import "../styles/Userprofile.css";
 
 // ---- Mock Data ----
@@ -16,27 +17,93 @@ const EXP = [
   { icon: "🎨", title: "UX/UI Designer", company: "Creative Agency", date: "2020 – 2022" },
 ];
 
+const TABS = [
+  { key: "resumes", label: "Private Resumes" },
+  { key: "jobs",   label: "Public Resumes"  },
+  { key: "saved",  label: "Saved"           },
+];
+
 // ---- Component ----
 export default function UserProfile() {
-  const [activeTab, setActiveTab] = useState("resumes");
-  const [isSidebarOpen] = useState(true);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null); // ← confirm ก่อนลบ
+  const [activeTab, setActiveTab]       = useState("resumes");
+  const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [menuOpen, setMenuOpen]         = useState(false);
+  const [userData, setUserData]         = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  const { privateResumes, removePrivate } = useResumes(); // ← ดึงข้อมูลจาก Context
-  const navigate = useNavigate();
-
-  // Ref สำหรับ scroll ไปที่ section Saved
+  const sidebarRef    = useRef(null);
   const savedSectionRef = useRef(null);
+  const navigate      = useNavigate();
 
-  const tabs = ["resumes", "jobs", "saved"];
-  const tabLabels = { resumes: "Private Resumes", jobs: "Public Resumes", saved: "Saved" };
+  const { privateResumes, removePrivate } = useResumes();
 
-  const handleTabClick = (t) => {
-    setActiveTab(t);
-    if (t === "saved" && savedSectionRef.current) {
-      setTimeout(() => {
-        savedSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
+  /* ── fetch current user ── */
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("http://localhost:3000/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) setUserData((await res.json()).user);
+        else localStorage.removeItem("token");
+      } catch (err) {
+        console.error("Fetch user error:", err);
+      }
+    })();
+  }, []);
+
+  /* ── close user dropdown on outside click ── */
+  useEffect(() => {
+    const close = (e) => {
+      if (!e.target.closest(".uf-user-area")) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  /* ── resizable sidebar (same logic as UsersFeed) ── */
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+    const handle = sidebar.querySelector(".uf-resize-handle");
+    if (!handle) return;
+    let drag = false, startX = 0, startW = 0;
+    const down = (e) => {
+      drag = true; startX = e.clientX; startW = sidebar.offsetWidth;
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", move);
+      document.addEventListener("mouseup", up);
+    };
+    const move = (e) => {
+      if (!drag) return;
+      const w = Math.min(340, Math.max(80, startW + (e.clientX - startX)));
+      sidebar.style.width = w + "px";
+    };
+    const up = () => {
+      drag = false;
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+    };
+    handle.addEventListener("mousedown", down);
+    return () => handle.removeEventListener("mousedown", down);
+  }, []);
+
+  const initial   = userData?.username?.[0]?.toUpperCase() ?? "U";
+  const firstName = userData?.fullName?.split(" ")[0] ?? "there";
+  const fullName  = userData?.fullName ?? "Unknown";
+
+  const toggleSidebar = () => {
+    if (sidebarOpen && sidebarRef.current) sidebarRef.current.style.width = "";
+    setSidebarOpen((v) => !v);
+  };
+
+  const handleTabClick = (key) => {
+    setActiveTab(key);
+    if (key === "saved" && savedSectionRef.current) {
+      setTimeout(() => savedSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     }
   };
 
@@ -46,138 +113,128 @@ export default function UserProfile() {
   };
 
   return (
-    <div className="up-page">
+    <div className="uf-page">
 
-      {/* Modal ยืนยันลบ */}
+      {/* ── Delete Confirm Modal ── */}
       {deleteConfirmId !== null && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
-        }}>
-          <div style={{
-            background: "#fff", borderRadius: 12, padding: "28px 32px",
-            maxWidth: 360, width: "90%", textAlign: "center",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.18)"
-          }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>🗑️</div>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, color: "#111" }}>
-              ลบ Resume นี้?
-            </div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
-              ไม่สามารถกู้คืนได้หลังจากลบแล้ว
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                style={{
-                  padding: "8px 20px", borderRadius: 8, border: "1.5px solid #e5e7eb",
-                  background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600
-                }}
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={() => handleDelete(deleteConfirmId)}
-                style={{
-                  padding: "8px 20px", borderRadius: 8, border: "none",
-                  background: "#ef4444", color: "#fff", cursor: "pointer",
-                  fontSize: 13, fontWeight: 600
-                }}
-              >
-                ลบ
-              </button>
+        <div className="up-modal-overlay">
+          <div className="up-modal">
+            <div className="up-modal-icon">🗑️</div>
+            <div className="up-modal-title">ลบ Resume นี้?</div>
+            <div className="up-modal-desc">ไม่สามารถกู้คืนได้หลังจากลบแล้ว</div>
+            <div className="up-modal-actions">
+              <button className="up-modal-cancel" onClick={() => setDeleteConfirmId(null)}>ยกเลิก</button>
+              <button className="up-modal-confirm" onClick={() => handleDelete(deleteConfirmId)}>ลบ</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* NAV */}
-      <nav className="up-nav">
-        <div className="up-nav-left">
-          <button className="up-icon-btn"><LuPanelLeft /></button>
-          <div className="up-nav-logo">PerFile</div>
-          <div className="up-nav-search">
-            <LuSearch style={{ color: "#9ca3af", fontSize: 15 }} />
-            <input className="up-nav-search-input" placeholder="ค้นหา Username หรือ Company..." />
+      {/* ── NAV (identical structure to UsersFeed) ── */}
+      <nav className="uf-nav">
+        <div className="uf-nav-left">
+          <button className="uf-toggle-btn" onClick={toggleSidebar} title="Toggle sidebar">
+            <LuPanelLeft />
+          </button>
+          <div className="uf-logo">Per<em>File</em></div>
+          <div className="uf-search">
+            <LuSearch />
+            <input
+              type="text"
+              placeholder="ค้นหา Username หรือ Company..."
+            />
           </div>
         </div>
-        <div className="up-nav-right">
-          <button className="up-icon-btn"><LuBell /></button>
-          <div className="up-user-dropdown">
-            <LuUser style={{ fontSize: 16 }} />
-            <span>Un know</span>
+
+        <div className="uf-nav-right">
+          <button className="uf-icon-btn" title="Notifications"><LuBell /></button>
+          <div className="uf-user-area" style={{ position: "relative" }}>
+            <div className="uf-user-chip" onClick={() => setMenuOpen((v) => !v)}>
+              <div className="uf-avatar">
+                {userData?.avatar
+                  ? <img src={userData.avatar} alt="avatar" crossOrigin="anonymous" />
+                  : initial}
+              </div>
+              <span>{fullName}</span>
+            </div>
+            {menuOpen && (
+              <div className="uf-dropdown">
+                <button onClick={() => navigate("/profile")}>View Profile</button>
+                <button
+                  className="uf-logout"
+                  onClick={() => { localStorage.removeItem("token"); navigate("/login"); }}
+                >Logout</button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
-      <div className="up-body">
-        {/* SIDEBAR */}
-        {isSidebarOpen && (
-          <aside className="up-sidebar">
-            <button className="up-create-btn" onClick={() => navigate("/resume")}>
-              <FiPlusSquare /> Create
-            </button>
-            <Link to="/feed" className="up-menu-item">
-              <FiGrid /> Feed
-            </Link>
-            <button className="up-menu-item active">
-              <FiHome /> Profile
-            </button>
-            <button
-              className="up-menu-item"
-              onClick={() => handleTabClick("saved")}
-            >
-              <LuBookmark /> Saved
-            </button>
+      {/* ── BODY ── */}
+      <div className="uf-body">
 
-            <div className="up-section-title">PRIVATE PROFILE</div>
-            <div className="up-sub-item">Development 1</div>
-            <div className="up-sub-item">Tutor 1</div>
+        {/* ── SIDEBAR (identical structure to UsersFeed) ── */}
+        <aside ref={sidebarRef} className={`uf-sidebar${sidebarOpen ? "" : " closed"}`}>
+          <div className="uf-resize-handle">
+            <div className="uf-resize-bar" />
+          </div>
+          <button className="uf-create-btn" onClick={() => navigate("/resume")}>
+            <LuPlus /> Create Resume
+          </button>
+          <Link to="/feed" className="uf-menu-item">
+            <LuLayoutDashboard /> Feed
+          </Link>
+          <button className="uf-menu-item active">
+            <FiHome /> Profile
+          </button>
+          <button className="uf-menu-item" onClick={() => handleTabClick("saved")}>
+            <LuBookmark /> Saved
+          </button>
+          <div className="uf-section-label">Private Profile</div>
+          <div className="uf-sub-item">Development 1</div>
+          <div className="uf-sub-item">Tutor 1</div>
+          <div className="uf-section-label">Public Profile</div>
+          <div className="uf-sub-item">Ux/Ui 2</div>
+        </aside>
 
-            <div className="up-section-title" style={{ color: "#6b7280" }}>PUBLIC PROFILE</div>
-            <div className="up-sub-item">Ux/Ui 2</div>
-          </aside>
-        )}
+        {/* ── MAIN ── */}
+        <main className="uf-main">
 
-        {/* MAIN */}
-        <main className="up-main">
-          {/* COVER + AVATAR */}
-          <div className="up-cover-wrap">
+          {/* Cover + Profile Info Card */}
+          <div className="up-cover-card">
             <div className="up-cover">
               <div className="up-cover-pattern" />
-              <button className="up-edit-cover-btn"><LuPencil size={12} /> แก้ไขปก</button>
+              <button className="up-edit-cover-btn"><LuPencil size={11} /> แก้ไขปก</button>
+              <div className="up-avatar-lg">{initial}</div>
             </div>
-            <div className="up-avatar">U</div>
+            <div className="up-profile-info">
+              <div>
+                <div className="up-profile-name">{fullName}</div>
+                <div className="up-profile-handle">@unknown · PerFile</div>
+                <div className="up-profile-bio">
+                  Frontend Developer & UI/UX Designer ที่ชอบสร้างประสบการณ์ที่สวยงามและใช้งานได้จริง 🚀
+                </div>
+                <div className="up-profile-meta">
+                  <span className="up-meta-item"><LuMapPin size={11} /> Bangkok, Thailand</span>
+                  <a href="#" className="up-meta-link"><LuLink size={11} /> portfolio.dev</a>
+                  <span className="up-meta-item"><LuMail size={11} /> unknown@email.com</span>
+                </div>
+                <div className="up-social-row">
+                  <button className="up-social-btn"><LuGithub size={13} /> GitHub</button>
+                  <button className="up-social-btn"><LuLinkedin size={13} /> LinkedIn</button>
+                </div>
+              </div>
+              <button className="up-edit-profile-btn"><LuPencil size={12} /> แก้ไขโปรไฟล์</button>
+            </div>
           </div>
 
-          {/* PROFILE INFO */}
-          <div className="up-profile-info-row">
-            <div>
-              <div className="up-profile-name">Un know</div>
-              <div className="up-profile-handle">@unknown · PerFile</div>
-              <div className="up-profile-bio">
-                Frontend Developer & UI/UX Designer ที่ชอบสร้างประสบการณ์ที่สวยงามและใช้งานได้จริง 🚀
-              </div>
-              <div className="up-profile-meta">
-                <span className="up-meta-item"><LuMapPin size={12} /> Bangkok, Thailand</span>
-                <a href="#" className="up-meta-link"><LuLink size={12} /> portfolio.dev</a>
-                <span className="up-meta-item"><LuMail size={12} /> unknown@email.com</span>
-              </div>
-              <div className="up-social-row">
-                <button className="up-social-btn"><LuGithub size={14} /> GitHub</button>
-                <button className="up-social-btn"><LuLinkedin size={14} /> LinkedIn</button>
-              </div>
-            </div>
-            <button className="up-edit-profile-btn"><LuPencil size={13} /> แก้ไขโปรไฟล์</button>
-          </div>
-
-          {/* STATS */}
+          {/* Stats */}
           <div className="up-stats-row">
             {[
-              { num: privateResumes.length.toString(), label: "RESUMES" },
-              { num: "287", label: "VIEWS" },
-              { num: "14", label: "SAVED" },
-              { num: "5", label: "JOBS POSTED" },
+              { num: privateResumes.length.toString(), label: "RESUMES"     },
+              { num: "287",                            label: "VIEWS"       },
+              { num: "14",                             label: "SAVED"       },
+              { num: "5",                              label: "JOBS POSTED" },
             ].map((s) => (
               <div key={s.label} className="up-stat-card">
                 <div className="up-stat-num">{s.num}</div>
@@ -186,22 +243,22 @@ export default function UserProfile() {
             ))}
           </div>
 
-          {/* SKILLS */}
+          {/* Skills */}
           <div className="up-section-card">
             <div className="up-section-header">
-              <span><LuStar size={14} style={{ marginRight: 6, verticalAlign: "middle", color: "#4f46e5" }} />ทักษะ</span>
-              <button className="up-add-btn"><LuPlus size={12} /> เพิ่ม</button>
+              <span><LuStar size={14} style={{ marginRight: 5, verticalAlign: "middle", color: "#4f46e5" }} />ทักษะ</span>
+              <button className="uf-filter-btn"><LuPlus size={12} /> เพิ่ม</button>
             </div>
             <div className="up-skills-wrap">
               {SKILLS.map((sk) => <span key={sk} className="up-skill-chip">{sk}</span>)}
             </div>
           </div>
 
-          {/* EXPERIENCE */}
+          {/* Experience */}
           <div className="up-section-card">
             <div className="up-section-header">
-              <span><LuBriefcase size={14} style={{ marginRight: 6, verticalAlign: "middle", color: "#4f46e5" }} />ประสบการณ์</span>
-              <button className="up-add-btn"><LuPlus size={12} /> เพิ่ม</button>
+              <span><LuBriefcase size={14} style={{ marginRight: 5, verticalAlign: "middle", color: "#4f46e5" }} />ประสบการณ์</span>
+              <button className="uf-filter-btn"><LuPlus size={12} /> เพิ่ม</button>
             </div>
             {EXP.map((e, i) => (
               <div key={i} className="up-exp-item">
@@ -215,123 +272,108 @@ export default function UserProfile() {
             ))}
           </div>
 
-          {/* TABS */}
-          <div className="up-tab-bar">
-            {tabs.map((t) => (
-              <button
-                key={t}
-                className={`up-tab${activeTab === t ? " active" : ""}`}
-                onClick={() => handleTabClick(t)}
-              >
-                {tabLabels[t]}
-                {/* แสดงจำนวน badge ของ Private Resumes */}
-                {t === "resumes" && privateResumes.length > 0 && (
-                  <span style={{
-                    marginLeft: 6, background: "#4f46e5", color: "#fff",
-                    borderRadius: 99, fontSize: 11, padding: "1px 7px", fontWeight: 700
-                  }}>
-                    {privateResumes.length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Tab Panel (same uf-panel structure as UsersFeed) */}
+          <div className="uf-panel">
 
-          {/* TAB CONTENT */}
-          <div className="up-cards-grid">
+            {/* Tab Bar */}
+            <div className="uf-tab-bar">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  className={`uf-tab${activeTab === t.key ? " active" : ""}`}
+                  onClick={() => handleTabClick(t.key)}
+                >
+                  {t.label}
+                  {t.key === "resumes" && privateResumes.length > 0 && (
+                    <span className="uf-tab-badge">{privateResumes.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-            {/* ── Private Resumes Tab ── */}
+            {/* Filter Bar */}
+            <div className="uf-filter-bar">
+              {activeTab === "resumes" && (
+                <button
+                  className="uf-filter-btn"
+                  style={{ marginLeft: "auto", background: "#1e3a8a", color: "#fff", border: "none" }}
+                  onClick={() => navigate("/resume")}
+                >
+                  <LuPlus /> สร้างเรซูเม่
+                </button>
+              )}
+            </div>
+
+            {/* ── Private Resumes ── */}
             {activeTab === "resumes" && (
-              <>
+              <div className="uf-cards-grid">
                 {privateResumes.length > 0 ? (
-                  privateResumes.map((p, i) => (
-                    <div
-                      key={p.id}
-                      className="up-card"
-                      onClick={() => navigate(`/view-resume/${p.id}`)}
-                      style={{ position: "relative", cursor: "pointer" }}
-                    >
+                  <>
+                    {privateResumes.map((p, i) => (
                       <div
-                        className="up-card-thumb"
-                        style={{ background: `linear-gradient(135deg, #ede9fe ${i * 10}%, #c7d2fe 100%)` }}
-                      />
-                      <div className="up-card-info">
-                        <div className="up-card-title">{p.title}</div>
-                        <div className="up-card-meta" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <span style={{ color: "#9ca3af", fontSize: 11 }}>
-                            🔒 Private · {p.createdAt}
-                          </span>
-                          {/* ปุ่มลบ */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmId(p.id);
-                            }}
-                            title="ลบ Resume"
-                            style={{
-                              background: "none", border: "none", cursor: "pointer",
-                              color: "#ef4444", padding: "2px 4px", borderRadius: 4,
-                              display: "flex", alignItems: "center", gap: 3,
-                              fontSize: 12, fontWeight: 600,
-                              transition: "background 0.15s"
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
-                            onMouseLeave={e => e.currentTarget.style.background = "none"}
-                          >
-                            <LuTrash2 size={13} /> ลบ
-                          </button>
+                        key={p.id}
+                        className="uf-resume-card"
+                        onClick={() => navigate(`/view-resume/${p.id}`)}
+                      >
+                        <div className="uf-resume-header">
+                          <div className="uf-resume-icon"><LuFileText /></div>
+                          <span className="up-badge-private">Private</span>
                         </div>
-                        <span className="up-card-badge up-badge-resume">Resume</span>
+                        <div className="uf-resume-title">{p.title}</div>
+                        <div className="uf-resume-meta">
+                          <span><LuBadgeCheck /> {p.owner ?? "You"}</span>
+                          {p.createdAt && <span style={{ color: "#9ca3af", fontSize: 11 }}>🔒 {p.createdAt}</span>}
+                        </div>
+                        <button
+                          className="up-del-btn"
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id); }}
+                        >
+                          <LuTrash2 size={12} /> ลบ
+                        </button>
                       </div>
+                    ))}
+                    <div className="uf-resume-card up-add-card" onClick={() => navigate("/resume")}>
+                      <LuPlus size={26} />
+                      <span>เพิ่ม Resume</span>
                     </div>
-                  ))
+                  </>
                 ) : (
-                  // ยังไม่มี Resume → แสดงปุ่มสร้าง
-                  <div style={{
-                    gridColumn: "1/-1", textAlign: "center",
-                    padding: "40px 0", color: "#9ca3af"
-                  }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
-                    <div style={{ fontSize: 14, marginBottom: 16 }}>ยังไม่มี Resume ที่บันทึกไว้</div>
-                    <button
-                      onClick={() => navigate("/resume")}
-                      style={{
-                        background: "#4f46e5", color: "#fff", border: "none",
-                        borderRadius: 8, padding: "10px 22px", cursor: "pointer",
-                        fontSize: 14, fontWeight: 600, display: "inline-flex",
-                        alignItems: "center", gap: 6
-                      }}
-                    >
-                      <LuPlus size={15} /> สร้าง Resume แรก
-                    </button>
+                  <div className="uf-empty">
+                    <div className="uf-empty-icon">📄</div>
+                    <div className="uf-empty-title">ยังไม่มี Resume ที่บันทึกไว้</div>
+                    <div className="uf-empty-desc">
+                      กด{" "}
+                      <span
+                        style={{ color: "#1e3a8a", cursor: "pointer", fontWeight: 700 }}
+                        onClick={() => navigate("/resume")}
+                      >Create Resume</span>{" "}
+                      เพื่อสร้าง Resume แรกของคุณ
+                    </div>
                   </div>
                 )}
-
-                {/* ปุ่มเพิ่ม Resume (แสดงเฉพาะเมื่อมี resume อยู่แล้ว) */}
-                {privateResumes.length > 0 && (
-                  <div className="up-add-card" onClick={() => navigate("/resume")}>
-                    <LuPlus size={28} />
-                    <span>เพิ่ม Resume</span>
-                  </div>
-                )}
-              </>
+              </div>
             )}
 
+            {/* ── Public Resumes ── */}
             {activeTab === "jobs" && (
-              <div style={{ color: "#9ca3af", fontSize: 13, gridColumn: "1/-1", paddingTop: 16 }}>
-                ยังไม่มีตำแหน่งงานที่โพสต์ไว้
+              <div className="uf-cards-grid">
+                <div className="uf-empty">
+                  <div className="uf-empty-icon">💼</div>
+                  <div className="uf-empty-title">ยังไม่มีตำแหน่งงานที่โพสต์ไว้</div>
+                </div>
               </div>
             )}
 
+            {/* ── Saved ── */}
             {activeTab === "saved" && (
-              <div
-                ref={savedSectionRef}
-                className="up-saved-section"
-                style={{ gridColumn: "1/-1" }}
-              >
-                <p className="up-saved-empty">ยังไม่มีรายการที่บันทึกไว้</p>
+              <div ref={savedSectionRef} className="uf-cards-grid">
+                <div className="uf-empty">
+                  <div className="uf-empty-icon">🔖</div>
+                  <div className="uf-empty-title">ยังไม่มีรายการที่บันทึกไว้</div>
+                </div>
               </div>
             )}
+
           </div>
         </main>
       </div>
