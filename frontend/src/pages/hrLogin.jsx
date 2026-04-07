@@ -113,7 +113,7 @@ export default function HrLogin() {
               
               <div className="hr-social-gap">
                 <button 
-                  className="hr-social-btn" 
+                  className="hr-social-btn1" 
                   onClick={() => handleSocialLogin('google')}
                 >
                   <FaGoogle /> Sign in with Workspace
