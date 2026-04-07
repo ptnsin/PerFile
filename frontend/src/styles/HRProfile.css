@@ -187,6 +187,20 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+
+  /* ล็อค sidebar ให้ติดหน้าจอตอน scroll */
+  position: sticky;
+  top: 72px; /* nav height (56px) + spacing (16px) */
+  align-self: flex-start;
+  max-height: calc(100vh - 88px);
+  overflow-y: auto;
+
+  /* กรอบ sidebar */
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .hr-post-btn {
