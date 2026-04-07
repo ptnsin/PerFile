@@ -7,19 +7,139 @@ import { useNavigate, useLocation } from "react-router-dom";
 //  ตัวอย่าง: const res = await fetch("/api/hr/profile"); return res.json();
 // ═══════════════════════════════════════════════════════════════
 
-async function getHrProfile()    { /* TODO */ return null; }
-async function getAboutItems()   { /* TODO */ return []; }
-async function getStats()        { /* TODO */ return []; }
-async function getOpenJobs()     { /* TODO */ return []; }
-async function getClosedJobs()   { /* TODO */ return []; }
+async function getHrProfile() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    
+    const profile = data.profile;
+    // ดึงค่าจากทั้งตาราง User และตาราง hr_profile มาเชื่อมกัน
+    return {
+      ...profile,
+      // Map ข้อมูลพื้นฐานจาก User
+      name: profile.fullName || profile.username || "ยังไม่ระบุชื่อ", 
+      avatar: profile.avatar || null,
+      
+      // Map ข้อมูลบริษัทจากตาราง hr_profile (ระวังชื่อต้องตรงกับ Backend)
+      bio: profile.hr_profile?.bio || "ยังไม่ระบุรายละเอียด",
+      website: profile.hr_profile?.website || "ยังไม่ระบุ",
+      location: profile.hr_profile?.location || "ยังไม่ระบุ",
+      
+      // ตรวจสอบชื่อ Key ด้านล่างนี้ให้ตรงกับ Backend
+      company: profile.hr_profile?.company || profile.company || "ยังไม่ระบุบริษัท",
+      industry: profile.hr_profile?.industry || "ยังไม่ระบุ",
+      companyDesc: profile.hr_profile?.company_desc || "ยังไม่ระบุข้อมูลบริษัท", // แก้จาก company_desc ใน DB เป็น companyDesc ให้ UI
+      companySize: profile.hr_profile?.company_size || "ยังไม่ระบุ",
+      founded: profile.hr_profile?.founded || "ยังไม่ระบุ",
+      
+      role: profile.role || "HR Recruiter",
+      handle: profile.username ? `@${profile.username}` : "@username"
+    };
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+async function getOpenJobs() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/jobs", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const allJobs = data.jobs || [];
+    // กรองเฉพาะงานที่สถานะเป็น "เปิดรับสมัคร"
+    return allJobs.filter(job => job.status === "เปิดรับสมัคร");
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+async function getClosedJobs() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/jobs", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const allJobs = data.jobs || [];
+    // กรองเฉพาะงานที่สถานะเป็น "ปิดแล้ว"
+    return allJobs.filter(job => job.status === "ปิดแล้ว");
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+async function getStats() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/jobs", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const allJobs = data.jobs || [];
+    
+    return [
+      { num: allJobs.filter(j => j.status === "เปิดรับสมัคร").length, label: "ตำแหน่งเปิดรับ" },
+      { num: "340", label: "ผู้สมัครทั้งหมด" }, // ส่วนนี้ถ้ายังไม่มี API ให้ใส่เลขหลอกไว้ก่อน
+      { num: "28", label: "สัมภาษณ์เดือนนี้" },
+      { num: "94%", label: "อัตราตอบรับ" },
+    ];
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+async function getAboutItems() {
+  return [
+    { icon: "🎓", title: "การศึกษา", detail: "ปริญญาตรี สาขาบริหารทรัพยากรมนุษย์" },
+    { icon: "💼", title: "ประสบการณ์", detail: "HR Recruiter มากกว่า 5 ปี" },
+    { icon: "🌟", title: "ความเชี่ยวชาญ", detail: "IT Recruitment, Headhunting" },
+  ];
+}
+
+async function getQuickActions() {
+  return [
+    { icon: "👥", label: "ดูผู้สมัครทั้งหมด", sub: "ตรวจสอบใบสมัครใหม่" },
+    { icon: "📅", label: "ตารางสัมภาษณ์", sub: "ดูนัดหมายวันนี้" },
+    { icon: "📊", label: "รายงานการสรรหา", sub: "สรุปผลรายเดือน" },
+  ];
+}
+
 async function getApplicants()   { /* TODO */ return []; }
 async function getInterviews()   { /* TODO */ return []; }
 async function getReportData()   { /* TODO */ return null; }
 async function getActivities()   { /* TODO */ return []; }
-async function getQuickActions() { /* TODO */ return []; }
+
 
 // TODO: เชื่อม update กลับ backend
-async function saveHrProfile(/*payload*/)  { /* TODO */ }
+async function saveHrProfile(payload) {
+  try {
+    const token = localStorage.getItem("token");
+    await fetch("http://localhost:3000/hr/profile", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function saveAboutItems(/*items*/)   { /* TODO */ }
 
 // ── Dept color map ────────────────────────────────────────────
@@ -262,9 +382,9 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, cl
               <div className="hr-company-industry"><EditableField value={hr?.industry} onChange={updateHr("industry")} /></div>
             </div>
           </div>
-          <div className="hr-company-desc"><EditableField value={hr?.companyDesc} onChange={updateHr("companyDesc")} multiline /></div>
+          <div className="hr-company-desc"><EditableField value={hr?.companyDesc} onChange={updateHr("company_desc")} multiline /></div>
           <div className="hr-company-meta">
-            <div className="hr-company-meta-item">👥 <strong><EditableField value={hr?.companySize} onChange={updateHr("companySize")} /></strong></div>
+            <div className="hr-company-meta-item">👥 <strong><EditableField value={hr?.companySize} onChange={updateHr("company_size")} /></strong></div>
             <div className="hr-company-meta-item">📅 ก่อตั้ง <strong><EditableField value={hr?.founded}     onChange={updateHr("founded")} /></strong></div>
             <div className="hr-company-meta-item">🌏 <strong><EditableField value={hr?.location}    onChange={updateHr("location")} /></strong></div>
           </div>
@@ -589,9 +709,9 @@ function CompanyView({ hr, setHr }) {
             <div className="hr-company-industry"><EditableField value={hr?.industry} onChange={updateHr("industry")} /></div>
           </div>
         </div>
-        <div className="hr-company-desc"><EditableField value={hr?.companyDesc} onChange={updateHr("companyDesc")} multiline /></div>
+        <div className="hr-company-desc"><EditableField value={hr?.companyDesc} onChange={updateHr("company_desc")} multiline /></div>
         <div className="hr-company-meta">
-          <div className="hr-company-meta-item">👥 <strong><EditableField value={hr?.companySize} onChange={updateHr("companySize")} /></strong></div>
+          <div className="hr-company-meta-item">👥 <strong><EditableField value={hr?.companySize} onChange={updateHr("company_size")} /></strong></div>
           <div className="hr-company-meta-item">📅 ก่อตั้ง <strong><EditableField value={hr?.founded}     onChange={updateHr("founded")} /></strong></div>
           <div className="hr-company-meta-item">🌏 <strong><EditableField value={hr?.location}    onChange={updateHr("location")} /></strong></div>
         </div>

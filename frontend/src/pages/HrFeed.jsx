@@ -3,23 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers,
-  LuMapPin, LuClock, LuBadgeCheck,
+  LuMapPin, LuBadgeCheck, LuEllipsis, LuBadgeMinus, LuTrash2
 } from "react-icons/lu";
 import PostJobModal from "./PostJobModal";
 import JobDetailModal from "./JobDetailModal";
 import "../styles/HRFeed.css";
 
-const STATS = [
-  { num: "12", label: "ตำแหน่งเปิดรับ" },
-  { num: "340", label: "ผู้สมัครทั้งหมด" },
-  { num: "28", label: "สัมภาษณ์เดือนนี้" },
-  { num: "94%", label: "อัตราตอบรับ" },
-];
-
-const TABS = [
-  { key: "candidates", label: "Candidates", icon: <LuUsers />, count: 340 },
-  { key: "jobs",       label: "My Job Posts", icon: <LuBriefcase /> },   // count is dynamic
-];
 
 export default function HrFeed() {
   const [activeTab, setActiveTab]     = useState("candidates");
@@ -31,6 +20,18 @@ export default function HrFeed() {
   const [selectedJob, setSelectedJob] = useState(null); // ← job detail modal
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
+
+  const STATS = [
+    { num: jobs.length.toString(), label: "ตำแหน่งเปิดรับ" },
+    { num: "340", label: "ผู้สมัครทั้งหมด" },
+    { num: "28", label: "สัมภาษณ์เดือนนี้" },
+    { num: "94%", label: "อัตราตอบรับ" },
+  ];
+
+  const TABS = [
+    { key: "candidates", label: "Candidates", icon: <LuUsers />, count: 340 },
+    { key: "jobs",       label: "My Job Posts", icon: <LuBriefcase /> },   // count is dynamic
+  ];
 
   /* ── Resizable sidebar ── */
   useEffect(() => {
@@ -101,6 +102,32 @@ useEffect(() => {
 
   fetchJobs();
 }, []);
+
+const handleUpdateStatus = async (jobId, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/hr/jobs/${jobId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (res.ok) {
+        // อัปเดตข้อมูลใน State ทันทีเพื่อให้หน้าจอเปลี่ยนตามโดยไม่ต้องรีเฟรช
+        setJobs((prevJobs) =>
+          prevJobs.map((j) => (j.id === jobId ? { ...j, status: newStatus } : j))
+        );
+      } else {
+        const errorData = await res.json();
+        alert(errorData.message || "อัปเดตไม่สำเร็จ");
+      }
+    } catch (err) {
+      console.error("Update status error:", err);
+    }
+  };
 
   /* ── Close dropdown on outside click ── */
   useEffect(() => {
@@ -296,7 +323,14 @@ useEffect(() => {
                   </div>
                 </div>
               ) : (
-                jobs.map((job) => <JobCard key={job.id} job={job} onClick={() => setSelectedJob(job)} />)
+                jobs.map((job) => (
+                  <JobCard 
+                    key={job.id} 
+                    job={job} 
+                    onClick={() => setSelectedJob(job)} 
+                    onUpdateStatus={handleUpdateStatus} // ส่งฟังก์ชันไปที่นี่
+                  />
+                ))
               )}
             </div>
           </div>
@@ -308,34 +342,132 @@ useEffect(() => {
 }
 
 /* ── Job Card ── */
-function JobCard({ job, onClick }) {
+function JobCard({ job, onClick, onUpdateStatus }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleMenuClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // กันไม่ให้ไปเปิด Modal รายละเอียดงาน
+    setMenuOpen(!menuOpen);
+  };
+
+  const deleteJob = (e) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (window.confirm(`ยืนยันการลบ "${job.title}"?`)) {
+      console.log(`Delete: ${job.id}`);
+      // ใส่ logic ลบงานตรงนี้ (เช่น fetch ไปที่ backend)
+    }
+  };
+
+
   return (
     <div
       className="hrf-job-card"
       onClick={onClick}
-      style={{ cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s" }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 8px 24px rgba(29,78,216,0.12)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "";
-        e.currentTarget.style.boxShadow = "";
+      style={{
+        cursor: "pointer",
+        position: "relative",
+        overflow: "visible", // สำคัญมาก เพื่อให้เมนูลอยออกมาได้
       }}
     >
-      <div className="hrf-job-header">
+      {/* 2. ตัวช่วยปิดเมนู (Backdrop) เมื่อคลิกที่อื่น */}
+      {menuOpen && (
+        <div 
+          onClick={(e) => {
+            e.stopPropagation(); 
+            setMenuOpen(false);
+          }}
+          style={{
+            position: "fixed",
+            top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 90,
+            background: "transparent"
+          }}
+        />
+      )}
+
+      <div className="hrf-job-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
         <div className="hrf-job-icon"><LuBriefcase /></div>
-        <span className="hrf-job-type">{job.type}</span>
+        
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", position: "relative", zIndex: 100 }}>
+          <span className="hrf-job-type">{job.job_type || "ไม่ระบุ"}</span>
+          
+          <button
+            onClick={handleMenuClick}
+            style={{
+              background: menuOpen ? "#f1f5f9" : "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px",
+              borderRadius: "6px",
+              display: "flex",
+              color: "#64748b"
+            }}
+          >
+            {/* ใช้ LuEllipsis ตามที่คุณ Import ไว้ด้านบน */}
+            <LuEllipsis size={20} />
+          </button>
+
+          {menuOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                marginTop: "8px",
+                background: "#fff",
+                border: "1px solid #e4e4e7",
+                borderRadius: "10px",
+                width: "160px",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                padding: "6px",
+                zIndex: 101,
+              }}
+            >
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation(); 
+                  setMenuOpen(false);
+                  // เรียกใช้ฟังก์ชันที่ส่งมาจากตัวแม่
+                  onUpdateStatus(job.id, job.status === "เปิดรับสมัคร" ? "ปิดแล้ว" : "เปิดรับสมัคร");
+                }} 
+                style={dropdownItemStyle}
+              >
+                {/* ใช้ LuCheck ตามที่คุณ Import ไว้ด้านบน */}
+                <LuBadgeMinus size={14} /> {job.status === "ปิดแล้ว" ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
+              </button>
+              <button onClick={deleteJob} style={{ ...dropdownItemStyle, color: "#ef4444" }}>
+                <LuTrash2 size={14} /> ลบโพสงาน
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="hrf-job-title">{job.title}</div>
-      <div className="hrf-job-meta">
+
+      <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{job.title}</div>
+      <div className="hrf-job-meta" style={{ marginTop: "8px" }}>
         {job.category && <span><LuBadgeCheck /> {job.category}</span>}
         {job.location  && <span><LuMapPin /> {job.location}</span>}
-        {(job.salaryMin || job.salaryMax) && (
-          <span>฿ {job.salaryMin || "?"} – {job.salaryMax || "?"}</span>
-        )}
       </div>
-      {job.time && <div className="hrf-job-time">{job.time}</div>}
     </div>
   );
 }
+
+// ย้ายมาไว้ข้างนอกฟังก์ชัน JobCard เพื่อให้เรียกใช้ได้ไม่ error
+const dropdownItemStyle = {
+  width: "100%",
+  background: "none",
+  border: "none",
+  textAlign: "left",
+  padding: "10px 12px",
+  fontSize: "13px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  borderRadius: "6px",
+  transition: "background 0.2s",
+  fontFamily: "inherit",
+  color: "#334155"
+};

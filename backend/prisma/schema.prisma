@@ -16,10 +16,14 @@ model User {
   password            String?               @db.VarChar(255)
   fullName            String?               @db.VarChar(255)
   avatar              String?               @db.VarChar(255)
-  company             String?               @db.VarChar(255)
   roles_id            Int
   status              users_status?         @default(active)
   created_at          DateTime?             @default(now()) @db.Timestamp(0)
+
+  // 1. เพิ่มฟิลด์เชื่อมโยงไปยัง hr_profiles (One-to-One)
+  hr_profile          hr_profiles?
+
+  // ความสัมพันธ์เดิมคงไว้
   audit_logs          audit_logs[]
   posts               posts[]
   resume_share_tokens resume_share_tokens[]
@@ -29,6 +33,24 @@ model User {
 
   @@index([roles_id], map: "roles_id")
   @@map("users")
+}
+
+model hr_profiles {
+  // 2. ใช้ user_id เป็นทั้ง PK และเชื่อมความสัมพันธ์
+  user_id      Int      @id
+  company      String?  @db.VarChar(255)
+  bio          String?  @db.Text
+  website      String?  @db.VarChar(255)
+  location     String?  @db.VarChar(255)
+  industry     String?  @db.VarChar(100)
+  company_desc  String?  @db.Text
+  company_size  String?  @db.VarChar(50)
+  founded      String?  @db.VarChar(20)
+
+  // สร้างความสัมพันธ์กลับไปหา User
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("hr_profiles")
 }
 
 model audit_logs {
@@ -156,6 +178,7 @@ model Job {
   requirements String   @db.Text
   benefits     String   @db.Text
   createdAt    DateTime @default(now()) @db.Timestamp(0)
+  status       String   @default("เปิดรับสมัคร") @db.VarChar(50)
   
   // เชื่อมกับตาราง users (ตัวเล็ก)
   hrId         Int

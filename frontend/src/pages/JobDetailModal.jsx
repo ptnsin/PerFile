@@ -186,7 +186,7 @@ export default function JobDetailModal({ open, job, onClose, onEdit, onDelete })
             <div className="jdm-hero-title">{job.title}</div>
 
             <div className="jdm-hero-tags">
-              {job.type     && <span className="jdm-hero-tag"><LuClock size={11}/> {job.type}</span>}
+              {job.job_type     && <span className="jdm-hero-tag"><LuClock size={11}/> {job.job_type}</span>}
               {job.category && <span className="jdm-hero-tag"><LuBadgeCheck size={11}/> {job.category}</span>}
               {job.location && <span className="jdm-hero-tag"><LuMapPin size={11}/> {job.location}</span>}
               {job.experience && <span className="jdm-hero-tag"><LuUsers size={11}/> {job.experience}</span>}
@@ -218,7 +218,7 @@ export default function JobDetailModal({ open, job, onClose, onEdit, onDelete })
                   <div className="jdm-info-card-icon"><LuClock /></div>
                   <div>
                     <div className="jdm-info-card-label">รูปแบบงาน</div>
-                    <div className="jdm-info-card-value">{job.type || "ไม่ระบุ"}</div>
+                    <div className="jdm-info-card-value">{job.job_type || "ไม่ระบุ"}</div>
                   </div>
                 </div>
                 <div className="jdm-info-card">

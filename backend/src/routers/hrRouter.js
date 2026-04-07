@@ -515,31 +515,27 @@ hrRouter.post('/contact/:resumeId', async (req, res) => {
  */
 hrRouter.get('/profile', async (req, res) => {
   try {
-    const profile = await prisma.user.findUnique({
-      where : { id: req.user.id },
-      select: {
-        id       : true,
-        fullName : true,
-        email    : true,
-        company  : true,
-        position : true,
-        location : true,
-        status   : true,
-        createdAt: true,
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        hr_profile: true 
       }
-    })
+    });
 
-    if (!profile) {
-      return res.status(404).json({ message: 'ไม่พบโปรไฟล์' })
-    }
+    if (!userWithProfile) return res.status(404).json({ message: 'ไม่พบโปรไฟล์' });
 
-    return res.status(200).json({ profile })
+    const { hr_profile, ...userData } = userWithProfile;
+    const formattedProfile = {
+      ...userData,
+      ...(hr_profile || {}) 
+    };
 
+    return res.status(200).json({ profile: formattedProfile });
   } catch (err) {
-    console.error('HR profile get error:', err.message)
-    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงโปรไฟล์' })
+    console.error('HR profile get error:', err.message);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงโปรไฟล์' });
   }
-})
+});
 
 // ─────────────────────────────────────────────────────────────
 
@@ -587,36 +583,51 @@ hrRouter.get('/profile', async (req, res) => {
  */
 hrRouter.put('/profile', async (req, res) => {
   try {
-    const { company, position, location, fullName } = req.body
+    const { 
+      fullName, 
+      company, bio, website, location, industry, 
+      companyDesc, // รับจาก UI (companyDesc)
+      companySize, // รับจาก UI (companySize)
+      founded 
+    } = req.body;
 
-    const updatedProfile = await prisma.user.update({
-      where : { id: req.user.id },
-      data  : {
-        ...(company  && { company }),
-        ...(position && { position }),
-        ...(location && { location }),
-        ...(fullName && { fullName }),
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        fullName,
+        hr_profile: {
+          upsert: { 
+            create: { 
+              company, bio, website, location, industry, founded,
+              company_desc: companyDesc, // บันทึกลง DB เป็น company_desc
+              company_size: companySize  // บันทึกลง DB เป็น company_size
+            },
+            update: { 
+              company, bio, website, location, industry, founded,
+              company_desc: companyDesc,
+              company_size: companySize
+            }
+          }
+        }
       },
-      select: {
-        id       : true,
-        fullName : true,
-        email    : true,
-        company  : true,
-        position : true,
-        location : true,
-      }
-    })
+      include: { hr_profile: true }
+    });
 
-    return res.status(200).json({
-      message : 'แก้ไขโปรไฟล์สำเร็จ',
-      profile : updatedProfile,
-    })
+    // ส่งกลับข้อมูลที่ Flatten แล้วเพื่อให้ UI อัปเดตทันที
+    const profile = { 
+      ...updatedUser, 
+      ...updatedUser.hr_profile,
+      name: updatedUser.fullName,
+      companyDesc: updatedUser.hr_profile?.company_desc, // ส่งกลับไปเป็นชื่อที่ UI เข้าใจ
+      companySize: updatedUser.hr_profile?.company_size
+    };
 
+    return res.status(200).json({ message: 'แก้ไขโปรไฟล์สำเร็จ', profile });
   } catch (err) {
-    console.error('HR profile update error:', err.message)
-    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการแก้ไขโปรไฟล์' })
+    console.error('HR profile update error:', err.message);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการแก้ไขโปรไฟล์' });
   }
-})
+});
 
 // ─────────────────────────────────────────────────────────────
 
@@ -671,6 +682,32 @@ hrRouter.get('/jobs', async (req, res) => {
     res.json({ jobs });
   } catch (err) {
     res.status(500).json({ message: "Error fetching jobs" });
+  }
+});
+
+hrRouter.patch('/jobs/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // ตรวจสอบว่างานนี้เป็นของ HR คนที่ล็อกอินอยู่จริงหรือไม่
+    const job = await prisma.job.findFirst({
+      where: { id: Number(id), hrId: Number(req.user.id) }
+    });
+
+    if (!job) {
+      return res.status(404).json({ message: "ไม่พบประกาศงานนี้" });
+    }
+
+    const updatedJob = await prisma.job.update({
+      where: { id: Number(id) },
+      data: { status }
+    });
+
+    res.json({ message: "อัปเดตสถานะสำเร็จ", job: updatedJob });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในการอัปเดตสถานะ" });
   }
 });
 
