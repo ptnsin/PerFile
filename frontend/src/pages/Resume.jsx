@@ -605,25 +605,39 @@ function A4PreviewModal({ data, onClose }) {
   }, []);
 
   const handlePrint = () => {
-    const printContent = document.getElementById("a4-print-target").innerHTML;
-    const win = window.open("", "_blank", "width=900,height=700");
-    win.document.write(`
-      <!DOCTYPE html><html>
-        <head>
-          <meta charset="utf-8" />
-          <title>${data.name || "Resume"}</title>
-          <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-          <style>
-            *,*::before,*::after { margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important; }
-            html,body { width:210mm;background:#fff; }
-            @page { size:A4 portrait;margin:0; }
-          </style>
-        </head>
-        <body onload="window.print();window.close();">${printContent}</body>
-      </html>
-    `);
-    win.document.close();
-  };
+  const printContent = document.getElementById("a4-print-target").innerHTML;
+  // ดึง CSS ทั้งหมดในหน้าปัจจุบันเพื่อไปใส่ในหน้าพิมพ์
+  const currentStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map(style => style.outerHTML)
+    .join('\n');
+
+  const win = window.open("", "_blank", "width=900,height=1100");
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${data.name || "Resume"}</title>
+        ${currentStyles} 
+        <style>
+          body { background: white !important; margin: 0; padding: 0; }
+          .resume-a4-sheet { 
+            box-shadow: none !important; 
+            margin: 0 !important; 
+            width: 210mm !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          @page { size: A4 portrait; margin: 0; }
+        </style>
+      </head>
+      <body onload="setTimeout(() => { window.print(); window.close(); }, 800);">
+        ${printContent}
+      </body>
+    </html>
+  `);
+  win.document.close();
+};
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };

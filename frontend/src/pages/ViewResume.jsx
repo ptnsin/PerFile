@@ -132,10 +132,31 @@ const styles = `
   }
 
   @media print {
-    .view-header { display: none; }
-    .preview-area { padding: 0; background: #fff; }
-    .resume { box-shadow: none; }
+  @page {
+    size: A4 portrait;
+    margin: 0;
   }
+  body {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .view-header { display: none !important; }
+  .preview-area {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  .resume {
+    width: 210mm !important;
+    height: 297mm !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    page-break-after: always;
+  }
+}
 `;
 
 export default function ViewResume() {
@@ -143,6 +164,8 @@ export default function ViewResume() {
   const navigate = useNavigate();
   const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  
 
  useEffect(() => {
     const fetchResumeData = async () => {
@@ -184,99 +207,92 @@ export default function ViewResume() {
     );
   }
 
-  const findSection = (type) => resume.sections?.find(s => s.type === type)?.content || null;
-  const findSections = (type) => resume.sections?.filter(s => s.type === type).map(s => s.content) || [];
-
-  const header = findSection('header') || {};
-
   return (
-    <>
-      <style>{fonts}</style>
-      <style>{styles}</style>
-      <div className="view-container">
-        <header className="view-header">
-          <div className="view-header-info">
-            <h1>{header.name || resume.title}</h1>
-            <p>{header.title || "No Title"}</p>
-          </div>
-          <div className="view-header-actions">
-            <button className="btn-back" onClick={() => window.print()}>🖨️ พิมพ์</button>
-            <button className="btn-back" onClick={() => navigate('/feed')}>← กลับ</button>
-          </div>
-        </header>
+  <>
+    <style>{fonts}</style>
+    <style>{styles}</style>
+    <div className="view-container">
+      <header className="view-header">
+        <div className="view-header-info">
+          {/* ✅ เปลี่ยนมาใช้ resume.title โดยตรง */}
+          <h1>{resume.title}</h1>
+          <p>{resume.ownerName || "No Title"}</p>
+        </div>
+        <div className="view-header-actions">
+          <button className="btn-back" onClick={() => window.print()}>🖨️ พิมพ์</button>
+          <button className="btn-back" onClick={() => navigate('/feed')}>← กลับ</button>
+        </div>
+      </header>
 
-        <div className="preview-area">
-          <div className="resume">
-            {/* Header */}
-            <div className="resume-header">
-              <div className="resume-name">{header.name || "ชื่อของคุณ"}</div>
-              <div className="resume-title">{header.title || "ตำแหน่ง"}</div>
-              <div className="resume-contacts">
-                {header.email && <span>{header.email}</span>}
-                {header.phone && <span>{header.phone}</span>}
-                {header.location && <span>{header.location}</span>}
+      <div className="preview-area">
+        <div className="resume">
+          {/* Header */}
+          <div className="resume-header">
+            <div className="resume-name">{resume.title}</div>
+            <div className="resume-title">{resume.template} Template</div>
+            {/* หมายเหตุ: หากต้องการ Email/Phone ให้เพิ่มฟิลด์เหล่านี้ในตาราง resumes ด้วย */}
+          </div>
+
+          <div className="resume-content">
+            {/* ✅ 1. แสดง Summary จากคอลัมน์ resume.summary */}
+            {resume.summary && (
+              <div className="resume-section">
+                <div className="section-title">สรุปประวัติ</div>
+                <div className="summary-text">{resume.summary}</div>
               </div>
-            </div>
+            )}
 
-            {/* Content */}
-            <div className="resume-content">
-              
-              {/* Summary */}
-              {findSection('summary') && (
-                <div className="resume-section">
-                  <div className="section-title">สรุปประวัติ</div>
-                  <div className="summary-text">{findSection('summary').text || findSection('summary')}</div>
-                </div>
-              )}
-
-              {/* Experience */}
-              {findSections('experience').length > 0 && (
-                <div className="resume-section">
-                  <div className="section-title">ประสบการณ์ทำงาน</div>
-                  {findSections('experience').map((exp, i) => (
-                    <div key={i} className="entry">
-                      <div className="entry-header">
-                        <div className="entry-title">{exp.role}</div>
-                        <div className="entry-period">{exp.period}</div>
-                      </div>
-                      <div className="entry-org">{exp.company || exp.org}</div>
-                      {exp.description && <div className="entry-desc">{exp.description}</div>}
+            {/* ✅ 2. แสดง Experience จากคอลัมน์ resume.experience */}
+            {resume.experience && resume.experience.length > 0 && (
+              <div className="resume-section">
+                <div className="section-title">ประสบการณ์ทำงาน</div>
+                {resume.experience.map((exp, i) => (
+                  <div key={i} className="entry">
+                    <div className="entry-header">
+                      <div className="entry-title">{exp.role}</div>
+                      <div className="entry-period">{exp.period}</div>
                     </div>
-                  ))}
-                </div>
-              )}
-
-             {/* Education */}
-              {findSections('education').length > 0 && (
-                <div className="resume-section">
-                  <div className="section-title">การศึกษา</div>
-                  {findSections('education').map((edu, i) => (
-                    <div key={i} className="entry">
-                      <div className="entry-header">
-                        <div className="entry-title">{edu.degree}</div>
-                        <div className="entry-period">{edu.period}</div>
-                      </div>
-                      <div className="entry-org">{edu.school}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Skills */}
-              {findSection('skills') && (
-                <div className="resume-section">
-                  <div className="section-title">ทักษะ</div>
-                  <div className="skills-grid">
-                    {(Array.isArray(findSection('skills')) ? findSection('skills') : []).map((skill, i) => (
-                      <div key={i} className="skill-tag">{typeof skill === 'string' ? skill : skill.name}</div>
-                    ))}
+                    <div className="entry-org">{exp.org || exp.company}</div>
+                    {exp.desc && <div className="entry-desc">{exp.desc}</div>}
                   </div>
+                ))}
+              </div>
+            )}
+
+            {/* ✅ 3. แสดง Education จากคอลัมน์ resume.education */}
+            {resume.education && resume.education.length > 0 && (
+              <div className="resume-section">
+                <div className="section-title">การศึกษา</div>
+                {resume.education.map((edu, i) => (
+                  <div key={i} className="entry">
+                    <div className="entry-header">
+                      <div className="entry-title">{edu.degree}</div>
+                      <div className="entry-period">{edu.period}</div>
+                    </div>
+                    <div className="entry-org">{edu.school}</div>
+                    {edu.desc && <div className="entry-desc">{edu.desc}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ✅ 4. แสดง Skills จากคอลัมน์ resume.skills */}
+            {resume.skills && resume.skills.length > 0 && (
+              <div className="resume-section">
+                <div className="section-title">ทักษะ</div>
+                <div className="skills-grid">
+                  {resume.skills.map((skill, i) => (
+                    <div key={i} className="skill-tag">
+                      {typeof skill === 'string' ? skill : (skill.name || skill.label)}
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </>
-  );
+    </div>
+  </>
+);
 }
