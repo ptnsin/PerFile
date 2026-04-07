@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LuSearch, LuBookmark, LuBell, LuPanelLeft,
   LuFileText, LuBriefcase, LuMapPin, LuLink, LuPencil,
@@ -36,8 +36,19 @@ export default function UserProfile() {
   const sidebarRef    = useRef(null);
   const savedSectionRef = useRef(null);
   const navigate      = useNavigate();
+  const location      = useLocation();
 
   const { privateResumes, removePrivate, removeResume, publishPrivate } = useResumes();
+
+  /* ── scroll to saved tab when navigated from Feed ── */
+  useEffect(() => {
+    if (location.state?.scrollTo === "saved") {
+      setActiveTab("saved");
+      setTimeout(() => {
+        savedSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [location.state]);
 
   /* ── ดึงข้อมูล Resume ทั้งหมดของ User ── */
   useEffect(() => {

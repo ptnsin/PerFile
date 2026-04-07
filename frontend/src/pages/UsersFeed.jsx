@@ -173,7 +173,7 @@ export default function UsersFeed() {
           <button className="uf-menu-item" onClick={() => navigate("/profile")}>
             <FiHome /> Profile
           </button>
-          <button className="uf-menu-item" onClick={() => navigate("/saved")}>
+          <button className="uf-menu-item" onClick={() => navigate("/profile", { state: { scrollTo: "saved" } })}>
             <LuBookmark /> Saved
           </button>
           <div className="uf-section-label">Private Profile</div>
