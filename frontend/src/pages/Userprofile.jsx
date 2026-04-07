@@ -142,7 +142,7 @@ export default function UserProfile() {
           <button className="uf-toggle-btn" onClick={toggleSidebar} title="Toggle sidebar">
             <LuPanelLeft />
           </button>
-          <div className="uf-logo">Per<em>File</em></div>
+          <div className="uf-logo">Per<em>File</em><span className="uf-logo-badge">Seeker</span></div>
           <div className="uf-search">
             <LuSearch />
             <input
@@ -341,15 +341,7 @@ export default function UserProfile() {
                           </button>
                           {actionMenuId === p.id && (
                             <div className="uf-action-menu" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                className="uf-action-menu-item uf-action-menu-item--danger"
-                                onClick={() => {
-                                  setActionMenuId(null);
-                                  setDeleteConfirm({ id: p.id, type: "private" });
-                                }}
-                              >
-                                ลบ Resume
-                              </button>
+                              
                               <button
                                 className="uf-action-menu-item uf-action-menu-item--accent"
                                 onClick={() => {
@@ -359,6 +351,14 @@ export default function UserProfile() {
                                 }}
                               >
                                 เปลี่ยนเป็น public
+                              </button><button
+                                className="uf-action-menu-item uf-action-menu-item--danger"
+                                onClick={() => {
+                                  setActionMenuId(null);
+                                  setDeleteConfirm({ id: p.id, type: "private" });
+                                }}
+                              >
+                                ลบ Resume
                               </button>
                             </div>
                           )}

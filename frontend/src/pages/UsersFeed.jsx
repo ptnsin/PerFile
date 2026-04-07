@@ -102,7 +102,7 @@ export default function UsersFeed() {
           <button className="uf-toggle-btn" onClick={toggleSidebar} title="Toggle sidebar">
             <LuPanelLeft />
           </button>
-          <div className="uf-logo">Per<em>File</em></div>
+          <div className="uf-logo">Per<em>File</em><span className="uf-logo-badge">Seeker</span></div>
           <div className="uf-search">
             <LuSearch />
             <input
