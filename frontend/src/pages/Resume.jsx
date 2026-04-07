@@ -951,6 +951,36 @@ export default function ResumeBuilder() {
     }
   };
 
+  const handlePublishPublic = async () => {
+    try {
+      setSavedToast(true);
+      const payload = {
+        title: data.name + " - Resume",
+        template: data.template,
+        visibility: "public", // กำหนดเป็นสาธารณะ
+        summary: data.summary,
+        experience: data.experience,
+        education: data.education,
+        skills: data.skills,
+      };
+
+      const response = await axios.post("http://localhost:3000/resumes", payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      if (response.status === 201) {
+        setTimeout(() => { 
+          setSavedToast(false); 
+          navigate("/feed"); // เมื่อบันทึกสำเร็จให้ไปหน้า Feed
+        }, 1200);
+      }
+    } catch (error) {
+      console.error("Publish Error:", error);
+      setSavedToast(false);
+      alert("ไม่สามารถโพสต์สาธารณะได้");
+    }
+  };
+
   const tabs = [
     { id: "template", label: "เทมเพลต" },
     { id: "info",     label: "ข้อมูล" },
@@ -1212,7 +1242,7 @@ export default function ResumeBuilder() {
             <button
               className="btn-download"
               style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
-              onClick={() => { publish(data); navigate("/feed"); }}
+              onClick={handlePublishPublic}
             >
               🌐 โพสต์สาธารณะ → Feed
             </button>
