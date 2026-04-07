@@ -11,15 +11,10 @@ export default function HrLogin() {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-  // ล้าง Token และ Role เก่าออกให้หมดเมื่อเข้ามาหน้านี้
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  
-  // หรือจะล้างทั้งหมดเลยก็ได้ถ้าไม่ได้เก็บอย่างอื่น
-  // localStorage.clear(); 
-}, []);
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+  }, []);
 
-  // 1. ฟังก์ชัน Login แบบปกติ (รองรับทั้ง Admin และ HR)
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -33,8 +28,8 @@ export default function HrLogin() {
 
       if (response.ok) {
         localStorage.setItem("token", data.token);
-        localStorage.setItem("role", data.user.role); // เก็บ Role จริงที่ได้จาก DB (1 หรือ 3)
-        
+        localStorage.setItem("role", data.user.role);
+
         Swal.fire({
           title: data.user.role === 1 ? "ยินดีต้อนรับ Admin" : "สำเร็จ!",
           text: data.message,
@@ -43,11 +38,10 @@ export default function HrLogin() {
           showConfirmButton: false
         });
 
-        // 🌟 แยกเส้นทางตาม Role
         if (data.user.role === 1) {
-          navigate("/admin"); // ถ้าเป็น Admin ส่งไปหน้า Dashboard กลาง
+          navigate("/admin");
         } else {
-          navigate("/hr-feed"); // ถ้าเป็น HR ส่งไปหน้าจัดการงาน
+          navigate("/hr-feed");
         }
 
       } else {
@@ -63,17 +57,19 @@ export default function HrLogin() {
     }
   };
 
-  // 2. ฟังก์ชัน Social Login
   const handleSocialLogin = (provider) => {
     const backendUrl = `http://localhost:3000/auth/oauth/${provider}?state=hr_login`;
     const width = 500, height = 650;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
 
-    window.open(backendUrl, `Login with ${provider}`, `width=${width},height=${height},left=${left},top=${top}`);
+    window.open(
+      backendUrl,
+      `Login with ${provider}`,
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
   };
 
-  // 3. รับ Token และ Role จาก Social Login Popup
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.origin !== "http://localhost:3000") return;
@@ -83,7 +79,6 @@ export default function HrLogin() {
         localStorage.setItem("token", token);
         localStorage.setItem("role", role);
 
-        // 🌟 แยกเส้นทางตาม Role จาก Social Login
         if (parseInt(role) === 1) {
           navigate("/admin");
         } else {
@@ -139,24 +134,40 @@ export default function HrLogin() {
                 <p>ก้าวเข้าสู่ระบบจัดการสำหรับผู้ประกอบการ</p>
               </div>
 
-              <form className="hr-login-form" onSubmit={handleLogin}>
+              {/* ✅ ปิด autofill ทั้ง form */}
+              <form 
+                className="hr-login-form" 
+                onSubmit={handleLogin}
+                autoComplete="off"
+              >
                 <div className="hr-input-group">
                   <LuMail className="hr-icon" />
                   <input 
-                    type="email" 
+                    type="email"
+                    name="hr_email"
+                    autoComplete="username"
                     placeholder="Business Address" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === " ") e.preventDefault(); // ❌ กัน spacebar
+                    }}
                     required 
                   />
                 </div>
+
                 <div className="hr-input-group">
                   <LuLock className="hr-icon" />
                   <input 
-                    type="password" 
+                    type="password"
+                    name="hr_password"
+                    autoComplete="new-password"
                     placeholder="Password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === " ") e.preventDefault(); // ❌ กัน spacebar
+                    }}
                     required 
                   />
                 </div>
