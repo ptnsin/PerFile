@@ -130,7 +130,7 @@ function HrRegister() {
 
               <div className="hr-reg-social">
                 <button 
-                  className="hr-social-btn" 
+                  className="hr-social-btn1" 
                   type="button" 
                   onClick={() => handleSocialLogin('google')}
                 >
