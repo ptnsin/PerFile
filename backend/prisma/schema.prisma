@@ -100,16 +100,6 @@ model posts {
   @@index([user_id], map: "user_id")
 }
 
-model resume_sections {
-  id            Int     @id @default(autoincrement())
-  resume_id     Int
-  type          String  @db.VarChar(50)
-  content       Json
-  section_order Int?    @default(1)
-  resumes       resumes @relation(fields: [resume_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_resume_section")
-
-  @@index([resume_id], map: "fk_resume_section")
-}
 
 model resume_share_tokens {
   id         Int       @id @default(autoincrement())
@@ -134,14 +124,22 @@ model resumes {
   title               String?               @default("My Resume") @db.VarChar(100)
   template            String?               @default("modern") @db.VarChar(50)
   visibility          resumes_visibility?   @default(private)
+  summary     String?  @db.Text
+  experience  Json?    // เก็บเป็น Array ของ Object ประสบการณ์
+  education   Json?    // เก็บเป็น Array ของ Object การศึกษา
+  skills      Json?    // เก็บเป็นรายการทักษะ
   created_at          DateTime?             @default(now()) @db.Timestamp(0)
   updated_at          DateTime?             @default(now()) @db.Timestamp(0)
   posts               posts[]
-  resume_sections     resume_sections[]
   resume_share_tokens resume_share_tokens[]
-  users               User                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "resumes_ibfk_1")
-
+ users               User                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "resumes_ibfk_1")
   @@index([user_id], map: "user_id")
+  @@map("resumes")
+}
+
+enum resumes_visibility {
+  public
+  private
 }
 
 model roles {
@@ -165,10 +163,6 @@ enum post_attachments_file_type {
   video
 }
 
-enum resumes_visibility {
-  public
-  private
-}
 
 enum users_status {
   active
