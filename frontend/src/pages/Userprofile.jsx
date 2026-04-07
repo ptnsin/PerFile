@@ -11,7 +11,6 @@ import { useResumes } from "./ResumeContext";
 import "../styles/Userprofile.css";
 
 // ---- Mock Data ----
-const SKILLS = ["React", "TypeScript", "Figma", "Node.js", "Tailwind CSS", "Python", "PostgreSQL", "Git"];
 const EXP = [
   { icon: "💼", title: "Frontend Developer", company: "Tech Startup Co.", date: "2022 – ปัจจุบัน" },
   { icon: "🎨", title: "UX/UI Designer", company: "Creative Agency", date: "2020 – 2022" },
@@ -33,12 +32,31 @@ export default function UserProfile() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [myResumes, setMyResumes] = useState([]);
 
+  // ── Skills state ──
+  const [skills, setSkills] = useState(["React", "TypeScript", "Figma", "Node.js", "Tailwind CSS", "Python", "PostgreSQL", "Git"]);
+  const [showSkillModal, setShowSkillModal] = useState(false);
+  const [newSkill, setNewSkill] = useState("");
+
   const sidebarRef    = useRef(null);
   const savedSectionRef = useRef(null);
   const navigate      = useNavigate();
   const location      = useLocation();
 
   const { privateResumes, removePrivate, removeResume, publishPrivate } = useResumes();
+
+  // ── Skill handlers ──
+  const handleAddSkill = () => {
+    const trimmed = newSkill.trim();
+    if (trimmed && !skills.includes(trimmed)) {
+      setSkills((prev) => [...prev, trimmed]);
+    }
+    setNewSkill("");
+    setShowSkillModal(false);
+  };
+
+  const handleRemoveSkill = (sk) => {
+    setSkills((prev) => prev.filter((s) => s !== sk));
+  };
 
   /* ── scroll to saved tab when navigated from Feed ── */
   useEffect(() => {
@@ -98,7 +116,7 @@ export default function UserProfile() {
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  /* ── resizable sidebar (same logic as UsersFeed) ── */
+  /* ── resizable sidebar ── */
   useEffect(() => {
     const sidebar = sidebarRef.current;
     if (!sidebar) return;
@@ -169,7 +187,45 @@ export default function UserProfile() {
         </div>
       )}
 
-      {/* ── NAV (identical structure to UsersFeed) ── */}
+      {/* ── Add Skill Modal ── */}
+      {showSkillModal && (
+        <div className="up-modal-overlay" onClick={() => { setShowSkillModal(false); setNewSkill(""); }}>
+          <div className="up-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="up-modal-icon">⭐</div>
+            <div className="up-modal-title">เพิ่มทักษะ</div>
+            <input
+              autoFocus
+              type="text"
+              placeholder="เช่น React, Python, Figma..."
+              value={newSkill}
+              onChange={(e) => setNewSkill(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAddSkill();
+                if (e.key === "Escape") { setShowSkillModal(false); setNewSkill(""); }
+              }}
+              style={{
+                width: "100%", padding: "8px 12px", borderRadius: 8,
+                border: "1.5px solid #e5e7eb", fontSize: 14, marginBottom: 4,
+                outline: "none", boxSizing: "border-box",
+              }}
+            />
+            <div className="up-modal-actions">
+              <button className="up-modal-cancel" onClick={() => { setShowSkillModal(false); setNewSkill(""); }}>
+                ยกเลิก
+              </button>
+              <button
+                className="up-modal-confirm"
+                onClick={handleAddSkill}
+                disabled={!newSkill.trim()}
+              >
+                เพิ่ม
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── NAV ── */}
       <nav className="uf-nav">
         <div className="uf-nav-left">
           <button className="uf-toggle-btn" onClick={toggleSidebar} title="Toggle sidebar">
@@ -212,7 +268,7 @@ export default function UserProfile() {
       {/* ── BODY ── */}
       <div className="uf-body">
 
-        {/* ── SIDEBAR (identical structure to UsersFeed) ── */}
+        {/* ── SIDEBAR ── */}
         <aside ref={sidebarRef} className={`uf-sidebar${sidebarOpen ? "" : " closed"}`}>
           <div className="uf-resize-handle">
             <div className="uf-resize-bar" />
@@ -285,11 +341,41 @@ export default function UserProfile() {
           {/* Skills */}
           <div className="up-section-card">
             <div className="up-section-header">
-              <span><LuStar size={14} style={{ marginRight: 5, verticalAlign: "middle", color: "#4f46e5" }} />ทักษะ</span>
-              <button className="uf-filter-btn"><LuPlus size={12} /> เพิ่ม</button>
+              <span>
+                <LuStar size={14} style={{ marginRight: 5, verticalAlign: "middle", color: "#4f46e5" }} />
+                ทักษะ
+              </span>
+              <button className="uf-filter-btn" onClick={() => setShowSkillModal(true)}>
+                <LuPlus size={12} /> เพิ่ม
+              </button>
             </div>
             <div className="up-skills-wrap">
-              {SKILLS.map((sk) => <span key={sk} className="up-skill-chip">{sk}</span>)}
+              {skills.length > 0 ? (
+                skills.map((sk) => (
+                  <span
+                    key={sk}
+                    className="up-skill-chip"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+                  >
+                    {sk}
+                    <button
+                      onClick={() => handleRemoveSkill(sk)}
+                      title={`ลบ ${sk}`}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        padding: 0, lineHeight: 1, color: "#9ca3af",
+                        fontSize: 14, display: "flex", alignItems: "center",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <span style={{ color: "#9ca3af", fontSize: 13 }}>
+                  ยังไม่มีทักษะ กด "+ เพิ่ม" เพื่อเพิ่มทักษะแรก
+                </span>
+              )}
             </div>
           </div>
 
@@ -311,7 +397,7 @@ export default function UserProfile() {
             ))}
           </div>
 
-          {/* Tab Panel (same uf-panel structure as UsersFeed) */}
+          {/* Tab Panel */}
           <div className="uf-panel">
 
             {/* Tab Bar */}
@@ -323,17 +409,11 @@ export default function UserProfile() {
                   onClick={() => handleTabClick(t.key)}
                 >
                   {t.label}
-                  {/* แสดงจำนวนของ Private Resumes */}
                   {t.key === "resumes" && activeTab === "resumes" && privateList.length > 0 && (
-                    <span className="uf-tab-badge">
-                      {privateList.length}
-                    </span>
+                    <span className="uf-tab-badge">{privateList.length}</span>
                   )}
-                  {/* แสดงจำนวนของ Public Resumes */}
                   {t.key === "jobs" && activeTab === "jobs" && publicList.length > 0 && (
-                    <span className="uf-tab-badge" style={{ background: "#16a34a" }}>
-                      {publicList.length}
-                    </span>
+                    <span className="uf-tab-badge" style={{ background: "#16a34a" }}>{publicList.length}</span>
                   )}
                 </button>
               ))}
@@ -383,7 +463,6 @@ export default function UserProfile() {
                           </button>
                           {actionMenuId === p.id && (
                             <div className="uf-action-menu" onClick={(e) => e.stopPropagation()}>
-                              
                               <button
                                 className="uf-action-menu-item uf-action-menu-item--accent"
                                 onClick={() => {
@@ -393,7 +472,8 @@ export default function UserProfile() {
                                 }}
                               >
                                 เปลี่ยนเป็น public
-                              </button><button
+                              </button>
+                              <button
                                 className="uf-action-menu-item uf-action-menu-item--danger"
                                 onClick={() => {
                                   setActionMenuId(null);
@@ -442,19 +522,16 @@ export default function UserProfile() {
                       >
                         <div className="uf-resume-header">
                           <div className="uf-resume-icon"><LuFileText /></div>
-                        
                         </div>
                         <div className="uf-resume-title">{p.title}</div>
                         <div className="uf-resume-meta">
                           <span><LuBadgeCheck /> {userData?.fullName || "You"}</span>
-                          {/* ✅ แสดงวันที่พร้อมไอคอนโลก */}
                           {p.createdAt && (
                             <span style={{ color: "#16a34a", fontSize: 11 }}>
                               🌐 {new Date(p.createdAt).toLocaleDateString('th-TH')}
                             </span>
                           )}
                         </div>
-                        {/* Action Menu (⋮) ก๊อปปี้มาจากส่วน Private */}
                         <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
                           <button
                             className="uf-action-btn"
@@ -479,7 +556,6 @@ export default function UserProfile() {
                               <button
                                 className="uf-action-menu-item uf-action-menu-item--accent"
                                 onClick={() => {
-                                  // TODO: เพิ่มฟังก์ชันเปลี่ยนกลับเป็น Private ใน Backend
                                   setActionMenuId(null);
                                   alert("กำลังเปลี่ยนเป็น Private...");
                                 }}
@@ -491,7 +567,6 @@ export default function UserProfile() {
                         </div>
                       </div>
                     ))}
-                    {/* ปุ่มเพิ่ม Resume ใน Tab Public */}
                     <div className="uf-resume-card up-add-card" onClick={() => navigate("/resume")}>
                       <LuPlus size={26} />
                       <span>เพิ่ม Resume</span>
