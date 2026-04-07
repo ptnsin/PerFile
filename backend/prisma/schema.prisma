@@ -7,6 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model hr_activities {
+  id         Int      @id @default(autoincrement())
+  hr_id      Int
+  text       String   @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  user       User     @relation(fields: [hr_id], references: [id], onDelete: Cascade)
+  @@map("hr_activities")
+}
+
 model User {
   id                  Int                   @id @default(autoincrement())
   username            String                @db.VarChar(50)
@@ -30,6 +40,7 @@ model User {
   resumes             resumes[]
   roles               roles                 @relation(fields: [roles_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "users_ibfk_1")
   Job                 Job[]
+  hr_activities hr_activities[]
 
   @@index([roles_id], map: "roles_id")
   @@map("users")

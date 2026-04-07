@@ -17,26 +17,25 @@ async function getHrProfile() {
     const data = await res.json();
     
     const profile = data.profile;
-    // ดึงค่าจากทั้งตาราง User และตาราง hr_profile มาเชื่อมกัน
     return {
       ...profile,
-      // Map ข้อมูลพื้นฐานจาก User
       name: profile.fullName || profile.username || "ยังไม่ระบุชื่อ", 
       avatar: profile.avatar || null,
       
-      // Map ข้อมูลบริษัทจากตาราง hr_profile (ระวังชื่อต้องตรงกับ Backend)
-      bio: profile.hr_profile?.bio || "ยังไม่ระบุรายละเอียด",
-      website: profile.hr_profile?.website || "ยังไม่ระบุ",
-      location: profile.hr_profile?.location || "ยังไม่ระบุ",
+      // ✅ ตรวจสอบชื่อ property จากก้อน hr_profile ที่ส่งมาจาก Backend
+      bio: profile.hr_profile?.bio || profile.bio || "ยังไม่ระบุรายละเอียด",
+      website: profile.hr_profile?.website || profile.website || "ยังไม่ระบุ",
+      location: profile.hr_profile?.location || profile.location || "ยังไม่ระบุ",
       
-      // ตรวจสอบชื่อ Key ด้านล่างนี้ให้ตรงกับ Backend
       company: profile.hr_profile?.company || profile.company || "ยังไม่ระบุบริษัท",
-      industry: profile.hr_profile?.industry || "ยังไม่ระบุ",
-      companyDesc: profile.hr_profile?.company_desc || "ยังไม่ระบุข้อมูลบริษัท", // แก้จาก company_desc ใน DB เป็น companyDesc ให้ UI
-      companySize: profile.hr_profile?.company_size || "ยังไม่ระบุ",
-      founded: profile.hr_profile?.founded || "ยังไม่ระบุ",
+      industry: profile.hr_profile?.industry || profile.industry || "ยังไม่ระบุ",
       
-      role: profile.role || "HR Recruiter",
+      // ✅ ต้องใช้ชื่อที่ UI เข้าใจ (companyDesc) แต่ดึงมาจาก DB (company_desc)
+      companyDesc: profile.hr_profile?.company_desc || profile.company_desc || "ยังไม่ระบุข้อมูลบริษัท",
+      companySize: profile.hr_profile?.company_size || profile.company_size || "ยังไม่ระบุ",
+      founded: profile.hr_profile?.founded || profile.founded || "ยังไม่ระบุ",
+      
+      role: profile.hr_profile?.role || "HR Recruiter",
       handle: profile.username ? `@${profile.username}` : "@username"
     };
   } catch (err) {
@@ -53,9 +52,19 @@ async function getOpenJobs() {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const allJobs = data.jobs || [];
-    // กรองเฉพาะงานที่สถานะเป็น "เปิดรับสมัคร"
-    return allJobs.filter(job => job.status === "เปิดรับสมัคร");
+    
+    return (data.jobs || [])
+      .filter(job => job.status === "เปิดรับสมัคร")
+      .map(job => ({
+        ...job,
+        // Map ชื่อฟิลด์ให้ตรงกับที่ Component เรียกใช้
+        dept: job.category || "ทั่วไป", 
+        type: job.job_type || "ไม่ระบุ",
+        posted: new Date(job.createdAt).toLocaleDateString('th-TH', { 
+          day: 'numeric', month: 'short' 
+        }),
+        applicants: job.applicants || 0 // ถ้ายังไม่มีระบบนับจริงให้ใส่ 0 ไว้ก่อน
+      }));
   } catch (err) {
     console.error(err);
     return [];
@@ -117,10 +126,30 @@ async function getQuickActions() {
   ];
 }
 
+async function getActivities() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/activities", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    
+    // แปลงข้อมูลจาก Backend ให้เข้ากับ UI
+    return (data.activities || []).map(act => ({
+      text: act.text, //
+      time: new Date(act.created_at).toLocaleString('th-TH') //
+    }));
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
 async function getApplicants()   { /* TODO */ return []; }
 async function getInterviews()   { /* TODO */ return []; }
 async function getReportData()   { /* TODO */ return null; }
-async function getActivities()   { /* TODO */ return []; }
+
 
 
 // TODO: เชื่อม update กลับ backend
@@ -297,11 +326,21 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, cl
     }
   }, []); // eslint-disable-line
 
-  const updateHr = (key) => (val) => {
-    const updated = { ...(hr || {}), [key]: val };
-    setHr(updated);
-    saveHrProfile({ [key]: val });
-  };
+  // ใน ProfileView
+const updateHr = (key) => (val) => {
+  const updated = { ...(hr || {}), [key]: val };
+  setHr(updated);
+  
+  // ✅ ต้อง Map ชื่อ Key ให้ตรงกับที่ Backend PUT คาดหวัง
+  // เช่น ถ้าส่ง "name" มา ต้องเปลี่ยนเป็น "fullName" ก่อนส่งไป API
+  const payloadKey = key === "name" ? "fullName" : key;
+  saveHrProfile({ [payloadKey]: val });
+};
+
+// ใน CompanyView (ตรวจสอบชื่อตัวแปรที่ส่งไปบันทึก)
+<EditableField value={hr?.companyDesc} onChange={updateHr("companyDesc")} multiline />
+// ตัว updateHr จะส่ง { companyDesc: val } ซึ่งใน Backend PUT ผมแก้ให้รับค่านี้แล้ว
+
   const updateAbout = (idx, key) => (val) => {
     const updated = aboutItems.map((item, i) => i === idx ? { ...item, [key]: val } : item);
     setAboutItems(updated);

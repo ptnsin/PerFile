@@ -581,31 +581,37 @@ hrRouter.get('/profile', async (req, res) => {
  *       500:
  *         description: เกิดข้อผิดพลาด
  */
+// ใน hrRouter.js ส่วน PUT /profile
 hrRouter.put('/profile', async (req, res) => {
   try {
     const { 
       fullName, 
       company, bio, website, location, industry, 
-      companyDesc, // รับจาก UI (companyDesc)
-      companySize, // รับจาก UI (companySize)
-      founded 
+      companyDesc, // รับจาก UI
+      companySize, // รับจาก UI
+      founded,
+      role,    // ✅ เพิ่มการรับค่าเหล่านี้จาก UI
     } = req.body;
 
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
       data: {
         fullName,
+        // ถ้าต้องการให้เปลี่ยน username ตาม handle ที่ส่งมา
+        // username: handle?.replace('@', ''), 
         hr_profile: {
           upsert: { 
             create: { 
               company, bio, website, location, industry, founded,
-              company_desc: companyDesc, // บันทึกลง DB เป็น company_desc
-              company_size: companySize  // บันทึกลง DB เป็น company_size
+              company_desc: companyDesc, 
+              company_size: companySize,
+              role: role // ✅ ตรวจสอบว่าใน DB มีคอลัมน์ role หรือยัง
             },
             update: { 
               company, bio, website, location, industry, founded,
               company_desc: companyDesc,
-              company_size: companySize
+              company_size: companySize,
+              role: role
             }
           }
         }
@@ -613,13 +619,21 @@ hrRouter.put('/profile', async (req, res) => {
       include: { hr_profile: true }
     });
 
-    // ส่งกลับข้อมูลที่ Flatten แล้วเพื่อให้ UI อัปเดตทันที
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: Number(req.user.id),
+        text: "คุณได้อัปเดตข้อมูลโปรไฟล์และบริษัท"
+      }
+    });
+
+    // ✅ แผ่ข้อมูล (Flatten) ส่งกลับไปให้ UI อัปเดต State ทันที
     const profile = { 
       ...updatedUser, 
       ...updatedUser.hr_profile,
       name: updatedUser.fullName,
-      companyDesc: updatedUser.hr_profile?.company_desc, // ส่งกลับไปเป็นชื่อที่ UI เข้าใจ
-      companySize: updatedUser.hr_profile?.company_size
+      companyDesc: updatedUser.hr_profile?.company_desc,
+      companySize: updatedUser.hr_profile?.company_size,
+      handle: `@${updatedUser.username}`
     };
 
     return res.status(200).json({ message: 'แก้ไขโปรไฟล์สำเร็จ', profile });
@@ -658,6 +672,13 @@ hrRouter.post('/jobs', async (req, res) => {
         hrId: Number(req.user.id), // ใช้ ID จาก JWT ที่ผ่าน middleware มาแล้ว
       }
     })
+
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: req.user.id,
+        text: `คุณได้ลงประกาศงานใหม่: ${req.body.title}`
+      }
+    });
 
     return res.status(201).json({
       message: 'ลงประกาศงานสำเร็จ',
@@ -708,6 +729,20 @@ hrRouter.patch('/jobs/:id/status', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในการอัปเดตสถานะ" });
+  }
+});
+
+hrRouter.get('/activities', async (req, res) => {
+  try {
+    const activities = await prisma.hr_activities.findMany({
+      where: { hr_id: Number(req.user.id) },
+      orderBy: { created_at: 'desc' }, // เอาใหม่ล่าสุดขึ้นก่อน
+      take: 5 // ดึงแค่ 5 รายการ
+    });
+    res.json({ activities });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching activities" });
   }
 });
 
