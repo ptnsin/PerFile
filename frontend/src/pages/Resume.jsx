@@ -24,12 +24,12 @@ const defaultData = {
 
 /* ─── Theme colors (matching UserProfile blue palette + extras) ─── */
 const THEME_COLORS = [
-  { name: "Navy",    code: "#1e3a8a" },
-  { name: "Blue",    code: "#1d4ed8" },
-  { name: "Slate",   code: "#334155" },
+  { name: "Navy", code: "#1e3a8a" },
+  { name: "Blue", code: "#1d4ed8" },
+  { name: "Slate", code: "#334155" },
   { name: "Emerald", code: "#059669" },
-  { name: "Rose",    code: "#be123c" },
-  { name: "Violet",  code: "#6d28d9" },
+  { name: "Rose", code: "#be123c" },
+  { name: "Violet", code: "#6d28d9" },
 ];
 
 function EntryBlock({ type, entries, onChange, onAdd, onRemove }) {
@@ -99,11 +99,11 @@ function ResumeContent({ data, highlightField }) {
   // ── CLASSIC TEMPLATE ─────────────────────────────────────────
   if (!data.template || data.template === "classic") {
     const hexToRgb = (h) => {
-      const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16);
-      return {r,g,b};
+      const r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16);
+      return { r, g, b };
     };
     const rgb = hexToRgb(tc.length === 7 ? tc : "#1e3a8a");
-    const sidebarDark = `rgb(${Math.round(rgb.r*0.22)},${Math.round(rgb.g*0.22)},${Math.round(rgb.b*0.22)})`;
+    const sidebarDark = `rgb(${Math.round(rgb.r * 0.22)},${Math.round(rgb.g * 0.22)},${Math.round(rgb.b * 0.22)})`;
 
     return (
       <div
@@ -192,11 +192,11 @@ function ResumeContent({ data, highlightField }) {
               paddingTop: "11px",
               borderTop: "1px solid rgba(255,255,255,0.22)",
             }}>
-              {data.email    && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)", ...highlight("email") }}>✉ {data.email}</span>}
-              {data.phone    && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)", ...highlight("phone") }}>📞 {data.phone}</span>}
+              {data.email && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)", ...highlight("email") }}>✉ {data.email}</span>}
+              {data.phone && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)", ...highlight("phone") }}>📞 {data.phone}</span>}
               {data.location && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)", ...highlight("location") }}>📍 {data.location}</span>}
               {data.linkedin && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)" }}>in {data.linkedin}</span>}
-              {data.website  && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)" }}>🌐 {data.website}</span>}
+              {data.website && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.82)" }}>🌐 {data.website}</span>}
             </div>
           </div>
         </div>
@@ -229,7 +229,7 @@ function ResumeContent({ data, highlightField }) {
                     {edu.degree && <p style={{ margin: "0 0 1px", fontWeight: "700", fontSize: "10.5px", color: "rgba(255,255,255,0.9)" }}>{edu.degree}</p>}
                     {edu.school && <p style={{ margin: "0 0 1px", fontSize: "10px", color: "rgba(255,255,255,0.55)" }}>{edu.school}</p>}
                     {edu.period && <p style={{ margin: "0 0 1px", fontSize: "9.5px", color: tc, fontWeight: "700" }}>{edu.period}</p>}
-                    {edu.desc   && <p style={{ margin: 0, fontSize: "9.5px", color: "rgba(255,255,255,0.45)", lineHeight: "1.6" }}>{edu.desc}</p>}
+                    {edu.desc && <p style={{ margin: 0, fontSize: "9.5px", color: "rgba(255,255,255,0.45)", lineHeight: "1.6" }}>{edu.desc}</p>}
                   </div>
                 ))}
               </ClassicDarkSection>
@@ -330,11 +330,11 @@ function ResumeContent({ data, highlightField }) {
             {data.title || "ตำแหน่งงาน"}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 18px", borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: "12px" }}>
-            {data.email    && <ContactChip icon="✉"  text={data.email}    hl={highlight("email")} />}
-            {data.phone    && <ContactChip icon="📞" text={data.phone}    hl={highlight("phone")} />}
+            {data.email && <ContactChip icon="✉" text={data.email} hl={highlight("email")} />}
+            {data.phone && <ContactChip icon="📞" text={data.phone} hl={highlight("phone")} />}
             {data.location && <ContactChip icon="📍" text={data.location} hl={highlight("location")} />}
             {data.linkedin && <ContactChip icon="in" text={data.linkedin} />}
-            {data.website  && <ContactChip icon="🌐" text={data.website}  />}
+            {data.website && <ContactChip icon="🌐" text={data.website} />}
           </div>
         </div>
       </div>
@@ -423,7 +423,7 @@ function ClassicTimelineItem({ title, subtitle, period, desc, tc, isLast }) {
           {period && <span style={{ fontSize: "10px", color: "#999", whiteSpace: "nowrap", flexShrink: 0 }}>{period}</span>}
         </div>
         {subtitle && <p style={{ margin: "0 0 4px", fontSize: "11px", color: "#555", fontWeight: "500" }}>{subtitle}</p>}
-        {desc     && <p style={{ margin: 0, fontSize: "11px", color: "#666", lineHeight: "1.7" }}>{desc}</p>}
+        {desc && <p style={{ margin: 0, fontSize: "11px", color: "#666", lineHeight: "1.7" }}>{desc}</p>}
       </div>
     </div>
   );
@@ -479,8 +479,8 @@ function SkillsDisplayDark({ data, tc }) {
     const soft = skills.filter(s => s.type === "Soft Skill");
     return (
       <div>
-        {hard.length > 0 && <><p style={{ margin:"0 0 3px", fontSize:"8.5px", fontWeight:"700", color: tc, textTransform:"uppercase", letterSpacing:"0.8px" }}>Hard Skills</p><p style={{ margin:"0 0 10px", fontSize:"10.5px", color:"rgba(255,255,255,0.6)", lineHeight:"1.6" }}>{hard.map(s=>s.name).join(" · ")}</p></>}
-        {soft.length > 0 && <><p style={{ margin:"0 0 3px", fontSize:"8.5px", fontWeight:"700", color: tc, textTransform:"uppercase", letterSpacing:"0.8px" }}>Soft Skills</p><p style={{ margin:0, fontSize:"10.5px", color:"rgba(255,255,255,0.6)", lineHeight:"1.6" }}>{soft.map(s=>s.name).join(" · ")}</p></>}
+        {hard.length > 0 && <><p style={{ margin: "0 0 3px", fontSize: "8.5px", fontWeight: "700", color: tc, textTransform: "uppercase", letterSpacing: "0.8px" }}>Hard Skills</p><p style={{ margin: "0 0 10px", fontSize: "10.5px", color: "rgba(255,255,255,0.6)", lineHeight: "1.6" }}>{hard.map(s => s.name).join(" · ")}</p></>}
+        {soft.length > 0 && <><p style={{ margin: "0 0 3px", fontSize: "8.5px", fontWeight: "700", color: tc, textTransform: "uppercase", letterSpacing: "0.8px" }}>Soft Skills</p><p style={{ margin: 0, fontSize: "10.5px", color: "rgba(255,255,255,0.6)", lineHeight: "1.6" }}>{soft.map(s => s.name).join(" · ")}</p></>}
       </div>
     );
   }
@@ -550,8 +550,8 @@ function SkillsDisplay({ data, themeColor }) {
     const soft = skills.filter(s => s.type === "Soft Skill");
     return (
       <div style={{ fontSize: "12.5px" }}>
-        {hard.length > 0 && (<><p style={{ margin:"0 0 5px", fontWeight:"700", color: themeColor, fontSize:"10px", textTransform:"uppercase", letterSpacing:"0.8px" }}>Hard Skills</p><p style={{ margin:"0 0 14px", color:"#444", lineHeight:"1.65" }}>{hard.map(s=>s.name).join(" · ")}</p></>)}
-        {soft.length > 0 && (<><p style={{ margin:"0 0 5px", fontWeight:"700", color: themeColor, fontSize:"10px", textTransform:"uppercase", letterSpacing:"0.8px" }}>Soft Skills</p><p style={{ margin:0, color:"#444", lineHeight:"1.65" }}>{soft.map(s=>s.name).join(" · ")}</p></>)}
+        {hard.length > 0 && (<><p style={{ margin: "0 0 5px", fontWeight: "700", color: themeColor, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.8px" }}>Hard Skills</p><p style={{ margin: "0 0 14px", color: "#444", lineHeight: "1.65" }}>{hard.map(s => s.name).join(" · ")}</p></>)}
+        {soft.length > 0 && (<><p style={{ margin: "0 0 5px", fontWeight: "700", color: themeColor, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.8px" }}>Soft Skills</p><p style={{ margin: 0, color: "#444", lineHeight: "1.65" }}>{soft.map(s => s.name).join(" · ")}</p></>)}
       </div>
     );
   }
@@ -969,8 +969,8 @@ export default function ResumeBuilder() {
       });
 
       if (response.status === 201) {
-        setTimeout(() => { 
-          setSavedToast(false); 
+        setTimeout(() => {
+          setSavedToast(false);
           navigate("/feed"); // เมื่อบันทึกสำเร็จให้ไปหน้า Feed
         }, 1200);
       }
@@ -983,10 +983,10 @@ export default function ResumeBuilder() {
 
   const tabs = [
     { id: "template", label: "เทมเพลต" },
-    { id: "info",     label: "ข้อมูล" },
-    { id: "exp",      label: "ประสบการณ์" },
-    { id: "edu",      label: "การศึกษา" },
-    { id: "skills",   label: "ทักษะ" },
+    { id: "info", label: "ข้อมูล" },
+    { id: "exp", label: "ประสบการณ์" },
+    { id: "edu", label: "การศึกษา" },
+    { id: "skills", label: "ทักษะ" },
   ];
 
   const tc = data.themeColor || "#1e3a8a";
@@ -1028,8 +1028,8 @@ export default function ResumeBuilder() {
                 <div className="section-label">รูปแบบ Resume</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "24px" }}>
                   {[
-                    { id: "classic",      icon: "📜", label: "Classic" },
-                    { id: "modern",       icon: "📱", label: "Modern" },
+                    { id: "classic", icon: "📜", label: "Classic" },
+                    { id: "modern", icon: "📱", label: "Modern" },
                     { id: "professional", icon: "💼", label: "Professional" },
                   ].map(t => (
                     <div key={t.id} className={`template-card ${data.template === t.id ? "active" : ""}`} onClick={() => set("template", t.id)}>
