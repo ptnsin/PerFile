@@ -1,6 +1,5 @@
-import { useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useResumes } from "./ResumeContext";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');`;
 
@@ -142,14 +141,41 @@ const styles = `
 export default function ViewResume() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { publishedResumes, privateResumes } = useResumes();
+  const [resume, setResume] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const resumeId = parseInt(id);
-  const resume = publishedResumes.find(r => r.id === resumeId) || privateResumes.find(r => r.id === resumeId);
+ useEffect(() => {
+    const fetchResumeData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`http://localhost:3000/resumes/${id}`, {
+          headers: { 
+            "Authorization": `Bearer ${token}` 
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setResume(data.resume); // เก็บข้อมูล resume ที่ได้จาก Backend
+        } else {
+          setResume(null);
+        }
+      } catch (err) {
+        console.error("Fetch Resume Error:", err);
+        setResume(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResumeData();
+  }, [id]);
+
+  if (loading) return <div className="loading">กำลังโหลดเรซูเม่...</div>;
 
   if (!resume) {
     return (
-      <div className="not-found">
+      <div className="not-found" style={{ textAlign: 'center', color: '#fff', paddingTop: '100px' }}>
         <h2>Resume ไม่พบ</h2>
         <button onClick={() => navigate('/feed')} className="btn-back" style={{ marginTop: "20px" }}>
           ← กลับไปหน้า Feed
@@ -158,7 +184,10 @@ export default function ViewResume() {
     );
   }
 
-  const data = resume.data;
+  const findSection = (type) => resume.sections?.find(s => s.type === type)?.content || null;
+  const findSections = (type) => resume.sections?.filter(s => s.type === type).map(s => s.content) || [];
+
+  const header = findSection('header') || {};
 
   return (
     <>
@@ -167,8 +196,8 @@ export default function ViewResume() {
       <div className="view-container">
         <header className="view-header">
           <div className="view-header-info">
-            <h1>{data.name || "ไม่มีชื่อ"}</h1>
-            <p>{data.title || "No Title"}</p>
+            <h1>{header.name || resume.title}</h1>
+            <p>{header.title || "No Title"}</p>
           </div>
           <div className="view-header-actions">
             <button className="btn-back" onClick={() => window.print()}>🖨️ พิมพ์</button>
@@ -180,87 +209,68 @@ export default function ViewResume() {
           <div className="resume">
             {/* Header */}
             <div className="resume-header">
-              <div className="resume-name">{data.name || "ชื่อของคุณ"}</div>
-              <div className="resume-title">{data.title || "ตำแหน่ง"}</div>
+              <div className="resume-name">{header.name || "ชื่อของคุณ"}</div>
+              <div className="resume-title">{header.title || "ตำแหน่ง"}</div>
               <div className="resume-contacts">
-                {data.email && <span>{data.email}</span>}
-                {data.phone && <span>{data.phone}</span>}
-                {data.location && <span>{data.location}</span>}
+                {header.email && <span>{header.email}</span>}
+                {header.phone && <span>{header.phone}</span>}
+                {header.location && <span>{header.location}</span>}
               </div>
             </div>
 
             {/* Content */}
             <div className="resume-content">
+              
               {/* Summary */}
-              {data.summary && (
+              {findSection('summary') && (
                 <div className="resume-section">
                   <div className="section-title">สรุปประวัติ</div>
-                  <div className="summary-text">{data.summary}</div>
+                  <div className="summary-text">{findSection('summary').text || findSection('summary')}</div>
                 </div>
               )}
 
               {/* Experience */}
-              {data.experience && data.experience.length > 0 && (
+              {findSections('experience').length > 0 && (
                 <div className="resume-section">
                   <div className="section-title">ประสบการณ์ทำงาน</div>
-                  {data.experience.map(exp => (
-                    <div key={exp.id} className="entry">
+                  {findSections('experience').map((exp, i) => (
+                    <div key={i} className="entry">
                       <div className="entry-header">
                         <div className="entry-title">{exp.role}</div>
                         <div className="entry-period">{exp.period}</div>
                       </div>
-                      <div className="entry-org">{exp.org}</div>
-                      {exp.desc && <div className="entry-desc">{exp.desc}</div>}
+                      <div className="entry-org">{exp.company || exp.org}</div>
+                      {exp.description && <div className="entry-desc">{exp.description}</div>}
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Education */}
-              {data.education && data.education.length > 0 && (
+             {/* Education */}
+              {findSections('education').length > 0 && (
                 <div className="resume-section">
                   <div className="section-title">การศึกษา</div>
-                  {data.education.map(edu => (
-                    <div key={edu.id} className="entry">
+                  {findSections('education').map((edu, i) => (
+                    <div key={i} className="entry">
                       <div className="entry-header">
-                        <div className="entry-title">{edu.degree || edu.role || "วุฒิการศึกษา"}</div>
+                        <div className="entry-title">{edu.degree}</div>
                         <div className="entry-period">{edu.period}</div>
                       </div>
-                      <div className="entry-org">{edu.school || edu.org}</div>
-                      {edu.desc && <div className="entry-desc">{edu.desc}</div>}
+                      <div className="entry-org">{edu.school}</div>
                     </div>
                   ))}
                 </div>
               )}
 
               {/* Skills */}
-              {data.skills && data.skills.length > 0 && (
+              {findSection('skills') && (
                 <div className="resume-section">
                   <div className="section-title">ทักษะ</div>
                   <div className="skills-grid">
-                    {data.skills.map((skill, i) => {
-                      const label = typeof skill === "string"
-                        ? skill
-                        : (skill.name || skill.label || skill.type || "Skill");
-                      return <div key={i} className="skill-tag">{label}</div>;
-                    })}
+                    {(Array.isArray(findSection('skills')) ? findSection('skills') : []).map((skill, i) => (
+                      <div key={i} className="skill-tag">{typeof skill === 'string' ? skill : skill.name}</div>
+                    ))}
                   </div>
-                </div>
-              )}
-
-              {/* Languages */}
-              {data.languages && data.languages.length > 0 && (
-                <div className="resume-section">
-                  <div className="section-title">ภาษา</div>
-                  {data.languages.map((lang, i) => (
-                    <div key={i} className="entry">
-                      <div className="entry-header">
-                        <div className="entry-title">{lang.name || lang.role || lang}</div>
-                        <div className="entry-period">{lang.level || lang.period || ""}</div>
-                      </div>
-                      {lang.notes && <div className="entry-org">{lang.notes}</div>}
-                    </div>
-                  ))}
                 </div>
               )}
             </div>

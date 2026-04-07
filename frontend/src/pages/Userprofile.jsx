@@ -31,12 +31,35 @@ export default function UserProfile() {
   const [userData, setUserData]         = useState(null);
   const [actionMenuId, setActionMenuId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [myResumes, setMyResumes] = useState([]);
 
   const sidebarRef    = useRef(null);
   const savedSectionRef = useRef(null);
   const navigate      = useNavigate();
 
-  const { publishedResumes, privateResumes, removePrivate, removeResume, unpublishToPrivate, publishPrivate } = useResumes();
+  const { privateResumes, removePrivate, removeResume, publishPrivate } = useResumes();
+
+  /* ── ดึงข้อมูล Resume ทั้งหมดของ User ── */
+  useEffect(() => {
+    const fetchMyResumes = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:3000/resumes/my", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMyResumes(data.resumes);
+        }
+      } catch (err) {
+        console.error("Fetch resumes error:", err);
+      }
+    };
+    fetchMyResumes();
+  }, []);
+
+  const privateList = myResumes.filter(r => r.visibility === 'private');
+  const publicList  = myResumes.filter(r => r.visibility === 'public');
 
   /* ── fetch current user ── */
   useEffect(() => {
@@ -93,7 +116,6 @@ export default function UserProfile() {
   }, []);
 
   const initial   = userData?.username?.[0]?.toUpperCase() ?? "U";
-  const firstName = userData?.fullName?.split(" ")[0] ?? "there";
   const fullName  = userData?.fullName ?? "Unknown";
 
   const toggleSidebar = () => {
@@ -290,8 +312,17 @@ export default function UserProfile() {
                   onClick={() => handleTabClick(t.key)}
                 >
                   {t.label}
-                  {t.key === "resumes" && privateResumes.length > 0 && (
-                    <span className="uf-tab-badge">{privateResumes.length}</span>
+                  {/* แสดงจำนวนของ Private Resumes */}
+                  {t.key === "resumes" && activeTab === "resumes" && privateList.length > 0 && (
+                    <span className="uf-tab-badge">
+                      {privateList.length}
+                    </span>
+                  )}
+                  {/* แสดงจำนวนของ Public Resumes */}
+                  {t.key === "jobs" && activeTab === "jobs" && publicList.length > 0 && (
+                    <span className="uf-tab-badge" style={{ background: "#16a34a" }}>
+                      {publicList.length}
+                    </span>
                   )}
                 </button>
               ))}
@@ -315,7 +346,7 @@ export default function UserProfile() {
               <div className="uf-cards-grid">
                 {privateResumes.length > 0 ? (
                   <>
-                    {privateResumes.map((p, i) => (
+                    {privateResumes.map((p) => (
                       <div
                         key={p.id}
                         className="uf-resume-card"
@@ -390,60 +421,76 @@ export default function UserProfile() {
             {/* ── Public Resumes ── */}
             {activeTab === "jobs" && (
               <div className="uf-cards-grid">
-                {publishedResumes.length > 0 ? (
-                  publishedResumes.map((p, i) => (
-                    <div
-                      key={p.id}
-                      className="uf-resume-card"
-                      onClick={() => navigate(`/view-resume/${p.id}`)}
-                    >
-                      <div className="uf-resume-header">
-                        <div className="uf-resume-icon"><LuFileText /></div>
+                {publicList.length > 0 ? (
+                  <>
+                    {publicList.map((p) => (
+                      <div
+                        key={p.id}
+                        className="uf-resume-card"
+                        onClick={() => navigate(`/view-resume/${p.id}`)}
+                      >
+                        <div className="uf-resume-header">
+                          <div className="uf-resume-icon"><LuFileText /></div>
+                        
+                        </div>
+                        <div className="uf-resume-title">{p.title}</div>
+                        <div className="uf-resume-meta">
+                          <span><LuBadgeCheck /> {userData?.fullName || "You"}</span>
+                          {/* ✅ แสดงวันที่พร้อมไอคอนโลก */}
+                          {p.createdAt && (
+                            <span style={{ color: "#16a34a", fontSize: 11 }}>
+                              🌐 {new Date(p.createdAt).toLocaleDateString('th-TH')}
+                            </span>
+                          )}
+                        </div>
+                        {/* Action Menu (⋮) ก๊อปปี้มาจากส่วน Private */}
+                        <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            className="uf-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionMenuId((prev) => (prev === p.id ? null : p.id));
+                            }}
+                          >
+                            ⋮
+                          </button>
+                          {actionMenuId === p.id && (
+                            <div className="uf-action-menu" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className="uf-action-menu-item uf-action-menu-item--danger"
+                                onClick={() => {
+                                  setActionMenuId(null);
+                                  setDeleteConfirm({ id: p.id, type: "public" });
+                                }}
+                              >
+                                ลบ Resume
+                              </button>
+                              <button
+                                className="uf-action-menu-item uf-action-menu-item--accent"
+                                onClick={() => {
+                                  // TODO: เพิ่มฟังก์ชันเปลี่ยนกลับเป็น Private ใน Backend
+                                  setActionMenuId(null);
+                                  alert("กำลังเปลี่ยนเป็น Private...");
+                                }}
+                              >
+                                เปลี่ยนเป็น private
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="uf-resume-title">{p.title}</div>
-                      <div className="uf-resume-meta">
-                        <span><LuBadgeCheck /> {p.owner ?? "Guest"}</span>
-                        {p.publishedAt && <span style={{ color: "#16a34a", fontSize: 11 }}>🌐 {p.publishedAt}</span>}
-                      </div>
-                      <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className="uf-action-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActionMenuId((prev) => (prev === p.id ? null : p.id));
-                          }}
-                        >
-                          ⋮
-                        </button>
-                        {actionMenuId === p.id && (
-                          <div className="uf-action-menu" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              className="uf-action-menu-item uf-action-menu-item--accent"
-                              onClick={() => {
-                                setActionMenuId(null);
-                                setDeleteConfirm({ id: p.id, type: "public" });
-                              }}
-                            >
-                              ลบ Resume
-                            </button>
-                            <button
-                              className="uf-action-menu-item uf-action-menu-item--accent"
-                              onClick={() => {
-                                setActionMenuId(null);
-                                unpublishToPrivate(p.id);
-                              }}
-                            >
-                              เปลี่ยนเป็น private
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                    ))}
+                    {/* ปุ่มเพิ่ม Resume ใน Tab Public */}
+                    <div className="uf-resume-card up-add-card" onClick={() => navigate("/resume")}>
+                      <LuPlus size={26} />
+                      <span>เพิ่ม Resume</span>
                     </div>
-                  ))
+                  </>
                 ) : (
                   <div className="uf-empty">
-                    <div className="uf-empty-icon">💼</div>
-                    <div className="uf-empty-title">ยังไม่มีตำแหน่งงานที่โพสต์ไว้</div>
+                    <div className="uf-empty-icon">🌐</div>
+                    <div className="uf-empty-title">ยังไม่มีเรซูเม่สาธารณะ</div>
+                    <div className="uf-empty-desc">คุณสามารถเปลี่ยนเรซูเม่ส่วนตัวให้เป็นสาธารณะได้ผ่านเมนูแก้ไข</div>
                   </div>
                 )}
               </div>

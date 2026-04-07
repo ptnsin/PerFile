@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useResumes } from "./ResumeContext";
+
 import {
   LuSearch, LuBell, LuFilter, LuFileText, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard,
@@ -17,22 +17,40 @@ const TABS = [
 export default function UsersFeed() {
   const [activeTab, setActiveTab]       = useState("resume");
   const [userData, setUserData]         = useState(null);
+  const [publicResumes, setPublicResumes] = useState([]);
   const [searchTerm, setSearchTerm]     = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [menuOpen, setMenuOpen]         = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
-  const { publishedResumes } = useResumes();
 
+
+
+  useEffect(() => {
+    const fetchPublicResumes = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/resumes/public");
+        if (res.ok) {
+          const data = await res.json();
+          setPublicResumes(data.resumes);
+        }
+      } catch (err) {
+        console.error("Fetch public resumes error:", err);
+      }
+    };
+    fetchPublicResumes();
+  }, []);
+
+  // ✅ แก้ไข Filter ให้ใช้จาก publicResumes ที่ดึงมาจาก DB
   const filteredResumes = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return publishedResumes.filter((r) => {
+    return publicResumes.filter((r) => {
       if (!q) return true;
       return (r.title?.toLowerCase() || "").includes(q) ||
              (r.owner?.toLowerCase() || "").includes(q);
     });
-  }, [publishedResumes, searchTerm]);
+  }, [publicResumes, searchTerm]);
 
   useEffect(() => {
     const sidebar = sidebarRef.current;
@@ -261,6 +279,11 @@ export default function UsersFeed() {
 }
 
 function ResumeCard({ resume, onClick }) {
+  // ฟอร์แมตวันที่ให้สั้นลง
+  const displayDate = resume.publishedAt 
+    ? new Date(resume.publishedAt).toLocaleDateString('th-TH') 
+    : "No date";
+
   return (
     <div className="uf-resume-card" onClick={onClick}>
       <div className="uf-resume-header">
@@ -269,8 +292,8 @@ function ResumeCard({ resume, onClick }) {
       </div>
       <div className="uf-resume-title">{resume.title}</div>
       <div className="uf-resume-meta">
-        {resume.owner       && <span><LuBadgeCheck /> {resume.owner}</span>}
-        {resume.publishedAt && <span><LuClock /> {resume.publishedAt}</span>}
+        {resume.owner && <span><LuBadgeCheck /> {resume.owner}</span>}
+        <span><LuClock /> {displayDate}</span>
       </div>
     </div>
   );
