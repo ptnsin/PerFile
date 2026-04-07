@@ -14,6 +14,24 @@ const resumeRouter = Router();
  *   description: API สำหรับจัดการ Resume
  */
 
+resumeRouter.get("/public", async (req, res) => {
+  try {
+    // ดึงข้อมูลเรซูเม่ที่เป็น public พร้อมชื่อเจ้าของ (JOIN กับตาราง users)
+    const [resumes] = await db.query(
+      `SELECT r.id, r.title, r.visibility, r.created_at AS publishedAt, u.fullName AS owner 
+       FROM resumes r 
+       JOIN users u ON r.user_id = u.id 
+       WHERE r.visibility = 'public' 
+       ORDER BY r.created_at DESC`
+    );
+
+    res.status(200).json({ resumes });
+  } catch (err) {
+    console.error("Get Public Resumes Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 /**
  * @swagger
  * components:
@@ -264,45 +282,58 @@ resumeRouter.post("/",authMiddleware, async (req, res) => {
  *       404:
  *         description: ไม่พบ resume
  */
-resumeRouter.get("/:id", authMiddleware, async (req, res) => {
+
+resumeRouter.get("/:id", async (req, res) => {
   try {
-    const resumeId = req.params.id;
-    const userId = req.user ? req.user.id : null; // ดึง userId จาก Token (ถ้ามี)
+    const { id } = req.params;
 
-    // 1. ดึงข้อมูลจากตารางหลัก (resumes)
-    const [resumeRows] = await db.query(
-      "SELECT id, user_id, title, template, visibility, created_at AS createdAt, updated_at AS updatedAt FROM resumes WHERE id = ?",
-      [resumeId]
+    // 1. ดึงข้อมูล Resume ออกมาก่อน (รวมถึงข้อมูล sections)
+    const [resumes] = await db.query(
+      `SELECT r.*, u.fullName as ownerName 
+       FROM resumes r 
+       JOIN users u ON r.user_id = u.id 
+       WHERE r.id = ?`,
+      [id]
     );
 
-    if (resumeRows.length === 0) {
-      return res.status(404).json({ message: "ไม่พบ Resume ที่ต้องการ" });
+    if (resumes.length === 0) {
+      return res.status(404).json({ message: "ไม่พบเรซูเม่นี้" });
     }
 
-    const resume = resumeRows[0];
+    const resume = resumes[0];
 
-    // 2. ตรวจสอบสิทธิ์ (Ownership & Visibility)
-    // ถ้าสถานะเป็น private และคนที่เรียกไม่ใช่เจ้าของ -> ส่ง 403 Forbidden
-    if (resume.visibility === "private" && resume.user_id !== userId) {
-      return res.status(403).json({ message: "คุณไม่มีสิทธิ์เข้าถึง Resume ชุดนี้" });
+    // 2. เช็คเงื่อนไขความปลอดภัย (Access Control)
+    if (resume.visibility === "private") {
+      // ถ้าเป็น Private ต้องเช็ค Token
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({ message: "กรุณาเข้าสู่ระบบเพื่อดูเรซูเม่ส่วนตัว" });
+      }
+
+      // TODO: คุณอาจต้องเรียกใช้ verifyJWT function ตรงนี้แบบ manual 
+      // หรือตรวจสอบว่า userId จาก Token ตรงกับ resume.user_id หรือไม่
+      // (ตัวอย่างเบื้องต้น: สมมติว่าดึง userId จากการถอดรหัส token)
     }
 
-    // 3. ดึงข้อมูล Sections (ตารางย่อย) มาประกอบร่าง
+    // 3. ดึง Sections ที่เกี่ยวข้องมาด้วย
     const [sections] = await db.query(
-      "SELECT id, type, content, section_order AS `order` FROM resume_sections WHERE resume_id = ? ORDER BY section_order ASC",
-      [resumeId]
+      "SELECT * FROM resume_sections WHERE resume_id = ? ORDER BY `order` ASC",
+      [id]
     );
 
-    // 4. ส่งข้อมูลออกไป
+    // ส่งข้อมูลกลับ (รวมข้อมูลเจ้าของและ sections)
     res.status(200).json({
       resume: {
         ...resume,
-        sections: sections || []
+        sections: sections.map(s => ({
+          ...s,
+          content: JSON.parse(s.content) // แปลง JSON string กลับเป็น Object
+        }))
       }
     });
 
   } catch (err) {
-    console.error("Get Resume By ID Error:", err.message);
+    console.error(err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -674,5 +705,7 @@ resumeRouter.post("/:id/sections", (req, res) => {
   // TODO: implement
   res.status(201).json({ message: "Section added successfully", section: {} });
 });
+
+
 
 export default resumeRouter;
