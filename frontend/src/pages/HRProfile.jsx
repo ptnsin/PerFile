@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react"
 import "../styles/HRProfile.css";
 import { useNavigate, useLocation } from "react-router-dom";
+import PostJobModal from "./PostJobModal";
+import JobDetailModal from "./JobDetailModal";
 
 // ═══════════════════════════════════════════════════════════════
 //  TODO: เชื่อม Backend — แก้ฟังก์ชันด้านล่างให้ fetch จาก API จริง
@@ -146,7 +148,29 @@ async function getActivities() {
   }
 }
 
-async function getApplicants()   { /* TODO */ return []; }
+async function getApplicants() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/applicants", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.applicants || []).map(a => ({
+      ...a,
+      name:    a.fullName   || a.name     || "ไม่ระบุชื่อ",
+      avatar:  (a.fullName  || a.name     || "?")[0].toUpperCase(),
+      role:    a.position   || a.role     || "ไม่ระบุตำแหน่ง",
+      status:  a.status     || "รอการตรวจสอบ",
+      applied: a.appliedAt  ? new Date(a.appliedAt).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : (a.applied || ""),
+      exp:     a.experience || a.exp      || null,
+      score:   a.score      ?? null,
+    }));
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
 async function getInterviews()   { /* TODO */ return []; }
 async function getReportData()   { /* TODO */ return null; }
 
@@ -249,11 +273,11 @@ function EmptySlot({ icon, text }) {
 }
 
 // ── Reusable Job Cards ────────────────────────────────────────
-function JobCard({ job, savedJobs, toggleSave, setActivePage }) {
+function JobCard({ job, savedJobs, toggleSave, setActivePage, onViewDetail, goToApplicants }) {
   const dept    = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
   const isSaved = savedJobs.includes(job.id);
   return (
-    <div className="hr-job-card">
+    <div className="hr-job-card" onClick={() => onViewDetail?.(job)} style={{ cursor: onViewDetail ? "pointer" : "default" }}>
       <div className="hr-job-top">
         <div className="hr-job-title-wrap">
           <div className="hr-job-title">{job.title}</div>
@@ -261,7 +285,7 @@ function JobCard({ job, savedJobs, toggleSave, setActivePage }) {
         </div>
         <div className="hr-job-actions">
           {job.urgent && <span className="hr-urgent-badge">⚡ ด่วน</span>}
-          <button className={`hr-save-btn${isSaved ? " saved" : ""}`} onClick={() => toggleSave(job.id)} title={isSaved ? "ยกเลิก save" : "บันทึกงาน"}>
+          <button className={`hr-save-btn${isSaved ? " saved" : ""}`} onClick={(e) => { e.stopPropagation(); toggleSave(job.id); }} title={isSaved ? "ยกเลิก save" : "บันทึกงาน"}>
             {isSaved ? "🔖" : "🏷️"}
           </button>
         </div>
@@ -276,16 +300,22 @@ function JobCard({ job, savedJobs, toggleSave, setActivePage }) {
           <div className="hr-job-posted">โพสต์เมื่อ {job.posted}</div>
           <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
         </div>
-        <button className="hr-apply-btn" onClick={() => setActivePage("applicants")}>ดูผู้สมัคร →</button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="hr-apply-btn" style={{ background: "#f4f4f5", color: "#52525b" }}
+            onClick={(e) => { e.stopPropagation(); goToApplicants ? goToApplicants(job) : setActivePage("applicants"); }}>
+            👥 ผู้สมัคร
+          </button>
+          <button className="hr-apply-btn" onClick={(e) => { e.stopPropagation(); onViewDetail?.(job); }}>ดูรายละเอียด →</button>
+        </div>
       </div>
     </div>
   );
 }
 
-function ClosedJobCard({ job }) {
+function ClosedJobCard({ job, onViewDetail }) {
   const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
   return (
-    <div className="hr-closed-card">
+    <div className="hr-closed-card" onClick={() => onViewDetail?.(job)} style={{ cursor: onViewDetail ? "pointer" : "default" }}>
       <div className="hr-closed-left">
         <div className="hr-closed-icon" style={{ background: dept.bg, color: dept.text }}>
           {job.dept === "Engineering" ? "⚙️" : job.dept === "Marketing" ? "📣" : "🎨"}
@@ -302,15 +332,16 @@ function ClosedJobCard({ job }) {
           </div>
         </div>
       </div>
-      <div className="hr-closed-actions">
-        <button className="hr-reopen-btn">↩ เปิดใหม่</button>
+      <div className="hr-closed-actions" style={{ display: "flex", gap: 6 }}>
+        <button className="hr-reopen-btn" onClick={(e) => { e.stopPropagation(); onViewDetail?.(job); }}>📄 รายละเอียด</button>
+        <button className="hr-reopen-btn" onClick={(e) => e.stopPropagation()}>↩ เปิดใหม่</button>
       </div>
     </div>
   );
 }
 
 // ── Profile View ──────────────────────────────────────────────
-function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, savedJobs, setSavedJobs, setActivePage, initialTab }) {
+function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, savedJobs, setSavedJobs, setActivePage, initialTab, openPostModal, onViewDetail, goToApplicants }) {
   const [activeTab, setActiveTab] = useState(initialTab === "saved" ? "saved" : "jobs");
   const savedSectionRef = useRef(null);
   const hasScrolled     = useRef(false);
@@ -484,19 +515,19 @@ const updateHr = (key) => (val) => {
               </button>
             ))}
           </div>
-          <button className="hr-card-action">+ โพสต์งานใหม่</button>
+          <button className="hr-card-action" onClick={openPostModal}>+ โพสต์งานใหม่</button>
         </div>
         <div className="hr-jobs-list">
           {activeTab === "jobs" && (
             openJobs.length === 0
               ? <EmptySlot icon="💼" text="รอข้อมูลตำแหน่งงานจาก Backend" />
-              : openJobs.map(job => <JobCard key={job.id} job={job} savedJobs={savedJobs} toggleSave={toggleSave} setActivePage={setActivePage} />)
+              : openJobs.map(job => <JobCard key={job.id} job={job} savedJobs={savedJobs} toggleSave={toggleSave} setActivePage={setActivePage} onViewDetail={onViewDetail} goToApplicants={goToApplicants} />)
           )}
           {activeTab === "closed" && (
             <div className="hr-closed-list">
               {closedJobs.length === 0
                 ? <EmptySlot icon="📁" text="รอข้อมูลตำแหน่งที่ปิดแล้วจาก Backend" />
-                : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} />)
+                : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} onViewDetail={onViewDetail} />)
               }
             </div>
           )}
@@ -526,7 +557,13 @@ const updateHr = (key) => (val) => {
                   </div>
                   <div className="hr-job-footer">
                     <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
-                    <button className="hr-apply-btn">ดูผู้สมัคร →</button>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button className="hr-apply-btn" style={{ background: "#f4f4f5", color: "#52525b" }}
+                        onClick={() => goToApplicants ? goToApplicants(job) : setActivePage("applicants")}>
+                        👥 ผู้สมัคร
+                      </button>
+                      <button className="hr-apply-btn" onClick={() => onViewDetail?.(job)}>ดูรายละเอียด →</button>
+                    </div>
                   </div>
                 </div>
               );
@@ -538,41 +575,342 @@ const updateHr = (key) => (val) => {
   );
 }
 
+// ── Applicants Modal ──────────────────────────────────────────
+function ApplicantsModal({ open, onClose, job, applicants }) {
+  const [search, setSearch]         = useState("");
+  const [activeStatus, setStatus]   = useState("ทั้งหมด");
+
+  useEffect(() => { if (open) { setSearch(""); setStatus("ทั้งหมด"); } }, [open]);
+
+  if (!open || !job) return null;
+
+  const jobApplicants = applicants.filter(
+    a => !a.jobId || String(a.jobId ?? a.job_id) === String(job.id)
+  );
+
+  const statuses = ["ทั้งหมด", ...Object.keys(STATUS_CONFIG).filter(k => k !== "ทั้งหมด")];
+
+  const filtered = jobApplicants
+    .filter(a => activeStatus === "ทั้งหมด" || a.status === activeStatus)
+    .filter(a => {
+      const q = search.toLowerCase();
+      return !q || a.name.toLowerCase().includes(q) || (a.role||"").toLowerCase().includes(q);
+    });
+
+  return (
+    <>
+      <style>{`
+        @keyframes apr-fade { from{opacity:0} to{opacity:1} }
+        @keyframes apr-up   { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+      `}</style>
+      {/* Overlay */}
+      <div onClick={onClose} style={{
+        position:"fixed", inset:0, zIndex:600,
+        background:"rgba(15,23,42,0.45)", backdropFilter:"blur(4px)",
+        animation:"apr-fade 0.18s ease",
+      }} />
+      {/* Sheet */}
+      <div style={{
+        position:"fixed", inset:0, zIndex:601,
+        display:"flex", alignItems:"center", justifyContent:"center", padding:16,
+        pointerEvents:"none",
+      }}>
+        <div onClick={e => e.stopPropagation()} style={{
+          background:"#fff", borderRadius:20, width:"100%", maxWidth:660,
+          maxHeight:"88vh", overflowY:"auto", pointerEvents:"all",
+          boxShadow:"0 24px 60px rgba(0,0,0,0.18)",
+          animation:"apr-up 0.22s cubic-bezier(.4,0,.2,1)",
+          fontFamily:"'DM Sans',sans-serif",
+        }}>
+          {/* Header */}
+          <div style={{
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            padding:"18px 22px 14px", borderBottom:"1px solid #f0f0f0", position:"sticky", top:0, background:"#fff", zIndex:1, borderRadius:"20px 20px 0 0",
+          }}>
+            <div>
+              <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:18, color:"#18181b" }}>
+                👥 ผู้สมัคร
+              </div>
+              <div style={{ fontSize:12, color:"#71717a", marginTop:2 }}>{job.title}</div>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{
+                background:"#f4f4f5", borderRadius:8, padding:"3px 10px",
+                fontSize:12, fontWeight:700, color:"#52525b",
+              }}>{jobApplicants.length} คน</span>
+              <button onClick={onClose} style={{
+                width:32, height:32, borderRadius:8, border:"1.5px solid #e4e4e7",
+                background:"#fff", cursor:"pointer", color:"#71717a", fontSize:16,
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>✕</button>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div style={{
+            margin:"14px 20px 0", display:"flex", alignItems:"center", gap:10,
+            padding:"9px 14px", background:"#f8f9ff",
+            border:"1.5px solid #e4e4e7", borderRadius:12,
+          }}>
+            <span style={{ fontSize:14 }}>🔍</span>
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="ค้นหาชื่อ หรือตำแหน่ง..."
+              style={{ flex:1, border:"none", background:"none", outline:"none", fontSize:13, fontFamily:"'DM Sans',sans-serif", color:"#18181b" }}
+            />
+            {search && <button onClick={() => setSearch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"#a1a1aa", fontSize:13 }}>✕</button>}
+          </div>
+
+          {/* Status filter */}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:7, padding:"12px 20px", borderBottom:"1px solid #f4f4f5" }}>
+            {statuses.map(s => {
+              const cfg = STATUS_CONFIG[s] || STATUS_CONFIG["ทั้งหมด"];
+              const isActive = activeStatus === s;
+              const count = s === "ทั้งหมด" ? jobApplicants.length : jobApplicants.filter(a => a.status === s).length;
+              return (
+                <button key={s} onClick={() => setStatus(s)} style={{
+                  display:"inline-flex", alignItems:"center", gap:6,
+                  padding:"5px 12px", borderRadius:99, fontSize:12.5, cursor:"pointer",
+                  fontFamily:"'DM Sans',sans-serif",
+                  background: isActive ? (s==="ทั้งหมด" ? "#18181b" : cfg.bg) : "#f4f4f5",
+                  color:      isActive ? (s==="ทั้งหมด" ? "#fff" : cfg.active) : "#71717a",
+                  border:     isActive ? `1.5px solid ${s==="ทั้งหมด" ? "#18181b" : cfg.active}` : "1.5px solid transparent",
+                  fontWeight: isActive ? 700 : 500,
+                }}>
+                  {s}
+                  <span style={{
+                    borderRadius:99, fontSize:10, fontWeight:700, padding:"1px 6px",
+                    background: isActive ? "rgba(255,255,255,0.25)" : "#e4e4e7",
+                    color: isActive ? (s==="ทั้งหมด" ? "#fff" : cfg.active) : "#a1a1aa",
+                  }}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* List */}
+          <div style={{ padding:"10px 16px 16px", display:"flex", flexDirection:"column", gap:8 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding:"40px 16px", textAlign:"center", color:"#9ca3af" }}>
+                <div style={{ fontSize:32, marginBottom:8 }}>{search || activeStatus !== "ทั้งหมด" ? "🔍" : "👥"}</div>
+                <div style={{ fontSize:14, fontWeight:700, color:"#52525b", marginBottom:4 }}>
+                  {search || activeStatus !== "ทั้งหมด" ? "ไม่พบผู้สมัคร" : "ยังไม่มีผู้สมัคร"}
+                </div>
+                <div style={{ fontSize:12 }}>
+                  {search || activeStatus !== "ทั้งหมด" ? "ลองค้นหาด้วยคำอื่น หรือเปลี่ยน filter" : "ผู้สมัครจะแสดงที่นี่เมื่อมีคนส่งใบสมัคร"}
+                </div>
+              </div>
+            ) : filtered.map(a => {
+              const sc = STATUS_CONFIG[a.status] || { bg:"#f4f4f5", text:"#52525b" };
+              return (
+                <div key={a.id} style={{
+                  display:"flex", alignItems:"center", gap:12,
+                  border:"1.5px solid #e4e4e7", borderRadius:12, padding:"12px 14px",
+                  transition:"all 0.15s", background:"#fff",
+                }}>
+                  <div style={{
+                    width:44, height:44, borderRadius:13, flexShrink:0,
+                    background:"linear-gradient(140deg,#3b82f6,#6366f1,#7c3aed)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    color:"#fff", fontSize:17, fontWeight:700, fontFamily:"'DM Serif Display',serif",
+                  }}>{a.avatar}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:14, color:"#18181b" }}>{a.name}</div>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:3 }}>
+                      <span style={{ fontSize:12, color:"#71717a" }}>💼 {a.role}</span>
+                      {a.exp && <span style={{ fontSize:12, color:"#71717a" }}>📈 {a.exp}</span>}
+                      <span style={{ fontSize:12, color:"#71717a" }}>🕐 {a.applied}</span>
+                    </div>
+                  </div>
+                  {a.score != null && (
+                    <div style={{ textAlign:"center", minWidth:44 }}>
+                      <div style={{ fontFamily:"'DM Serif Display',serif", fontSize:20, fontWeight:700, color: a.score>=85?"#15803d":a.score>=70?"#c2410c":"#be123c" }}>{a.score}</div>
+                      <div style={{ fontSize:10, color:"#a1a1aa", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.04em" }}>คะแนน</div>
+                    </div>
+                  )}
+                  <span style={{ background:sc.bg, color:sc.text, borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:600, whiteSpace:"nowrap" }}>{a.status}</span>
+                  <button style={{
+                    background:"#18181b", color:"#fff", border:"none", borderRadius:8,
+                    padding:"6px 12px", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif",
+                    whiteSpace:"nowrap",
+                  }}>ดูโปรไฟล์</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Applicants View ───────────────────────────────────────────
-function ApplicantsView({ applicants }) {
-  const statusColor = {
-    "รอการตรวจสอบ":  { bg: "#fff7ed", text: "#c2410c" },
-    "ผ่านคัดกรอง":   { bg: "#eff6ff", text: "#1d4ed8" },
-    "สัมภาษณ์รอบ 2": { bg: "#fdf4ff", text: "#7e22ce" },
-    "เสนอ offer":    { bg: "#f0fdf4", text: "#15803d" },
-  };
+const STATUS_CONFIG = {
+  "ทั้งหมด":        { bg: "#f4f4f5",  text: "#52525b",  active: "#18181b" },
+  "รอการตรวจสอบ":  { bg: "#fff7ed",  text: "#c2410c",  active: "#c2410c" },
+  "ผ่านคัดกรอง":   { bg: "#eff6ff",  text: "#1d4ed8",  active: "#1d4ed8" },
+  "สัมภาษณ์รอบ 2": { bg: "#fdf4ff",  text: "#7e22ce",  active: "#7e22ce" },
+  "เสนอ offer":    { bg: "#f0fdf4",  text: "#15803d",  active: "#15803d" },
+  "ไม่ผ่าน":       { bg: "#fef2f2",  text: "#be123c",  active: "#be123c" },
+};
+
+function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs }) {
+  // กรองตาม job ถ้ามี filterJobId
+  const baseData = filterJobId
+    ? applicants.filter(a => String(a.jobId ?? a.job_id) === String(filterJobId))
+    : applicants;
+  const allData = baseData;
+  const filterJobName = filterJobId
+    ? (openJobs?.find(j => String(j.id) === String(filterJobId))?.title ?? `Job #${filterJobId}`)
+    : null;
+
+  const [search, setSearch]             = useState("");
+  const [activeStatus, setActiveStatus] = useState("ทั้งหมด");
+  const [sortBy, setSortBy]             = useState("latest");
+
+  const statuses = ["ทั้งหมด", ...Object.keys(STATUS_CONFIG).filter(k => k !== "ทั้งหมด")];
+  const statusCounts = statuses.reduce((acc, s) => {
+    acc[s] = s === "ทั้งหมด" ? allData.length : allData.filter(a => a.status === s).length;
+    return acc;
+  }, {});
+
+  const filtered = allData
+    .filter(a => activeStatus === "ทั้งหมด" || a.status === activeStatus)
+    .filter(a => {
+      const q = search.toLowerCase();
+      return !q || a.name.toLowerCase().includes(q) || a.role.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sortBy === "score") return (b.score || 0) - (a.score || 0);
+      if (sortBy === "exp")   return parseInt(b.exp || 0) - parseInt(a.exp || 0);
+      return 0; // latest = original order
+    });
+
   return (
     <div className="hr-card">
+      {/* Header */}
       <div className="hr-card-header">
         <div className="hr-card-title">📋 ผู้สมัครทั้งหมด</div>
-        <span className="hr-edit-hint-badge">{applicants.length} คน</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="hr-edit-hint-badge">{filtered.length} / {allData.length} คน</span>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            style={{
+              border: "1px solid #e4e4e7", borderRadius: 8, padding: "4px 10px",
+              fontSize: 12, color: "#52525b", background: "#fafafa",
+              cursor: "pointer", outline: "none", fontFamily: "inherit"
+            }}
+          >
+            <option value="latest">🕐 ล่าสุด</option>
+            <option value="score">⭐ คะแนนสูงสุด</option>
+            <option value="exp">💼 ประสบการณ์</option>
+          </select>
+        </div>
       </div>
+
+      {/* Banner กรองตามงาน */}
+      {filterJobName && (
+        <div style={{
+          margin: "0 20px", marginTop: 12,
+          background: "#eff6ff", border: "1.5px solid #bfdbfe",
+          borderRadius: 10, padding: "8px 14px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          fontSize: 13,
+        }}>
+          <span>📋 แสดงผู้สมัครสำหรับ: <strong>{filterJobName}</strong></span>
+          <button onClick={onClearFilter} style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "#3b82f6", fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+          }}>
+            ✕ ดูทั้งหมด
+          </button>
+        </div>
+      )}
+
+      {/* Search bar */}
+      <div className="hr-applicant-search-wrap">
+        <span className="hr-applicant-search-icon">🔍</span>
+        <input
+          className="hr-applicant-search-input"
+          placeholder="ค้นหาชื่อผู้สมัคร หรือตำแหน่งงาน..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button className="hr-applicant-search-clear" onClick={() => setSearch("")}>✕</button>
+        )}
+      </div>
+
+      {/* Status filter pills */}
+      <div className="hr-applicant-filter-bar">
+        {statuses.map(s => {
+          const cfg = STATUS_CONFIG[s] || STATUS_CONFIG["ทั้งหมด"];
+          const isActive = activeStatus === s;
+          return (
+            <button
+              key={s}
+              className="hr-applicant-filter-pill"
+              onClick={() => setActiveStatus(s)}
+              style={{
+                background: isActive ? (s === "ทั้งหมด" ? "#18181b" : cfg.bg) : "#f4f4f5",
+                color:      isActive ? (s === "ทั้งหมด" ? "#fff"     : cfg.active) : "#71717a",
+                border:     isActive ? `1.5px solid ${s === "ทั้งหมด" ? "#18181b" : cfg.active}` : "1.5px solid transparent",
+                fontWeight: isActive ? 700 : 500,
+              }}
+            >
+              {s}
+              <span className="hr-applicant-pill-count"
+                style={{ background: isActive ? "rgba(255,255,255,0.25)" : "#e4e4e7",
+                         color: isActive ? (s === "ทั้งหมด" ? "#fff" : cfg.active) : "#a1a1aa" }}>
+                {statusCounts[s]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* List */}
       <div className="hr-jobs-list">
-        {applicants.length === 0
-          ? <EmptySlot icon="👥" text="รอข้อมูลผู้สมัครจาก Backend" />
-          : applicants.map(a => {
-            const sc = statusColor[a.status] || { bg: "#f4f4f5", text: "#52525b" };
-            return (
-              <div key={a.id} className="hr-job-card" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <div className="hr-avatar" style={{ width: 44, height: 44, fontSize: "1rem", flexShrink: 0 }}>{a.avatar}</div>
-                <div style={{ flex: 1 }}>
-                  <div className="hr-job-title">{a.name}</div>
-                  <div className="hr-job-meta" style={{ marginTop: 4 }}>
-                    <span className="hr-job-meta-item">💼 {a.role}</span>
-                    <span className="hr-job-meta-item">🕐 {a.applied}</span>
-                  </div>
+        {filtered.length === 0 ? (
+          <div className="hr-empty-tab">
+            <div className="hr-empty-icon">{search || activeStatus !== "ทั้งหมด" ? "🔍" : "👥"}</div>
+            <div className="hr-empty-title">
+              {search || activeStatus !== "ทั้งหมด" ? "ไม่พบผู้สมัคร" : "ยังไม่มีผู้สมัคร"}
+            </div>
+            <div className="hr-empty-desc">
+              {search || activeStatus !== "ทั้งหมด" ? "ลองค้นหาด้วยคำอื่น หรือเปลี่ยน filter" : "ผู้สมัครจะแสดงที่นี่เมื่อมีคนส่งใบสมัคร"}
+            </div>
+          </div>
+        ) : filtered.map(a => {
+          const sc = STATUS_CONFIG[a.status] || { bg: "#f4f4f5", text: "#52525b" };
+          return (
+            <div key={a.id} className="hr-applicant-row">
+              <div className="hr-applicant-avatar">{a.avatar}</div>
+              <div className="hr-applicant-info">
+                <div className="hr-applicant-name">{a.name}</div>
+                <div className="hr-job-meta" style={{ marginTop: 3 }}>
+                  <span className="hr-job-meta-item">💼 {a.role}</span>
+                  {a.exp  && <span className="hr-job-meta-item">📈 {a.exp}</span>}
+                  <span className="hr-job-meta-item">🕐 {a.applied}</span>
                 </div>
-                <span className="hr-job-dept" style={{ background: sc.bg, color: sc.text }}>{a.status}</span>
+              </div>
+              {a.score != null && (
+                <div className="hr-applicant-score">
+                  <div className="hr-applicant-score-num" style={{ color: a.score >= 85 ? "#15803d" : a.score >= 70 ? "#c2410c" : "#be123c" }}>
+                    {a.score}
+                  </div>
+                  <div className="hr-applicant-score-label">คะแนน</div>
+                </div>
+              )}
+              <span className="hr-job-dept" style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{a.status}</span>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button className="hr-reopen-btn">📄 Resume</button>
                 <button className="hr-apply-btn">ดูโปรไฟล์ →</button>
               </div>
-            );
-          })
-        }
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -671,7 +1009,7 @@ function ReportView({ reportData }) {
 }
 
 // ── Open/Closed Jobs Views ────────────────────────────────────
-function OpenJobsView({ openJobs }) {
+function OpenJobsView({ openJobs, onViewDetail, goToApplicants }) {
   return (
     <div className="hr-card">
       <div className="hr-card-header">
@@ -684,7 +1022,7 @@ function OpenJobsView({ openJobs }) {
           : openJobs.map(job => {
             const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
             return (
-              <div key={job.id} className="hr-job-card">
+              <div key={job.id} className="hr-job-card" onClick={() => onViewDetail?.(job)} style={{ cursor: "pointer" }}>
                 <div className="hr-job-top">
                   <div className="hr-job-title-wrap">
                     <div className="hr-job-title">{job.title}</div>
@@ -702,7 +1040,7 @@ function OpenJobsView({ openJobs }) {
                     <div className="hr-job-posted">โพสต์เมื่อ {job.posted}</div>
                     <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
                   </div>
-                  <button className="hr-apply-btn">ดูผู้สมัคร →</button>
+                  <button className="hr-apply-btn" onClick={(e) => { e.stopPropagation(); goToApplicants?.(job); }}>👥 ผู้สมัคร →</button>
                 </div>
               </div>
             );
@@ -713,7 +1051,7 @@ function OpenJobsView({ openJobs }) {
   );
 }
 
-function ClosedJobsView({ closedJobs }) {
+function ClosedJobsView({ closedJobs, onViewDetail }) {
   return (
     <div className="hr-card">
       <div className="hr-card-header"><div className="hr-card-title">⚫ ตำแหน่งที่ปิดแล้ว</div></div>
@@ -721,7 +1059,7 @@ function ClosedJobsView({ closedJobs }) {
         <div className="hr-closed-list">
           {closedJobs.length === 0
             ? <EmptySlot icon="📁" text="รอข้อมูลตำแหน่งที่ปิดแล้วจาก Backend" />
-            : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} />)
+            : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} onViewDetail={onViewDetail} />)
           }
         </div>
       </div>
@@ -761,14 +1099,48 @@ function CompanyView({ hr, setHr }) {
 
 // ── Main Component ────────────────────────────────────────────
 export default function HRProfile() {
-  const [activePage, setActivePage] = useState("profile");
-  const [savedJobs, setSavedJobs]   = useState([]);
-  const [newPerk, setNewPerk]       = useState("");
+  const [activePage, setActivePage]     = useState("profile");
+  const [savedJobs, setSavedJobs]       = useState([]);
+  const [newPerk, setNewPerk]           = useState("");
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [modalOpen, setModalOpen]       = useState(false);
+  const [selectedJob, setSelectedJob]     = useState(null);
+  const [filterJobId, setFilterJobId]     = useState(null);
+  const [applicantsModal, setApplicantsModal] = useState(null); // job object
+
+  const goToApplicants = (jobId = null) => {
+    setFilterJobId(jobId);
+    setActivePage("applicants");
+  };
+
+  const openApplicantsModal = (job) => setApplicantsModal(job);
   const navigate  = useNavigate();
   const location  = useLocation();
 
-  // ถ้ามา navigate พร้อม state { scrollTo: "saved" } ให้ scroll ไปที่ saved tab
-  const initialTab = location.state?.scrollTo ?? null;
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/hr-login");
+  };
+
+  const handleJobPosted = () => {
+    // รีโหลดข้อมูลงานใหม่หลังโพสต์
+    getOpenJobs().then(setOpenJobs);
+    getStats().then(setStats);
+  };
+
+  // ถ้ามา navigate พร้อม state ต่างๆ
+  const initialTab    = location.state?.scrollTo === "saved" ? "saved" : null;
+  const navToPage     = location.state?.scrollTo === "applicants" ? "applicants" : null;
+  const navFilterJob  = location.state?.filterJobId ?? null;
+
+  // ถ้า navigate มาพร้อม scrollTo: "applicants" ให้เปิดหน้าผู้สมัครทันที
+  useEffect(() => {
+    if (navToPage === "applicants") {
+      setFilterJobId(navFilterJob);
+      setActivePage("applicants");
+      window.history.replaceState({}, document.title);
+    }
+  }, []); // eslint-disable-line
 
   // state ทั้งหมดเริ่มว่าง — โครงสร้างพร้อม รอ backend เติมข้อมูล
   const [hr, setHr]                   = useState(null);
@@ -798,12 +1170,12 @@ export default function HRProfile() {
 
   const renderMain = () => {
     switch (activePage) {
-      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} savedJobs={savedJobs} setSavedJobs={setSavedJobs} setActivePage={setActivePage} initialTab={initialTab} />;
-      case "applicants": return <ApplicantsView applicants={applicants} />;
+      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} savedJobs={savedJobs} setSavedJobs={setSavedJobs} setActivePage={setActivePage} initialTab={initialTab} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} />;
+      case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} />;
       case "interviews": return <InterviewView interviews={interviews} />;
       case "report":     return <ReportView reportData={reportData} />;
-      case "open":       return <OpenJobsView openJobs={openJobs} />;
-      case "closed":     return <ClosedJobsView closedJobs={closedJobs} />;
+      case "open":       return <OpenJobsView openJobs={openJobs} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} />;
+      case "closed":     return <ClosedJobsView closedJobs={closedJobs} onViewDetail={setSelectedJob} />;
       case "company":    return <CompanyView hr={hr} setHr={setHr} />;
       default:           return null;
     }
@@ -815,11 +1187,35 @@ export default function HRProfile() {
       {/* shimmer animation */}
       <style>{`@keyframes hr-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
 
+      {/* ── POST JOB MODAL ── */}
+      <PostJobModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleJobPosted}
+      />
+
+      {/* ── JOB DETAIL MODAL ── */}
+      <JobDetailModal
+        open={!!selectedJob}
+        job={selectedJob}
+        onClose={() => setSelectedJob(null)}
+        onViewApplicants={(job) => { setSelectedJob(null); setApplicantsModal(job); }}
+      />
+
+      {/* ── APPLICANTS MODAL ── */}
+      <ApplicantsModal
+        open={!!applicantsModal}
+        job={applicantsModal}
+        applicants={applicants}
+        onClose={() => setApplicantsModal(null)}
+      />
+
       {/* ── NAV ── */}
       <nav className="hr-nav">
         <div className="hr-nav-left">
-          <div className="hr-nav-logo" onClick={() => navigate("/hr-feed")} style={{ cursor: "pointer" }}>
-            Per<span>File</span>
+          <div className="hrf-logo" onClick={() => navigate("/hr-feed")} style={{ cursor: "pointer" }}>
+            Per<em>File</em>
+            <span className="hrf-logo-badge">HR</span>
           </div>
           <div className="hr-nav-search">
             <span>🔍</span>
@@ -828,8 +1224,35 @@ export default function HRProfile() {
         </div>
         <div className="hr-nav-right">
           <button className="hr-icon-btn">🔔</button>
-          <button className="hr-icon-btn">💬</button>
-          <div className="hr-nav-avatar">{hr?.name?.[0] ?? "?"}</div>
+          <div className="hrf-user-area" style={{ position: "relative" }}>
+            <div className="hrf-user-chip" onClick={() => setShowUserMenu(v => !v)}>
+              <div className="hrf-avatar">
+                {hr?.avatar
+                  ? <img src={hr.avatar} alt="avatar" />
+                  : (hr?.name?.[0]?.toUpperCase() ?? "H")}
+              </div>
+              <span>{hr?.name ?? "Loading..."}</span>
+            </div>
+            {showUserMenu && (
+              <>
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 199 }}
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div className="hrf-dropdown">
+                  <button onClick={() => { setActivePage("profile"); setShowUserMenu(false); }}>
+                    โปรไฟล์ของฉัน
+                  </button>
+                  <button onClick={() => { setActivePage("company"); setShowUserMenu(false); }}>
+                    ข้อมูลบริษัท
+                  </button>
+                  <button className="hrf-logout" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </nav>
 
@@ -837,7 +1260,7 @@ export default function HRProfile() {
 
         {/* ── SIDEBAR ── */}
         <aside className="hr-sidebar">
-          <button className="hr-post-btn">＋ โพสต์งาน</button>
+          <button className="hr-post-btn" onClick={() => setModalOpen(true)}>＋ โพสต์งาน</button>
 
           {[
             { key: "profile",    icon: "🏠", label: "Profile" },
@@ -863,6 +1286,10 @@ export default function HRProfile() {
           <button className={`hr-menu-item${activePage === "company" ? " active" : ""}`} onClick={() => setActivePage("company")}>
             <span>🏢</span> {hr?.company ?? "—"}
           </button>
+
+          <div style={{ flex: 1 }} />
+          <div className="hr-sidebar-divider" />
+         
         </aside>
 
         {/* ── MAIN ── */}

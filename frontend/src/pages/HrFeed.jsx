@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers,
-  LuMapPin, LuBadgeCheck, LuEllipsis, LuBadgeMinus, LuTrash2
+  LuMapPin, LuBadgeCheck, LuEllipsisVertical, LuBadgeMinus, LuTrash2, LuBookmarkCheck
 } from "react-icons/lu";
 import PostJobModal from "./PostJobModal";
 import JobDetailModal from "./JobDetailModal";
@@ -17,7 +17,8 @@ export default function HrFeed() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modalOpen, setModalOpen]     = useState(false);
   const [jobs, setJobs]               = useState([]);
-  const [selectedJob, setSelectedJob] = useState(null); // ← job detail modal
+  const [savedJobIds, setSavedJobIds] = useState([]);
+  const [selectedJob, setSelectedJob] = useState(null);
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
@@ -103,6 +104,28 @@ useEffect(() => {
   fetchJobs();
 }, []);
 
+/* ── Fetch Saved Jobs ── */
+useEffect(() => {
+  const fetchSaved = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/saved-jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const ids = (data.savedJobs || data.saved_jobs || [])
+          .map(j => String(j.id ?? j.jobId ?? j));
+        setSavedJobIds(ids);
+      }
+    } catch (err) {
+      console.error("Fetch saved jobs error:", err);
+    }
+  };
+  fetchSaved();
+}, []);
+
 const handleUpdateStatus = async (jobId, newStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -153,6 +176,34 @@ const handleUpdateStatus = async (jobId, newStatus) => {
     // หรือถ้าเขียนฟังก์ชัน fetchJobs แยกไว้ ก็เรียกใช้ฟังก์ชันนั้นแทนครับ
   };
 
+  /* ── Save / Unsave job then navigate to profile saved section ── */
+  const handleSaveJob = async (jobId) => {
+    const sid = String(jobId);
+    const isSaved = savedJobIds.includes(sid);
+    // optimistic UI
+    setSavedJobIds(prev => isSaved ? prev.filter(id => id !== sid) : [...prev, sid]);
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`http://localhost:3000/hr/saved-jobs/${jobId}`, {
+        method: isSaved ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.error(err);
+      // rollback ถ้า API fail
+      setSavedJobIds(prev => isSaved ? [...prev, sid] : prev.filter(id => id !== sid));
+    }
+    if (!isSaved) {
+      // navigate ไป HR Profile แล้ว scroll ไปที่ saved section
+      navigate("/hr-profile", { state: { scrollTo: "saved" } });
+    }
+  };
+
+  /* ── Navigate to HR Profile applicants filtered by job ── */
+  const handleViewApplicants = (jobId) => {
+    navigate("/hr-profile", { state: { scrollTo: "applicants", filterJobId: jobId } });
+  };
+
   /* ── Open modal from sidebar OR nav button ── */
   const openModal = () => setModalOpen(true);
 
@@ -171,6 +222,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
         open={!!selectedJob}
         job={selectedJob}
         onClose={() => setSelectedJob(null)}
+        onViewApplicants={(job) => { setSelectedJob(null); handleViewApplicants(job.id); }}
       />
 
       {/* ─── NAV ─── */}
@@ -328,7 +380,10 @@ const handleUpdateStatus = async (jobId, newStatus) => {
                     key={job.id} 
                     job={job} 
                     onClick={() => setSelectedJob(job)} 
-                    onUpdateStatus={handleUpdateStatus} // ส่งฟังก์ชันไปที่นี่
+                    onUpdateStatus={handleUpdateStatus}
+                    isSaved={savedJobIds.includes(String(job.id))}
+                    onSave={handleSaveJob}
+                    onViewApplicants={handleViewApplicants}
                   />
                 ))
               )}
@@ -342,12 +397,12 @@ const handleUpdateStatus = async (jobId, newStatus) => {
 }
 
 /* ── Job Card ── */
-function JobCard({ job, onClick, onUpdateStatus }) {
+function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplicants }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleMenuClick = (e) => {
     e.preventDefault();
-    e.stopPropagation(); // กันไม่ให้ไปเปิด Modal รายละเอียดงาน
+    e.stopPropagation();
     setMenuOpen(!menuOpen);
   };
 
@@ -356,93 +411,77 @@ function JobCard({ job, onClick, onUpdateStatus }) {
     setMenuOpen(false);
     if (window.confirm(`ยืนยันการลบ "${job.title}"?`)) {
       console.log(`Delete: ${job.id}`);
-      // ใส่ logic ลบงานตรงนี้ (เช่น fetch ไปที่ backend)
     }
   };
-
 
   return (
     <div
       className="hrf-job-card"
       onClick={onClick}
-      style={{
-        cursor: "pointer",
-        position: "relative",
-        overflow: "visible", // สำคัญมาก เพื่อให้เมนูลอยออกมาได้
-      }}
+      style={{ cursor: "pointer", position: "relative", overflow: "visible" }}
     >
-      {/* 2. ตัวช่วยปิดเมนู (Backdrop) เมื่อคลิกที่อื่น */}
       {menuOpen && (
         <div 
-          onClick={(e) => {
-            e.stopPropagation(); 
-            setMenuOpen(false);
-          }}
-          style={{
-            position: "fixed",
-            top: 0, left: 0, right: 0, bottom: 0,
-            zIndex: 90,
-            background: "transparent"
-          }}
+          onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 90, background: "transparent" }}
         />
       )}
 
-      <div className="hrf-job-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-        <div className="hrf-job-icon"><LuBriefcase /></div>
-        
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", position: "relative", zIndex: 100 }}>
-          <span className="hrf-job-type">{job.job_type || "ไม่ระบุ"}</span>
-          
-          <button
-            onClick={handleMenuClick}
-            style={{
-              background: menuOpen ? "#f1f5f9" : "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px",
-              borderRadius: "6px",
-              display: "flex",
-              color: "#64748b"
-            }}
-          >
-            {/* ใช้ LuEllipsis ตามที่คุณ Import ไว้ด้านบน */}
-            <LuEllipsis size={20} />
-          </button>
+      {/* ── 3-dot button — absolute top-right ── */}
+      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 100 }}>
+        <button
+          onClick={handleMenuClick}
+          style={{
+            width: 30, height: 30,
+            background: menuOpen ? "#e0e7ff" : "rgba(255,255,255,0.9)",
+            border: "1.5px solid " + (menuOpen ? "#a5b4fc" : "#e4e4e7"),
+            borderRadius: "50%",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: menuOpen ? "#4f46e5" : "#64748b",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            transition: "all 0.15s",
+          }}
+        >
+          <LuEllipsisVertical size={16} />
+        </button>
 
-          {menuOpen && (
-            <div
-              style={{
-                position: "absolute",
-                top: "100%",
-                right: 0,
-                marginTop: "8px",
-                background: "#fff",
-                border: "1px solid #e4e4e7",
-                borderRadius: "10px",
-                width: "160px",
-                boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-                padding: "6px",
-                zIndex: 101,
-              }}
+        {menuOpen && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0,
+            background: "#fff", border: "1px solid #e4e4e7", borderRadius: "12px",
+            width: "185px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            padding: "6px", zIndex: 101,
+          }}>
+            <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onClick?.(); }} style={dropdownItemStyle}>
+              <LuBriefcase size={14} /> ดูรายละเอียด
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onViewApplicants?.(job.id); }} style={dropdownItemStyle}>
+              <LuUsers size={14} /> ดูผู้สมัคร
+            </button>
+            <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
+            <button
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSave?.(job.id); }}
+              style={{ ...dropdownItemStyle, color: isSaved ? "#1d4ed8" : "#334155", background: isSaved ? "#eff6ff" : "none" }}
             >
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation(); 
-                  setMenuOpen(false);
-                  // เรียกใช้ฟังก์ชันที่ส่งมาจากตัวแม่
-                  onUpdateStatus(job.id, job.status === "เปิดรับสมัคร" ? "ปิดแล้ว" : "เปิดรับสมัคร");
-                }} 
-                style={dropdownItemStyle}
-              >
-                {/* ใช้ LuCheck ตามที่คุณ Import ไว้ด้านบน */}
-                <LuBadgeMinus size={14} /> {job.status === "ปิดแล้ว" ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
-              </button>
-              <button onClick={deleteJob} style={{ ...dropdownItemStyle, color: "#ef4444" }}>
-                <LuTrash2 size={14} /> ลบโพสงาน
-              </button>
-            </div>
-          )}
-        </div>
+              {isSaved ? <LuBookmarkCheck size={14} /> : <LuBookmark size={14} />}
+              {isSaved ? "Saved แล้ว" : "Save งานนี้"}
+            </button>
+            <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
+            <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onUpdateStatus(job.id, job.status === "เปิดรับสมัคร" ? "ปิดแล้ว" : "เปิดรับสมัคร"); }} style={dropdownItemStyle}>
+              <LuBadgeMinus size={14} /> {job.status === "ปิดแล้ว" ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
+            </button>
+            <button onClick={deleteJob} style={{ ...dropdownItemStyle, color: "#ef4444" }}>
+              <LuTrash2 size={14} /> ลบโพสงาน
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Header: icon + job type ── */}
+      <div className="hrf-job-header" style={{ marginBottom: "12px", paddingRight: 28 }}>
+        <div className="hrf-job-icon"><LuBriefcase /></div>
+        <span className="hrf-job-type" style={{ marginTop: 8 }}>{job.job_type || "ไม่ระบุ"}</span>
       </div>
 
       <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{job.title}</div>
@@ -450,6 +489,17 @@ function JobCard({ job, onClick, onUpdateStatus }) {
         {job.category && <span><LuBadgeCheck /> {job.category}</span>}
         {job.location  && <span><LuMapPin /> {job.location}</span>}
       </div>
+
+      {isSaved && (
+        <div style={{
+          position: "absolute", top: 10, left: 12,
+          background: "#eff6ff", color: "#1d4ed8",
+          borderRadius: 99, fontSize: 10, fontWeight: 700,
+          padding: "2px 8px", display: "flex", alignItems: "center", gap: 4,
+        }}>
+          <LuBookmarkCheck size={10} /> Saved
+        </div>
+      )}
     </div>
   );
 }
