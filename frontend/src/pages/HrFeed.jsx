@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers,
@@ -284,10 +284,16 @@ const handleUpdateStatus = async (jobId, newStatus) => {
             <LuPlus /> Post Job
           </button>
 
-          <Link to="/hr-feed" className="hrf-menu-item active">
+          <button
+            className={`hrf-menu-item${activeTab === "candidates" ? " active" : ""}`}
+            onClick={() => { setActiveTab("candidates"); }}
+          >
             <LuLayoutDashboard /> Dashboard
-          </Link>
-          <button className="hrf-menu-item" onClick={() => setActiveTab("jobs")}>
+          </button>
+          <button
+            className={`hrf-menu-item${activeTab === "jobs" ? " active" : ""}`}
+            onClick={() => setActiveTab("jobs")}
+          >
             <LuBriefcase /> My Jobs
           </button>
           <button className="hrf-menu-item" onClick={() => navigate("/hr-profile", { state: { scrollTo: "saved" } })}>

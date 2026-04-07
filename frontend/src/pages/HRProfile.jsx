@@ -1349,14 +1349,7 @@ export default function HRProfile() {
             }
           </div>
 
-          <div className="hr-right-card hr-right-card--upgrade">
-            <div className="hr-upgrade-icon">✨</div>
-            <div className="hr-upgrade-title">Upgrade to Pro</div>
-            <div className="hr-upgrade-desc">
-              ปลดล็อค Analytics เชิงลึก, ATS integration และเครื่องมือ AI สรรหาบุคลากร
-            </div>
-            <button className="hr-upgrade-btn">ดูแผน Pro →</button>
-          </div>
+        
         </div>
 
       </div>
