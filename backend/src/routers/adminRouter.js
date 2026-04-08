@@ -127,20 +127,21 @@ router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
 
     const [users] = await db.query(
       `SELECT 
-        id, 
-        username, 
-        email, 
-        google_id,
-        github_id,
-        fullName, 
-        avatar, 
-        company, 
-        roles_id, 
-        status, 
-        created_at 
-      FROM users 
+        u.id, 
+        u.username, 
+        u.email, 
+        u.google_id,
+        u.github_id,
+        u.fullName, 
+        u.avatar, 
+        h.company,
+        u.roles_id, 
+        u.status, 
+        u.created_at 
+      FROM users u
+      LEFT JOIN hr_profiles h ON u.id = h.user_id 
       ${whereClause} 
-      ORDER BY created_at DESC 
+      ORDER BY u.created_at DESC 
       LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -714,8 +715,9 @@ router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
 
 router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) => {
   try {
+    // 1. นับ User แยกตาม roles_id (1=Admin, 2=Seeker, 3=HR)
     const [userRows] = await db.query(
-      "SELECT roles_id, COUNT(*) as count FROM users WHERE status = 'active' GROUP BY roles_id"
+      "SELECT roles_id, COUNT(*) as count FROM users GROUP BY roles_id"
     );
     
     const userStats = {
@@ -724,6 +726,7 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
       hr: userRows.find(r => r.roles_id === 3)?.count || 0
     };
 
+    // 2. นับ Resume แยกตาม visibility
     const [resumeRows] = await db.query(
       "SELECT visibility, COUNT(*) as count FROM resumes GROUP BY visibility"
     );
@@ -733,23 +736,20 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
       private: resumeRows.find(r => r.visibility === 'private')?.count || 0
     };
 
-    const [postRows] = await db.query(
-      "SELECT visibility, COUNT(*) as count FROM posts GROUP BY visibility"
-    ).catch(() => [[]]); // กันเหนียวถ้ายังไม่มีตารางหรือคอลัมน์ visibility ใน posts
-    
-    const postStats = {
-      public: postRows.find(r => r.visibility === 'public')?.count || 0,
-      private: postRows.find(r => r.visibility === 'private')?.count || 0
-    };
+    // 3. เปลี่ยนจากนับ posts เป็นนับ Job แทน (เพราะ SQL มีตาราง Job)
+    const [jobRows] = await db.query("SELECT COUNT(*) as count FROM Job");
+    const jobStats = { total: jobRows[0].count || 0 };
 
-    const [pendingRows] = await db.query("SELECT COUNT(*) as pendingHR FROM users WHERE roles_id = 3 AND status = 'pending'");
-    const pendingHR = pendingRows[0].pendingHR;
+    // 4. นับ HR ที่สถานะเป็น pending
+    const [pendingRows] = await db.query(
+      "SELECT COUNT(*) as pendingHR FROM users WHERE roles_id = 3 AND status = 'pending'"
+    );
 
     res.status(200).json({
       userStats,
       resumeStats,
-      postStats,
-      pendingHR
+      jobStats, // ส่งค่า Job แทน
+      pendingHR: pendingRows[0].pendingHR
     });
 
   } catch (err) {
@@ -1004,15 +1004,17 @@ router.delete("/resumes/:id", authMiddleware, requireAdmin, async (req, res) => 
 // 12. GET /admin/all-jobs
 // ─────────────────────────────────────────────
 
-router.get('/all-jobs', authMiddleware, requireRole(1), async (req, res) => {
+router.get('/all-jobs', authMiddleware, requireAdmin, async (req, res) => {
   try {
+    // ใช้ชื่อตาราง 'Job' (ตัว J ใหญ่ตาม SQL) และ Join กับ 'users' เพื่อเอาชื่อ HR และบริษัท
     const [jobs] = await db.query(`
       SELECT 
         j.*, 
-        u.company AS company_name, 
-        u.fullName AS hr_name 
+        u.fullName AS hr_name,
+        h.company AS company_name
       FROM Job j
       LEFT JOIN users u ON j.hrId = u.id
+      LEFT JOIN hr_profiles h ON u.id = h.user_id
       ORDER BY j.createdAt DESC
     `);
     res.json({ jobs });

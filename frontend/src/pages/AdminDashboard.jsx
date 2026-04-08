@@ -52,17 +52,18 @@ export default function AdminDashboard() {
   setFeedLoading(true);
   try {
     const token = localStorage.getItem("token");
-    // ตัวอย่าง Endpoint สำหรับดึงโพสต์ของผู้ใช้ทั่วไป
-    const res = await axios.get("http://localhost:3000/posts", {
+    // เปลี่ยนจาก "/posts" เป็น Path ที่ Backend มีจริง 
+    // เช่น ถ้าจะดูโพสต์งานทั้งหมดให้ใช้ "/admin/all-jobs"
+    const res = await axios.get("http://localhost:3000/admin/all-jobs", { 
       headers: { Authorization: `Bearer ${token}` }
     });
-    setUserFeedPosts(res.data);
+    setUserFeedPosts(res.data.jobs); // อย่าลืมใส่ .jobs เพราะ backend ส่งกลับมาเป็น object { jobs: [] }
   } catch (err) {
     console.error("Error fetching user feed:", err);
   } finally {
     setFeedLoading(false);
   }
-};
+  };
 
 const fetchHRFeed = async () => {
   setFeedLoading(true);
@@ -72,7 +73,7 @@ const fetchHRFeed = async () => {
     const res = await axios.get("http://localhost:3000/admin/all-jobs", {
       headers: { Authorization: `Bearer ${token}` }
     });
-
+    
     console.log("Response Data:", res.data);
     
     // 💡 Backend ส่งมาในรูปแบบ { jobs: [...] } ดังนั้นต้องเข้าถึง res.data.jobs
@@ -1100,7 +1101,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <table className="admin-table"> {/* 💡 ใช้ Class admin-table หลัก */}
+                <table className="admin-table">
                   <thead>
                     <tr>
                       <th>Company Info</th>
@@ -1114,7 +1115,6 @@ useEffect(() => {
                   <tbody>
                     {hrJobPosts.map((job) => (
                       <tr key={job.id}>
-                        {/* ส่วน Company Info เหมือนช่อง User Info */}
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{ 
