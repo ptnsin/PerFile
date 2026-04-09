@@ -1004,23 +1004,23 @@ router.delete("/resumes/:id", authMiddleware, requireAdmin, async (req, res) => 
 // 12. GET /admin/all-jobs
 // ─────────────────────────────────────────────
 
-router.get('/all-jobs', authMiddleware, requireAdmin, async (req, res) => {
+router.get('/all-jobs', authMiddleware, async (req, res) => {
   try {
-    // ใช้ชื่อตาราง 'Job' (ตัว J ใหญ่ตาม SQL) และ Join กับ 'users' เพื่อเอาชื่อ HR และบริษัท
     const [jobs] = await db.query(`
       SELECT 
         j.*, 
-        u.fullName AS hr_name,
-        h.company AS company_name
-      FROM Job j
+        h.company AS company_name, 
+        u.fullName AS hr_name 
+      FROM Job j                     
       LEFT JOIN users u ON j.hrId = u.id
-      LEFT JOIN hr_profiles h ON u.id = h.user_id
+      LEFT JOIN hr_profiles h ON u.id = h.user_id 
+      WHERE j.status = 'เปิดรับสมัคร'
       ORDER BY j.createdAt DESC
     `);
     res.json({ jobs });
   } catch (err) {
-    console.error("Fetch all jobs error:", err.message);
-    res.status(500).json({ message: "Error fetching all jobs" });
+    console.error("Fetch jobs error:", err.message);
+    res.status(500).json({ message: "Error fetching jobs" });
   }
 });
 

@@ -218,7 +218,7 @@ export default function JobDetailModal({ open, job, onClose, onEdit, onDelete, o
                   <div className="jdm-info-card-icon"><LuClock /></div>
                   <div>
                     <div className="jdm-info-card-label">รูปแบบงาน</div>
-                    <div className="jdm-info-card-value">{job.type || "ไม่ระบุ"}</div>
+                    <div className="jdm-info-card-value">{job.job_type || "ไม่ระบุ"}</div>
                   </div>
                 </div>
                 <div className="jdm-info-card">

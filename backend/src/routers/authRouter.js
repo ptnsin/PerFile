@@ -198,10 +198,11 @@ authRouter.post('/hr/register', async (req, res) => {
     const assignedStatus = isAdminKeyword ? 'active' : 'pending'; // Admin ไม่ต้องรออนุมัติ
 
     await db.query(
-      `INSERT INTO users (username, email, password, fullName, company, roles_id, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [username, email, hashedPassword, fullName, company, assignedRole, assignedStatus]
+      `INSERT INTO users (username, email, password, fullName, roles_id, status) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [username, email, hashedPassword, fullName, assignedRole, assignedStatus]
     );
+    await db.query("INSERT INTO hr_profiles (user_id, company) VALUES (LAST_INSERT_ID(), ?)", [company]);
 
     res.status(201).json({ 
       message: isAdminKeyword 

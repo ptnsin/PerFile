@@ -23,7 +23,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })) // เพิ่มขนาด payload limit เป็น 10MB;
 
 // ── Swagger setup ──────────────────────────────
 const swaggerSpec = swaggerJsdoc({

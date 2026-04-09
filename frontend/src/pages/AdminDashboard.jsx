@@ -41,7 +41,7 @@ export default function AdminDashboard() {
   const [resumes, setResumes] = useState([]); 
   const [resumeSearch, setResumeSearch] = useState(""); 
   const [resumeVisibility, setResumeVisibility] = useState("");
-  const [allJobs, setAllJobs] = useState([]);
+ 
 
   const handleLogout = () => {
     localStorage.removeItem("token");

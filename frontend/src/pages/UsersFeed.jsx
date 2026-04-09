@@ -22,10 +22,29 @@ export default function UsersFeed() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [menuOpen, setMenuOpen]         = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [jobs, setJobs] = useState([]);
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
-
+  useEffect(() => {
+  const fetchJobs = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3000/admin/all-jobs", { // หรือ path ใหม่ที่คุณตั้ง
+        headers: { 
+          "Authorization": `Bearer ${token}` 
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setJobs(data.jobs); // เก็บลง state
+      }
+    } catch (err) {
+      console.error("Fetch jobs error:", err);
+    }
+  };
+  fetchJobs();
+}, []);
 
   useEffect(() => {
     const fetchPublicResumes = async () => {
@@ -261,13 +280,30 @@ export default function UsersFeed() {
                   </div>
                 )
               ) : (
-                [...Array(12)].map((_, i) => (
-                  <div key={i} className="uf-skeleton-card">
-                    <div className="uf-skeleton-thumb" />
-                    <div className="uf-skeleton-line" />
-                    <div className="uf-skeleton-line short" />
+               jobs.length > 0 ? (
+                jobs.map((job) => (
+                  <div key={job.id} className="uf-resume-card">
+                    <div className="uf-resume-header">
+                      <div className="uf-resume-icon"><LuBriefcase /></div>
+                      <span className="uf-resume-badge">{job.job_type}</span>
+                    </div>
+                    <div className="uf-resume-title">{job.title}</div>
+                    <div className="uf-resume-meta">
+                      <span>🏢 {job.company_name || "General HR"}</span>
+                      <span>📍 {job.location}</span>
+                    </div>
+                    <div style={{ color: '#059669', fontWeight: 'bold', marginTop: '8px' }}>
+                      ฿ {job.salary}
+                    </div>
                   </div>
                 ))
+                ) : (
+                  /* กรณีไม่มีข้อมูลงาน */
+                  <div className="uf-empty">
+                    <div className="uf-empty-icon">💼</div>
+                    <div className="uf-empty-title">ยังไม่มีประกาศรับสมัครงาน</div>
+                  </div>
+                )
               )}
             </div>
           </div>
@@ -294,6 +330,27 @@ function ResumeCard({ resume, onClick }) {
       <div className="uf-resume-meta">
         {resume.owner && <span><LuBadgeCheck /> {resume.owner}</span>}
         <span><LuClock /> {displayDate}</span>
+      </div>
+    </div>
+  );
+}
+
+function JobCard({ job, onClick }) {
+  return (
+    <div className="uf-resume-card" onClick={onClick} style={{ borderLeft: '4px solid #1e3a8a' }}>
+      <div className="uf-resume-header">
+        <div className="uf-resume-icon" style={{ color: '#1e3a8a' }}><LuBriefcase /></div>
+        <span className="uf-resume-badge" style={{ background: '#e0e7ff', color: '#1e3a8a' }}>
+          {job.job_type || 'Full-time'}
+        </span>
+      </div>
+      <div className="uf-resume-title">{job.title}</div>
+      <div className="uf-resume-meta">
+        <span>🏢 {job.company_name || "บริษัททั่วไป"}</span>
+        <span>📍 {job.location}</span>
+      </div>
+      <div style={{ marginTop: '10px', fontSize: '13px', fontWeight: 'bold', color: '#059669' }}>
+        ฿ {job.salary}
       </div>
     </div>
   );

@@ -587,8 +587,8 @@ hrRouter.put('/profile', async (req, res) => {
     const { 
       fullName, 
       company, bio, website, location, industry, 
-      companyDesc, // รับจาก UI
-      companySize, // รับจาก UI
+      company_desc, // รับจาก UI
+      company_size, // รับจาก UI
       founded,
       role,    // ✅ เพิ่มการรับค่าเหล่านี้จาก UI
     } = req.body;
@@ -603,14 +603,14 @@ hrRouter.put('/profile', async (req, res) => {
           upsert: { 
             create: { 
               company, bio, website, location, industry, founded,
-              company_desc: companyDesc, 
-              company_size: companySize,
+              company_desc: company_desc, 
+              company_size: company_size,
               role: role // ✅ ตรวจสอบว่าใน DB มีคอลัมน์ role หรือยัง
             },
             update: { 
               company, bio, website, location, industry, founded,
-              company_desc: companyDesc,
-              company_size: companySize,
+              company_desc: company_desc,
+              company_size: company_size,
               role: role
             }
           }

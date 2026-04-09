@@ -246,16 +246,16 @@ export default function ViewResume() {
             {resume.experience && resume.experience.length > 0 && (
               <div className="resume-section">
                 <div className="section-title">ประสบการณ์ทำงาน</div>
-                {resume.experience.map((exp, i) => (
-                  <div key={i} className="entry">
+                {resume.experience.map((exp, i) => {
+                  return <div key={i} className="entry">
                     <div className="entry-header">
-                      <div className="entry-title">{exp.role}</div>
-                      <div className="entry-period">{exp.period}</div>
+                      <div className="entry-title">{exp.content.role}</div>
+                      <div className="entry-period">{exp.content.period}</div>
                     </div>
-                    <div className="entry-org">{exp.org || exp.company}</div>
-                    {exp.desc && <div className="entry-desc">{exp.desc}</div>}
+                    <div className="entry-org">{exp.content.org || exp.content.company}</div>
+                    {exp.content.desc && <div className="entry-desc">{exp.content.desc}</div>}
                   </div>
-                ))}
+            })}
               </div>
             )}
 
@@ -266,11 +266,11 @@ export default function ViewResume() {
                 {resume.education.map((edu, i) => (
                   <div key={i} className="entry">
                     <div className="entry-header">
-                      <div className="entry-title">{edu.degree}</div>
-                      <div className="entry-period">{edu.period}</div>
+                      <div className="entry-title">{edu.content.degree}</div>
+                      <div className="entry-period">{edu.content.period}</div>
                     </div>
-                    <div className="entry-org">{edu.school}</div>
-                    {edu.desc && <div className="entry-desc">{edu.desc}</div>}
+                    <div className="entry-org">{edu.content.school}</div>
+                    {edu.content.desc && <div className="entry-desc">{edu.content.desc}</div>}
                   </div>
                 ))}
               </div>

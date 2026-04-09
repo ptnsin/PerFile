@@ -939,18 +939,19 @@ export default function ResumeBuilder() {
         visibility: "private",
         sections: [
           { type: "summary", content: { text: data.summary }, order: 1 },
-          ...data.experience.map((exp, index) => ({
+          { type: "skills", content: { displayMode: data.skillDisplayMode, list: data.skills }, order: 99 },
+        ],
+        experience: data.experience.map((exp, index) => ({
             type: "experience",
             content: { role: exp.role, company: exp.org, period: exp.period, desc: exp.desc },
             order: index + 2,
           })),
-          ...data.education.map((edu, index) => ({
-            type: "education",
-            content: { degree: edu.degree, school: edu.school, period: edu.period, desc: edu.desc },
-            order: data.experience.length + index + 2,
-          })),
-          { type: "skills", content: { displayMode: data.skillDisplayMode, list: data.skills }, order: 99 },
-        ],
+        education: data.education.map((edu, index) => ({
+          type: "education",
+          content: { degree: edu.degree, school: edu.school, period: edu.period, desc: edu.desc },
+          order: data.experience.length + index + 2,
+        })),
+        
       };
       const response = await axios.post("http://localhost:3000/resumes", payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },

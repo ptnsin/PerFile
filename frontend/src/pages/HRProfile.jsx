@@ -580,7 +580,7 @@ function ApplicantsModal({ open, onClose, job, applicants }) {
   const [search, setSearch]         = useState("");
   const [activeStatus, setStatus]   = useState("ทั้งหมด");
 
-  useEffect(() => { if (open) { setSearch(""); setStatus("ทั้งหมด"); } }, [open]);
+  // useEffect(() => { if (open) { setSearch(""); setStatus("ทั้งหมด"); } }, [open]);
 
   if (!open || !job) return null;
 
@@ -1108,10 +1108,10 @@ export default function HRProfile() {
   const [filterJobId, setFilterJobId]     = useState(null);
   const [applicantsModal, setApplicantsModal] = useState(null); // job object
 
-  const goToApplicants = (jobId = null) => {
-    setFilterJobId(jobId);
-    setActivePage("applicants");
-  };
+  // const goToApplicants = (jobId = null) => {
+  //   setFilterJobId(jobId);
+  //   setActivePage("applicants");
+  // };
 
   const openApplicantsModal = (job) => setApplicantsModal(job);
   const navigate  = useNavigate();
@@ -1132,10 +1132,11 @@ export default function HRProfile() {
   const initialTab    = location.state?.scrollTo === "saved" ? "saved" : null;
   const navToPage     = location.state?.scrollTo === "applicants" ? "applicants" : null;
   const navFilterJob  = location.state?.filterJobId ?? null;
-
+  
   // ถ้า navigate มาพร้อม scrollTo: "applicants" ให้เปิดหน้าผู้สมัครทันที
   useEffect(() => {
     if (navToPage === "applicants") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilterJobId(navFilterJob);
       setActivePage("applicants");
       window.history.replaceState({}, document.title);
