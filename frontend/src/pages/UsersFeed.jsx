@@ -23,6 +23,8 @@ export default function UsersFeed() {
   const [menuOpen, setMenuOpen]         = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [jobs, setJobs] = useState([]);
+  const [selectedJob, setSelectedJob] = useState(null); // เก็บข้อมูลงานที่คลิก
+  const [isModalOpen, setIsModalOpen] = useState(false); // ควบคุมการเปิด Modal
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
@@ -45,6 +47,16 @@ export default function UsersFeed() {
   };
   fetchJobs();
 }, []);
+
+const handleOpenJobDetail = (job) => {
+  setSelectedJob(job);
+  setIsModalOpen(true);
+};
+
+const handleCloseModal = () => {
+  setIsModalOpen(false);
+  setSelectedJob(null);
+};
 
   useEffect(() => {
     const fetchPublicResumes = async () => {
@@ -281,22 +293,35 @@ export default function UsersFeed() {
                 )
               ) : (
                jobs.length > 0 ? (
-                jobs.map((job) => (
-                  <div key={job.id} className="uf-resume-card">
-                    <div className="uf-resume-header">
-                      <div className="uf-resume-icon"><LuBriefcase /></div>
-                      <span className="uf-resume-badge">{job.job_type}</span>
+                  jobs.map((job) => (
+                    <div 
+                      key={job.id} 
+                      className="new-job-card" /* ใช้ class ใหม่สำหรับดีไซน์รูปที่ 2 */
+                      onClick={() => handleOpenJobDetail(job)} /* ฟังก์ชันเปิด Modal รูปที่ 3 */
+                    >
+                      {/* ส่วนบนของ Card */}
+                      <div className="new-job-header">
+                        <div className="job-icon-container">
+                          <LuBriefcase size={22} />
+                        </div>
+                        {/* Tag PART-TIME ด้านขวาบนตามรูปที่ 2 */}
+                        <span className="job-type-badge-top">{job.job_type}</span>
+                      </div>
+
+                      {/* ชื่อตำแหน่งงาน */}
+                      <h3 className="new-job-title">{job.title}</h3>
+
+                      {/* รายละเอียดด้านล่าง (รูปที่ 2) */}
+                      <div className="new-job-info">
+                        <div className="info-line">
+                          <LuBadgeCheck size={14} /> <span>{job.category}</span>
+                        </div>
+                        <div className="info-line">
+                          <LuMapPin size={14} /> <span>{job.location}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="uf-resume-title">{job.title}</div>
-                    <div className="uf-resume-meta">
-                      <span>🏢 {job.company_name || "General HR"}</span>
-                      <span>📍 {job.location}</span>
-                    </div>
-                    <div style={{ color: '#059669', fontWeight: 'bold', marginTop: '8px' }}>
-                      ฿ {job.salary}
-                    </div>
-                  </div>
-                ))
+                  ))
                 ) : (
                   /* กรณีไม่มีข้อมูลงาน */
                   <div className="uf-empty">
@@ -310,6 +335,7 @@ export default function UsersFeed() {
 
         </main>
       </div>
+      
     </div>
   );
 }

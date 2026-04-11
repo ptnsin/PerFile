@@ -697,8 +697,13 @@ hrRouter.post('/jobs', async (req, res) => {
 hrRouter.get('/jobs', async (req, res) => {
   try {
     const jobs = await prisma.job.findMany({
-      where: { hrId: Number(req.user.id) }, // ดึงเฉพาะงานของ HR คนนี้
-      orderBy: { createdAt: 'desc' } // เอาอันใหม่ขึ้นก่อน
+      where: { hrId: Number(req.user.id) }, 
+      include: {
+        _count: {
+          select: { applications: true } 
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     });
     res.json({ jobs });
   } catch (err) {

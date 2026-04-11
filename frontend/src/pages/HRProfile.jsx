@@ -65,7 +65,7 @@ async function getOpenJobs() {
         posted: new Date(job.createdAt).toLocaleDateString('th-TH', { 
           day: 'numeric', month: 'short' 
         }),
-        applicants: job.applicants || 0 // ถ้ายังไม่มีระบบนับจริงให้ใส่ 0 ไว้ก่อน
+        applicants: job._count?.applications || 0
       }));
   } catch (err) {
     console.error(err);

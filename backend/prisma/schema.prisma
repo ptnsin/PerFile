@@ -32,6 +32,7 @@ model User {
   resumes           resumes[]
   audit_logs        audit_logs[]
   Job               Job[]
+  applications      JobApplication[]
   roles             roles               @relation(fields: [roles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([roles_id], map: "roles_id")
@@ -160,9 +161,26 @@ model Job {
   benefits     String   @db.Text
   createdAt    DateTime @default(now()) @db.Timestamp(0)
   status       String   @default("เปิดรับสมัคร") @db.VarChar(50)
+  applications JobApplication[]
   
   hrId         Int
   users        User     @relation(fields: [hrId], references: [id], onDelete: Cascade)
 
   @@index([hrId], map: "hrId_idx")
+}
+
+model JobApplication {
+  id           Int      @id @default(autoincrement())
+  jobId        Int
+  seekerId     Int
+  appliedAt    DateTime @default(now()) @db.Timestamp(0)
+  status       String   @default("pending") @db.VarChar(50) // เช่น pending, interviewing, rejected
+
+  // Relation
+  job    Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  seeker User @relation(fields: [seekerId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([seekerId])
+  @@map("job_applications")
 }
