@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuFileText, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard,
-  LuBadgeCheck, LuClock,
+  LuBadgeCheck, LuClock,LuMapPin
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 import "../styles/UsersFeed.css";
