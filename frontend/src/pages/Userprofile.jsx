@@ -314,7 +314,16 @@ useEffect(() => {
 
   const toggleSidebar = () => { if (sidebarOpen && sidebarRef.current) sidebarRef.current.style.width=""; setSidebarOpen(v=>!v); };
   const handleTabClick= (key) => { setActiveTab(key); if (key==="saved"&&savedSectionRef.current) setTimeout(()=>savedSectionRef.current.scrollIntoView({behavior:"smooth",block:"start"}),50); };
-  const handleDelete  = () => { if (!deleteConfirm) return; deleteConfirm.type==="private" ? removePrivate(deleteConfirm.id) : removeResume(deleteConfirm.id); setDeleteConfirm(null); };
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    await fetch(`${API}/resumes/${deleteConfirm.id}`, {
+      method:"DELETE", headers:authHeader()
+    });
+    // รีโหลดรายการหลังลบ
+    const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
+    if (res.ok) { const d = await res.json(); setMyResumes(d.resumes ?? []); }
+    setDeleteConfirm(null);
+  };
 
   return (
     <div className="uf-page">
@@ -620,41 +629,57 @@ useEffect(() => {
           {/* Tab Panel */}
           <div className="uf-panel">
             <div className="uf-tab-bar">
-              {TABS.map(t => (
-                <button key={t.key} className={`uf-tab${activeTab===t.key?" active":""}`} onClick={() => handleTabClick(t.key)}>
-                  {t.label}
-                  {t.key==="resumes"&&activeTab==="resumes"&&privateList.length>0&&<span className="uf-tab-badge">{privateList.length}</span>}
-                  {t.key==="jobs"&&activeTab==="jobs"&&publicList.length>0&&<span className="uf-tab-badge" style={{background:"#16a34a"}}>{publicList.length}</span>}
-                </button>
-              ))}
-            </div>
-
-            <div className="uf-filter-bar">
-              {activeTab==="resumes"&&(
-                <button className="uf-filter-btn" style={{marginLeft:"auto",background:"#1e3a8a",color:"#fff",border:"none"}} onClick={() => navigate("/resume")}>
+              <>
+                {TABS.map(t => (
+                  <button key={t.key} className={`uf-tab${activeTab===t.key?" active":""}`} onClick={() => handleTabClick(t.key)}>
+                    {t.label}
+                    {t.key==="resumes"&&privateList.length>0&&<span className="uf-tab-badge">{privateList.length}</span>}
+                    {t.key==="jobs"&&publicList.length>0&&<span className="uf-tab-badge" style={{background:"#16a34a"}}>{publicList.length}</span>}
+                  </button>
+                ))}
+                <button
+                  className="uf-filter-btn"
+                  style={{marginLeft:"auto",background:"#1e3a8a",color:"#fff",border:"none",whiteSpace:"nowrap"}}
+                  onClick={() => navigate("/resume")}
+                >
                   <LuPlus /> สร้างเรซูเม่
                 </button>
-              )}
+              </>
             </div>
 
             {/* Private Resumes */}
             {activeTab==="resumes"&&(
               <div className="uf-cards-grid">
-                {privateResumes.length > 0 ? (
+                {privateList.length > 0 ? (
                   <>
-                    {privateResumes.map(p => (
+                    {privateList.map(p => (
                       <div key={p.id} className="uf-resume-card" onClick={() => navigate(`/view-resume/${p.id}`)}>
                         <div className="uf-resume-header"><div className="uf-resume-icon"><LuFileText /></div></div>
                         <div className="uf-resume-title">{p.title}</div>
                         <div className="uf-resume-meta">
-                          <span><LuBadgeCheck /> {p.owner??"You"}</span>
-                          {p.createdAt&&<span style={{color:"#9ca3af",fontSize:11}}>🔒 {p.createdAt}</span>}
+                          <span><LuBadgeCheck /> {userData?.fullName??"You"}</span>
+                          {p.createdAt&&<span style={{color:"#9ca3af",fontSize:11}}>
+                            🔒 {new Date(p.createdAt).toLocaleDateString("th-TH")}
+                          </span>}
                         </div>
                         <div style={{position:"absolute",top:16,right:16,zIndex:1}} onClick={e=>e.stopPropagation()}>
                           <button className="uf-action-btn" onClick={e=>{e.stopPropagation();setActionMenuId(prev=>prev===p.id?null:p.id);}}>⋮</button>
                           {actionMenuId===p.id&&(
                             <div className="uf-action-menu" onClick={e=>e.stopPropagation()}>
-                              <button className="uf-action-menu-item uf-action-menu-item--accent" onClick={()=>{setActionMenuId(null);publishPrivate(p.id);setActiveTab("jobs");}}>เปลี่ยนเป็น public</button>
+                              <button className="uf-action-menu-item uf-action-menu-item--accent"
+                                onClick={async()=>{
+                                  setActionMenuId(null);
+                                  // เรียก API เปลี่ยน visibility
+                                  await fetch(`${API}/resumes/${p.id}/visibility`, {
+                                    method:"PATCH",
+                                    headers:{"Content-Type":"application/json",...authHeader()},
+                                    body:JSON.stringify({visibility:"public"})
+                                  });
+                                  // รีโหลดรายการ
+                                  const res = await fetch(`${API}/resumes/my`,{headers:authHeader()});
+                                  if(res.ok){const d=await res.json();setMyResumes(d.resumes??[]);}
+                                  setActiveTab("jobs");
+                                }}>เปลี่ยนเป็น public</button>
                               <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={()=>{setActionMenuId(null);setDeleteConfirm({id:p.id,type:"private"});}}>ลบ Resume</button>
                             </div>
                           )}
