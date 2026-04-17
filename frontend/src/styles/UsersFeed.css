@@ -575,90 +575,71 @@ background: #1d4ed8;
 }
 .uf-skeleton-line.short { width: 55%; }
 
-/* การ์ดหลัก */
-.new-job-card {
+.hrf-job-card {
   background: #fff;
   border: 1px solid #e4e4e7;
   border-radius: 16px;
   padding: 20px;
-  position: relative;
-  transition: all 0.2s ease;
-  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   flex-direction: column;
+  aspect-ratio: 1 / 1.1; /* ปรับให้เป็นทรงเกือบจตุรัสเหมือนรูป */
 }
 
-.new-job-card:hover {
-  border-color: #1e3a8a;
-  box-shadow: 0 10px 25px rgba(30, 58, 138, 0.06);
+.hrf-job-card:hover {
+  border-color: #1d4ed8;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
   transform: translateY(-2px);
 }
 
-/* หัวการ์ด: Icon & Badge */
-.new-job-header {
+.hrf-job-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
-.job-icon-container {
-  width: 42px;
-  height: 42px;
-  background: #f1f5f9;
-  border-radius: 12px;
+.hrf-job-icon {
+  width: 40px;
+  height: 40px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #1e3a8a;
+  font-size: 20px;
 }
 
-.job-type-badge-top {
-  background: #eff6ff;
-  color: #1e40af;
-  padding: 4px 12px;
-  border-radius: 99px;
+.hrf-job-type {
+  background: #f8fafc;
+  color: #64748b;
+  padding: 4px 10px;
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  border: 1px solid #e2e8f0;
 }
 
-/* เนื้อหา: Title & Info */
-.new-job-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: #18181b;
-  margin-bottom: 12px;
+.hrf-job-title {
+  color: #1e293b;
   line-height: 1.4;
+  height: 3em; /* คุมความสูงให้บรรทัดเท่ากัน */
+  overflow: hidden;
 }
 
-.new-job-info {
+.hrf-job-meta {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 15px;
-}
-
-.info-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #71717a;
+  gap: 6px;
+  color: #64748b;
   font-size: 13px;
 }
 
-/* ส่วนท้าย: Salary */
-.job-card-footer {
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px dashed #f4f4f5;
-}
-
-.job-salary {
-  color: #059669; /* สีเขียวสำหรับเงินเดือน */
-  font-weight: 700;
-  font-size: 15px;
+.hrf-job-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 @keyframes uf-shimmer {

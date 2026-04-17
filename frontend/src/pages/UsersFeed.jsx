@@ -7,6 +7,8 @@ import {
   LuBadgeCheck, LuClock, LuMapPin
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
+import JobDetailModal from "./JobDetailModal";
+
 import "../styles/UsersFeed.css";
 
 const TABS = [
@@ -47,6 +49,11 @@ export default function UsersFeed() {
   const handleOpenJobDetail = (job) => {
     setSelectedJob(job);
     setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedJob(null);
   };
 
   // Fetch Public Resumes
@@ -240,16 +247,6 @@ export default function UsersFeed() {
               )}
             </div>
 
-            {isFilterOpen && (
-              <div className="uf-filter-panel">
-                <p>ตัวอย่างตั้งค่า filter:</p>
-                <button
-                  className="uf-filter-option"
-                  onClick={() => { setSearchTerm(""); setIsFilterOpen(false); }}
-                >ล้าง filter</button>
-              </div>
-            )}
-
             <div className="uf-cards-grid">
               {activeTab === "resume" ? (
                 filteredResumes.length > 0 ? (
@@ -264,14 +261,6 @@ export default function UsersFeed() {
                   <div className="uf-empty">
                     <div className="uf-empty-icon">📄</div>
                     <div className="uf-empty-title">ยังไม่มีเรซูเม่สาธารณะ</div>
-                    <div className="uf-empty-desc">
-                      กด{" "}
-                      <span
-                        style={{ color: "#1e3a8a", cursor: "pointer", fontWeight: 700 }}
-                        onClick={() => navigate("/resume")}
-                      >Create Resume</span>{" "}
-                      เพื่อสร้างและเผยแพร่เรซูเม่ของคุณ
-                    </div>
                   </div>
                 )
               ) : (
@@ -279,7 +268,6 @@ export default function UsersFeed() {
                   jobs.map((job) => (
                     <JobCard 
                       key={job.id} 
-                      // ส่งชื่อบริษัทผ่าน Property นี้ เพื่อให้ JobCard ใช้งานได้ทันที
                       job={{
                         ...job,
                         company_name: job.users?.hr_profile?.company 
@@ -298,6 +286,14 @@ export default function UsersFeed() {
           </div>
         </main>
       </div>
+
+      {/* วาง Modal ไว้ที่นี่ (ด้านนอกสุดของโครงสร้างหลัก) */}
+      <JobDetailModal
+        open={isModalOpen}
+        job={selectedJob}
+        onClose={handleCloseModal}
+        onViewApplicants={() => {}} 
+      />
     </div>
   );
 }
@@ -323,33 +319,38 @@ function ResumeCard({ resume, onClick }) {
 }
 
 function JobCard({ job, onClick }) {
-  // ใช้ค่าจาก company_name ที่เรา Flatten มาจาก map ด้านบน
   const companyName = job.company_name || "ทั่วไป";
   
   return (
-    <div className="new-job-card" onClick={onClick}>
-      <div className="new-job-header">
-        <div className="job-icon-container">
-          <LuBriefcase size={22} />
+    <div
+      className="hrf-job-card" 
+      onClick={onClick}
+      style={{ cursor: "pointer", position: "relative" }}
+    >
+      <div className="hrf-job-header">
+        <div className="hrf-job-icon">
+          <LuBriefcase />
         </div>
-        <span className="job-type-badge-top">{job.job_type}</span>
+        <span className="hrf-job-type">{job.job_type || "ไม่ระบุ"}</span>
       </div>
 
-      <h3 className="new-job-title">{job.title}</h3>
-
-      <div className="new-job-info">
-        <div className="info-line">
-          <LuBadgeCheck size={14} /> 
-          <span>{companyName}</span> 
-        </div>
-        <div className="info-line">
-          <LuMapPin size={14} /> 
-          <span>{job.location}</span>
-        </div>
+      <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem", marginBottom: "8px" }}>
+        {job.title}
       </div>
-      
-      <div className="job-card-footer">
-        <span className="job-salary">฿ {job.salary}</span>
+
+      <div className="hrf-job-meta">
+        <span>
+          <LuBadgeCheck /> {companyName}
+        </span>
+        <span>
+          <LuMapPin /> {job.location || "ไม่ระบุ"}
+        </span>
+      </div>
+
+      <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #f1f5f9" }}>
+        <span style={{ color: "#059669", fontWeight: 700, fontSize: "14px" }}>
+          ฿ {job.salary}
+        </span>
       </div>
     </div>
   );
