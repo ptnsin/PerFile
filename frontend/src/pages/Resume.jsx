@@ -719,7 +719,7 @@ function LivePreviewPanel({ data, onOpenA4 }) {
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────── */
-const STORAGE_KEY = "resumecraft_draft";
+const STORAGE_KEY = "rafresumect_draft";
 
 export default function ResumeBuilder() {
   const [data, setData] = useState(() => {
@@ -836,7 +836,7 @@ export default function ResumeBuilder() {
         <div className="sidebar">
           <div className="sidebar-header">
             <button className="back-link" onClick={() => navigate("/feed")}>← กลับไปหน้า Feed</button>
-            <div className="logo">résumé<span>craft</span></div>
+            <div className="logo">Resume<span>craft</span></div>
           </div>
 
           <div className="sidebar-tabs">
