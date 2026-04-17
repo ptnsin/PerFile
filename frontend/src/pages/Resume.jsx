@@ -823,6 +823,42 @@ export default function ResumeBuilder() {
     { id: "skills", label: "ทักษะ" },
   ];
 
+  const handlePublish = async () => {
+  try {
+    const payload = {
+      title: data.name ? `${data.name} - Resume` : "Untitled Resume",
+      template: data.template || "modern",
+      visibility: "public",   // ✅ ตรงนี้คือจุดต่าง
+      summary: data.summary || null,
+      experience: data.experience.map(exp => ({
+        role: exp.role,
+        org: exp.org,
+        period: exp.period,
+        desc: exp.desc,
+      })),
+      education: data.education.map(edu => ({
+        degree: edu.degree,
+        school: edu.school,
+        period: edu.period,
+        desc: edu.desc,
+      })),
+      skills: data.skills,
+    };
+
+    const response = await axios.post("http://localhost:3000/resumes", payload, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+
+    if (response.status === 201) {
+      publish(data); // ยังเรียก context ได้ถ้าต้องการ
+      navigate("/feed");
+    }
+  } catch (error) {
+    console.error("Publish Error:", error);
+    alert("โพสต์ไม่สำเร็จ กรุณาลองใหม่");
+  }
+};
+
   return (
     <>
       {savedToast && <div className="toast-notification">✓ บันทึก Resume แล้ว! กำลังไปหน้า Profile...</div>}
@@ -1058,7 +1094,7 @@ export default function ResumeBuilder() {
             <button
               className="btn-download"
               style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
-              onClick={() => { publish(data); navigate("/feed"); }}
+              onClick={handlePublish}
             >
               🌐 โพสต์สาธารณะ → Feed
             </button>

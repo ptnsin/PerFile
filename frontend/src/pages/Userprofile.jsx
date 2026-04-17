@@ -715,8 +715,8 @@ useEffect(() => {
                           <button className="uf-action-btn" onClick={e=>{e.stopPropagation();setActionMenuId(prev=>prev===p.id?null:p.id);}}>⋮</button>
                           {actionMenuId===p.id&&(
                             <div className="uf-action-menu" onClick={e=>e.stopPropagation()}>
-                              <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={()=>{setActionMenuId(null);setDeleteConfirm({id:p.id,type:"public"});}}>ลบ Resume</button>
                               <button className="uf-action-menu-item uf-action-menu-item--accent" onClick={()=>{setActionMenuId(null);alert("กำลังเปลี่ยนเป็น Private...");}}>เปลี่ยนเป็น private</button>
+                              <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={()=>{setActionMenuId(null);setDeleteConfirm({id:p.id,type:"public"});}}>ลบ Resume</button>
                             </div>
                           )}
                         </div>

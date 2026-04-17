@@ -17,11 +17,16 @@ const resumeRouter = Router();
 resumeRouter.get("/public", async (req, res) => {
   try {
     const [resumes] = await db.query(
-      `SELECT r.id, r.title, r.visibility, r.created_at AS publishedAt, u.fullName AS owner 
-       FROM resumes r 
-       JOIN users u ON r.user_id = u.id 
-       WHERE r.visibility = 'public' 
-       ORDER BY r.created_at DESC`
+      `SELECT 
+        r.id, 
+        r.title, 
+        r.visibility, 
+        r.created_at AS published_at,
+        JSON_OBJECT('fullName', u.fullName) AS users
+      FROM resumes r 
+      JOIN users u ON r.user_id = u.id 
+      WHERE r.visibility = 'public' 
+      ORDER BY r.created_at DESC`
     );
     res.status(200).json({ resumes });
   } catch (err) {

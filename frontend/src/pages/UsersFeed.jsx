@@ -299,20 +299,111 @@ export default function UsersFeed() {
 }
 
 function ResumeCard({ resume, onClick }) {
-  const displayDate = resume.published_at 
-    ? new Date(resume.published_at).toLocaleDateString('th-TH') 
-    : "No date";
+  const cardRef = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  const displayDate =
+    resume.published_at || resume.publishedAt
+      ? new Date(resume.published_at || resume.publishedAt).toLocaleDateString("th-TH")
+      : "No date";
+  const ownerName = resume.users?.fullName || resume.owner;
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const CARD_W = 236;        // 260px card - 12px padding x2
+  const IFRAME_W = 794;
+  const IFRAME_H = 1123;
+  const scale = CARD_W / IFRAME_W;
+  const previewH = Math.round(IFRAME_H * scale);
 
   return (
-    <div className="uf-resume-card" onClick={onClick}>
-      <div className="uf-resume-header">
-        <div className="uf-resume-icon"><LuFileText /></div>
-        <span className="uf-resume-badge">Public</span>
+    <div
+      ref={cardRef}
+      className="uf-resume-card"
+      onClick={onClick}
+      style={{
+        cursor: "pointer",
+        padding: "12px 12px 0 12px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+      }}
+    >
+      {/* ── PREVIEW AREA (มีขอบและ padding รอบๆ) ── */}
+      <div style={{
+        position: "relative",
+        width: "100%",
+        height: previewH,
+        overflow: "hidden",
+        background: "#f8fafc",
+        flexShrink: 0,
+        borderRadius: "8px",
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      }}>
+        {inView ? (
+          <iframe
+            src={`/view-resume/${resume.id}`}
+            title={resume.title}
+            scrolling="no"
+            style={{
+              width: IFRAME_W,
+              height: IFRAME_H,
+              border: "none",
+              transformOrigin: "top left",
+              transform: `scale(${scale})`,
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          />
+        ) : (
+          <div style={{
+            width: "100%",
+            height: "100%",
+            background: "linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)",
+            backgroundSize: "200% 100%",
+            animation: "uf-shimmer 1.4s infinite",
+          }} />
+        )}
+
+        {/* Hover overlay */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "transparent",
+            transition: "background 0.2s",
+            borderRadius: "8px",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "rgba(30,58,138,0.06)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+        />
+
+        {/* PUBLIC badge */}
+        <span className="uf-resume-badge" style={{ position: "absolute", top: 8, right: 8, zIndex: 2 }}>
+          Public
+        </span>
       </div>
-      <div className="uf-resume-title">{resume.title}</div>
-      <div className="uf-resume-meta">
-        {resume.users?.fullName && <span><LuBadgeCheck /> {resume.users.fullName}</span>}
-        <span><LuClock /> {displayDate}</span>
+
+      {/* ── FOOTER ── */}
+      <div style={{ padding: "10px 2px 12px" }}>
+        <div className="uf-resume-title" style={{ marginBottom: 5, fontSize: "13px" }}>
+          {resume.title}
+        </div>
+        <div className="uf-resume-meta">
+          {ownerName && <span><LuBadgeCheck /> {ownerName}</span>}
+          <span><LuClock /> {displayDate}</span>
+        </div>
       </div>
     </div>
   );

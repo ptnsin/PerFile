@@ -207,3 +207,8 @@
   border: 2px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 20px rgba(0, 70, 255, 0.2);
 }
+
+@keyframes uf-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
