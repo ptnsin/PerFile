@@ -113,10 +113,25 @@ async function getStats() {
 }
 
 async function getAboutItems() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/about", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return getAboutItemsDefault();
+    const data = await res.json();
+    return (data.aboutItems || []).length > 0 ? data.aboutItems : getAboutItemsDefault();
+  } catch (err) {
+    console.error(err);
+    return getAboutItemsDefault();
+  }
+}
+
+function getAboutItemsDefault() {
   return [
-    { icon: "🎓", title: "การศึกษา", detail: "ปริญญาตรี สาขาบริหารทรัพยากรมนุษย์" },
-    { icon: "💼", title: "ประสบการณ์", detail: "HR Recruiter มากกว่า 5 ปี" },
-    { icon: "🌟", title: "ความเชี่ยวชาญ", detail: "IT Recruitment, Headhunting" },
+    { icon: "🎓", title: "การศึกษา", detail: "คลิกเพื่อแก้ไข" },
+    { icon: "💼", title: "ประสบการณ์", detail: "คลิกเพื่อแก้ไข" },
+    { icon: "🌟", title: "ความเชี่ยวชาญ", detail: "คลิกเพื่อแก้ไข" },
   ];
 }
 
@@ -171,8 +186,42 @@ async function getApplicants() {
     return [];
   }
 }
-async function getInterviews()   { /* TODO */ return []; }
-async function getReportData()   { /* TODO */ return null; }
+async function getInterviews() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/interviews", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.interviews || []).map(iv => ({
+      ...iv,
+      candidate:   iv.candidate_name || iv.candidate || "ไม่ระบุชื่อ",
+      role:        iv.job_title      || iv.role      || "ไม่ระบุตำแหน่ง",
+      date:        iv.interview_date ? new Date(iv.interview_date).toLocaleDateString("th-TH") : iv.date || "",
+      time:        iv.interview_time || iv.time      || "",
+      type:        iv.interview_type || iv.type      || "Online",
+      interviewer: iv.interviewer    || "ไม่ระบุ",
+    }));
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+async function getReportData() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/report", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.report || null;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
 
 
 
@@ -193,7 +242,21 @@ async function saveHrProfile(payload) {
   }
 }
 
-async function saveAboutItems(/*items*/)   { /* TODO */ }
+async function saveAboutItems(items) {
+  try {
+    const token = localStorage.getItem("token");
+    await fetch("http://localhost:3000/hr/about", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ aboutItems: items }),
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
 
 // ── Dept color map ────────────────────────────────────────────
 const DEPT_COLORS = {
@@ -377,7 +440,22 @@ const updateHr = (key) => (val) => {
     setAboutItems(updated);
     saveAboutItems(updated);
   };
-  const toggleSave = (id) => setSavedJobs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleSave = async (id) => {
+    const isSaved = savedJobs.includes(id);
+    // optimistic UI
+    setSavedJobs(prev => isSaved ? prev.filter(x => x !== id) : [...prev, id]);
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`http://localhost:3000/hr/saved-jobs/${id}`, {
+        method: isSaved ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.error(err);
+      // rollback ถ้า API fail
+      setSavedJobs(prev => isSaved ? [...prev, id] : prev.filter(x => x !== id));
+    }
+  };
   const removePerk = (p) => { const u = { ...(hr||{}), perks: (hr?.perks||[]).filter(x => x !== p) }; setHr(u); saveHrProfile({ perks: u.perks }); };
   const addPerk    = () => { if (newPerk.trim()) { const u = { ...(hr||{}), perks: [...(hr?.perks||[]), newPerk.trim()] }; setHr(u); saveHrProfile({ perks: u.perks }); setNewPerk(""); } };
 
@@ -1167,6 +1245,20 @@ export default function HRProfile() {
     getReportData().then(setReportData);
     getActivities().then(setActivities);
     getQuickActions().then(setQuickActions);
+
+    // โหลด saved jobs จาก backend
+    const token = localStorage.getItem("token");
+    if (token) {
+      fetch("http://localhost:3000/hr/saved-jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : { savedJobs: [] })
+        .then(data => {
+          const ids = (data.savedJobs || []).map(j => j.id ?? j);
+          setSavedJobs(ids);
+        })
+        .catch(console.error);
+    }
   }, []);
 
   const renderMain = () => {

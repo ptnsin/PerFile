@@ -33,6 +33,8 @@ model User {
   audit_logs        audit_logs[]
   Job               Job[]
   applications      JobApplication[]
+  saved_jobs        saved_jobs[]
+  interviews        interviews[]
   roles             roles               @relation(fields: [roles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([roles_id], map: "roles_id")
@@ -70,6 +72,8 @@ model hr_profiles {
   company_desc String?  @db.Text
   company_size String?  @db.VarChar(50)
   founded      String?  @db.VarChar(20)
+  role         String?  @default("HR Recruiter") @db.VarChar(100)
+  about_items  Json?
 
   user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -162,6 +166,7 @@ model Job {
   createdAt    DateTime @default(now()) @db.Timestamp(0)
   status       String   @default("เปิดรับสมัคร") @db.VarChar(50)
   applications JobApplication[]
+  saved_jobs   saved_jobs[]
   
   hrId         Int
   users        User     @relation(fields: [hrId], references: [id], onDelete: Cascade)
@@ -183,4 +188,33 @@ model JobApplication {
   @@index([jobId])
   @@index([seekerId])
   @@map("job_applications")
+}
+model saved_jobs {
+  id         Int      @id @default(autoincrement())
+  hr_id      Int
+  job_id     Int
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  user       User     @relation(fields: [hr_id],  references: [id], onDelete: Cascade)
+  job        Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@unique([hr_id, job_id])
+  @@map("saved_jobs")
+}
+
+model interviews {
+  id               Int       @id @default(autoincrement())
+  hr_id            Int
+  job_id           Int?
+  candidate_name   String?   @db.VarChar(255)
+  job_title        String?   @db.VarChar(255)
+  interview_date   DateTime? @db.Date
+  interview_time   String?   @db.VarChar(20)
+  interview_type   String?   @default("Online") @db.VarChar(50)
+  interviewer      String?   @db.VarChar(255)
+  created_at       DateTime  @default(now()) @db.Timestamp(0)
+
+  user             User      @relation(fields: [hr_id], references: [id], onDelete: Cascade)
+
+  @@map("interviews")
 }

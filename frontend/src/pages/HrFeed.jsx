@@ -412,11 +412,25 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
     setMenuOpen(!menuOpen);
   };
 
-  const deleteJob = (e) => {
+  const deleteJob = async (e) => {
     e.stopPropagation();
     setMenuOpen(false);
-    if (window.confirm(`ยืนยันการลบ "${job.title}"?`)) {
-      console.log(`Delete: ${job.id}`);
+    if (!window.confirm(`ยืนยันการลบ "${job.title}"?`)) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/hr/jobs/${job.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        alert(data.message || "ลบไม่สำเร็จ");
+      }
+    } catch (err) {
+      console.error("Delete job error:", err);
+      alert("เกิดข้อผิดพลาดในการลบ");
     }
   };
 

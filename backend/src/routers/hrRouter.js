@@ -597,21 +597,18 @@ hrRouter.put('/profile', async (req, res) => {
       where: { id: req.user.id },
       data: {
         fullName,
-        // ถ้าต้องการให้เปลี่ยน username ตาม handle ที่ส่งมา
-        // username: handle?.replace('@', ''), 
         hr_profile: {
           upsert: { 
             create: { 
               company, bio, website, location, industry, founded,
               company_desc: company_desc, 
               company_size: company_size,
-              role: role // ✅ ตรวจสอบว่าใน DB มีคอลัมน์ role หรือยัง
+              // role ยังไม่มีใน DB — ถ้าจะใช้ให้รัน: ALTER TABLE hr_profiles ADD COLUMN role VARCHAR(100) DEFAULT 'HR Recruiter';
             },
             update: { 
               company, bio, website, location, industry, founded,
               company_desc: company_desc,
               company_size: company_size,
-              role: role
             }
           }
         }
@@ -697,16 +694,20 @@ hrRouter.post('/jobs', async (req, res) => {
 hrRouter.get('/jobs', async (req, res) => {
   try {
     const jobs = await prisma.job.findMany({
-      where: { hrId: Number(req.user.id) }, 
-      include: {
-        _count: {
-          select: { applications: true } 
-        }
-      },
+      where: { hrId: Number(req.user.id) },
       orderBy: { createdAt: 'desc' }
     });
-    res.json({ jobs });
+
+    // เพิ่ม applicants count จากตาราง applications (ถ้ามี)
+    // ถ้ายังไม่มีตาราง applications ให้ใส่ 0 ไว้ก่อน
+    const jobsWithCount = jobs.map(job => ({
+      ...job,
+      _count: { applications: 0 }
+    }));
+
+    res.json({ jobs: jobsWithCount });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Error fetching jobs" });
   }
 });
@@ -752,3 +753,287 @@ hrRouter.get('/activities', async (req, res) => {
 });
 
 export default hrRouter
+// ─────────────────────────────────────────────────────────────
+// DELETE /hr/jobs/:id — ลบประกาศงาน
+hrRouter.delete('/jobs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const job = await prisma.job.findFirst({
+      where: { id: Number(id), hrId: Number(req.user.id) }
+    });
+
+    if (!job) {
+      return res.status(404).json({ message: "ไม่พบประกาศงานนี้ หรือคุณไม่มีสิทธิ์ลบ" });
+    }
+
+    await prisma.job.delete({ where: { id: Number(id) } });
+
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: Number(req.user.id),
+        text: `คุณได้ลบประกาศงาน: ${job.title}`
+      }
+    });
+
+    res.json({ message: "ลบประกาศงานสำเร็จ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในการลบประกาศงาน" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /hr/saved-jobs — ดึงรายการ saved jobs
+// ⚠️ ต้องสร้างตาราง saved_jobs ก่อน (ดู comment SQL ด้านบน)
+hrRouter.get('/saved-jobs', async (req, res) => {
+  try {
+    const saved = await prisma.saved_jobs.findMany({
+      where: { hr_id: Number(req.user.id) },
+      include: { job: true },
+      orderBy: { created_at: 'desc' }
+    });
+
+    const savedJobs = saved.map(s => s.job);
+    res.json({ savedJobs });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching saved jobs" });
+  }
+});
+
+// POST /hr/saved-jobs/:id — save งาน
+hrRouter.post('/saved-jobs/:id', async (req, res) => {
+  try {
+    const jobId = Number(req.params.id);
+    const hrId  = Number(req.user.id);
+
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) return res.status(404).json({ message: "ไม่พบประกาศงานนี้" });
+
+    const existing = await prisma.saved_jobs.findFirst({
+      where: { hr_id: hrId, job_id: jobId }
+    });
+    if (existing) return res.status(409).json({ message: "บันทึกไว้แล้ว" });
+
+    await prisma.saved_jobs.create({
+      data: { hr_id: hrId, job_id: jobId }
+    });
+
+    res.status(201).json({ message: "บันทึกงานสำเร็จ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error saving job" });
+  }
+});
+
+// DELETE /hr/saved-jobs/:id — unsave งาน
+hrRouter.delete('/saved-jobs/:id', async (req, res) => {
+  try {
+    const jobId = Number(req.params.id);
+    const hrId  = Number(req.user.id);
+
+    await prisma.saved_jobs.deleteMany({
+      where: { hr_id: hrId, job_id: jobId }
+    });
+
+    res.json({ message: "ยกเลิก save สำเร็จ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error unsaving job" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /hr/applicants — ดึงผู้สมัครทั้งหมดของ HR คนนี้
+// ⚠️ ต้องสร้างตาราง applications ก่อน (ดู comment SQL ด้านบน)
+hrRouter.get('/applicants', async (req, res) => {
+  try {
+    // ใช้ $queryRaw เพราะตารางชื่อ `applications` ไม่ตรงกับ Prisma model
+    const applications = await prisma.$queryRaw`
+      SELECT 
+        a.id,
+        a.job_id,
+        a.user_id,
+        a.status,
+        a.applied_at,
+        u.fullName,
+        u.username,
+        u.avatar,
+        u.email,
+        j.title AS job_title
+      FROM applications a
+      JOIN users u ON u.id = a.user_id
+      JOIN Job j   ON j.id = a.job_id
+      WHERE j.hrId = ${Number(req.user.id)}
+      ORDER BY a.applied_at DESC
+    `;
+
+    const applicants = applications.map(a => ({
+      id:        a.id,
+      fullName:  a.fullName || a.username,
+      avatar:    a.avatar,
+      email:     a.email,
+      position:  a.job_title,
+      jobId:     a.job_id,
+      status:    a.status,
+      appliedAt: a.applied_at,
+    }));
+
+    res.json({ applicants });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching applicants" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /hr/about — ดึง about items ของ HR
+// PUT /hr/about — บันทึก about items
+// ⚠️ ต้องเพิ่ม column about_items (JSON) ใน hr_profiles:
+//   ALTER TABLE hr_profiles ADD COLUMN about_items JSON DEFAULT NULL;
+hrRouter.get('/about', async (req, res) => {
+  try {
+    const profile = await prisma.hr_profiles.findUnique({
+      where: { user_id: Number(req.user.id) }
+    });
+    const aboutItems = profile?.about_items
+      ? JSON.parse(profile.about_items)
+      : [];
+    res.json({ aboutItems });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching about items" });
+  }
+});
+
+hrRouter.put('/about', async (req, res) => {
+  try {
+    const { aboutItems } = req.body;
+    await prisma.hr_profiles.upsert({
+      where: { user_id: Number(req.user.id) },
+      create: { user_id: Number(req.user.id), about_items: JSON.stringify(aboutItems) },
+      update: { about_items: JSON.stringify(aboutItems) },
+    });
+    res.json({ message: "บันทึก about items สำเร็จ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error saving about items" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /hr/interviews — ดึงตารางสัมภาษณ์
+// ⚠️ ต้องสร้างตาราง interviews ก่อน:
+//   CREATE TABLE IF NOT EXISTS interviews (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     hr_id INT NOT NULL,
+//     job_id INT,
+//     candidate_name VARCHAR(255),
+//     interview_date DATE,
+//     interview_time VARCHAR(20),
+//     interview_type VARCHAR(50) DEFAULT 'Online',
+//     interviewer VARCHAR(255),
+//     job_title VARCHAR(255),
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     FOREIGN KEY (hr_id) REFERENCES users(id) ON DELETE CASCADE
+//   );
+hrRouter.get('/interviews', async (req, res) => {
+  try {
+    const interviews = await prisma.$queryRaw`
+      SELECT * FROM interviews
+      WHERE hr_id = ${Number(req.user.id)}
+      ORDER BY interview_date ASC
+    `;
+    res.json({ interviews });
+  } catch (err) {
+    console.error(err);
+    // ถ้าตารางยังไม่มีให้ return [] แทน error
+    res.json({ interviews: [] });
+  }
+});
+
+// POST /hr/interviews — สร้างนัดสัมภาษณ์ใหม่
+hrRouter.post('/interviews', async (req, res) => {
+  try {
+    const { candidate_name, job_id, job_title, interview_date, interview_time, interview_type, interviewer } = req.body;
+    await prisma.$executeRaw`
+      INSERT INTO interviews (hr_id, job_id, candidate_name, job_title, interview_date, interview_time, interview_type, interviewer)
+      VALUES (${Number(req.user.id)}, ${job_id || null}, ${candidate_name}, ${job_title || ''}, ${interview_date}, ${interview_time}, ${interview_type || 'Online'}, ${interviewer || ''})
+    `;
+
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: Number(req.user.id),
+        text: `นัดสัมภาษณ์ ${candidate_name} เรียบร้อยแล้ว`
+      }
+    });
+
+    res.status(201).json({ message: "สร้างนัดสัมภาษณ์สำเร็จ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error creating interview" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /hr/report — ดึงข้อมูลรายงาน (คำนวณจาก applications + interviews)
+hrRouter.get('/report', async (req, res) => {
+  try {
+    const hrId = Number(req.user.id);
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    // นับ applications เดือนนี้ vs เดือนที่แล้ว
+    const [thisApps, lastApps] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT COUNT(*) as count FROM applications a
+        JOIN Job j ON j.id = a.job_id
+        WHERE j.hrId = ${hrId} AND a.applied_at >= ${thisMonthStart}
+      `,
+      prisma.$queryRaw`
+        SELECT COUNT(*) as count FROM applications a
+        JOIN Job j ON j.id = a.job_id
+        WHERE j.hrId = ${hrId} AND a.applied_at BETWEEN ${lastMonthStart} AND ${lastMonthEnd}
+      `,
+    ]);
+
+    // นับ interviews เดือนนี้ vs เดือนที่แล้ว (ถ้ามีตาราง)
+    let thisIv = 0, lastIv = 0;
+    try {
+      const [r1, r2] = await Promise.all([
+        prisma.$queryRaw`SELECT COUNT(*) as count FROM interviews WHERE hr_id = ${hrId} AND interview_date >= ${thisMonthStart}`,
+        prisma.$queryRaw`SELECT COUNT(*) as count FROM interviews WHERE hr_id = ${hrId} AND interview_date BETWEEN ${lastMonthStart} AND ${lastMonthEnd}`,
+      ]);
+      thisIv = Number(r1[0]?.count || 0);
+      lastIv = Number(r2[0]?.count || 0);
+    } catch (_) { /* ตารางยังไม่มี */ }
+
+    const report = {
+      thisMonth: {
+        applications: Number(thisApps[0]?.count || 0),
+        interviews:   thisIv,
+        offers:       0,
+        hired:        0,
+      },
+      lastMonth: {
+        applications: Number(lastApps[0]?.count || 0),
+        interviews:   lastIv,
+        offers:       0,
+        hired:        0,
+      },
+      topSources: [
+        { name: "PerFile",   pct: 70 },
+        { name: "LinkedIn",  pct: 20 },
+        { name: "อื่นๆ",      pct: 10 },
+      ],
+    };
+
+    res.json({ report });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching report" });
+  }
+});
