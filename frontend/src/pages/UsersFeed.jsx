@@ -323,7 +323,7 @@ function ResumeCard({ resume, onClick }) {
   const IFRAME_W = 794;
   const IFRAME_H = 1123;
   const scale = CARD_W / IFRAME_W;
-  const previewH = Math.round(IFRAME_H * scale);
+  const previewH = Math.round((IFRAME_H / 2) * scale);
 
   return (
     <div
@@ -390,9 +390,8 @@ function ResumeCard({ resume, onClick }) {
         />
 
         {/* PUBLIC badge */}
-        <span className="uf-resume-badge" style={{ position: "absolute", top: 8, right: 8, zIndex: 2 }}>
-          Public
-        </span>
+       {/* PUBLIC badge */}
+
       </div>
 
       {/* ── FOOTER ── */}
