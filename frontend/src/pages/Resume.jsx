@@ -741,7 +741,7 @@ export default function ResumeBuilder() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {}
+    } catch { }
   }, [data]);
 
   const set = (key, val) => setData(d => ({ ...d, [key]: val }));
@@ -776,7 +776,7 @@ export default function ResumeBuilder() {
 
   const removeSkill = (id) => set("skills", data.skills.filter(x => x.id !== id));
 
- const handleSavePrivate = async () => {
+  const handleSavePrivate = async () => {
     try {
       setSavedToast(true);
       const payload = {
@@ -930,7 +930,15 @@ export default function ResumeBuilder() {
                     value={data.phone}
                     onChange={e => {
                       let v = e.target.value.replace(/\D/g, ""); // เอาเฉพาะตัวเลข
-                      if (v.length > 10) v = v.slice(0, 10); // จำกัดไม่เกิน 10 ตัว
+
+                      // บังคับให้ขึ้นต้นด้วย 0
+                      if (v.length > 0 && v[0] !== "0") {
+                        v = "0" + v.slice(1); // หรือจะ return ไม่อัปเดตก็ได้
+                      }
+
+                      // จำกัดไม่เกิน 10 ตัว
+                      if (v.length > 10) v = v.slice(0, 10);
+
                       set("phone", v);
                     }}
                     placeholder="08XXXXXXXX"
