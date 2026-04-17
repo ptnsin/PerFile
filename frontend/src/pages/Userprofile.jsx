@@ -43,6 +43,7 @@ export default function UserProfile() {
   const [actionMenuId, setActionMenuId] = useState(null);
   const [deleteConfirm,setDeleteConfirm]= useState(null);
   const [myResumes,    setMyResumes]    = useState([]);
+  const [stats, setStats] = useState({ resumes: "0", views: "0", saved: "0", jobs: "0" });
 
   // ── Profile editable state ──────────────────────────────────
   const [profile, setProfile] = useState(() => {
@@ -100,6 +101,27 @@ export default function UserProfile() {
     };
     fetchSkills();
   }, []);
+
+  // ── fetch stats จาก Backend ──────────────────────────────────
+useEffect(() => {
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`${API}/profile/stats`, { headers: authHeader() });
+      if (res.ok) {
+        const data = await res.json();
+        setStats({
+          resumes: data.resumes.toString(),
+          views: data.views.toString(),
+          saved: data.saved.toString(),
+          jobs: data.jobs_posted.toString()
+        });
+      }
+    } catch (err) {
+      console.error("fetch stats error:", err);
+    }
+  };
+  fetchStats();
+}, []);
 
   // ── fetch experiences จาก Backend ────────────────────────────
   useEffect(() => {
@@ -529,7 +551,7 @@ export default function UserProfile() {
           <div className="up-stats-row">
             {[
               { num: privateResumes.length.toString(), label: "RESUMES"     },
-              { num: "287",                            label: "VIEWS"       },
+              { num: stats.views,                            label: "VIEWS"       },
               { num: "14",                             label: "SAVED"       },
               { num: "5",                              label: "JOBS POSTED" },
             ].map(s => (

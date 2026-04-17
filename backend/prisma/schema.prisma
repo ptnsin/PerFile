@@ -47,6 +47,7 @@ model seeker_profiles {
   location  String?  @db.VarChar(255)
   education String?  @db.VarChar(255)
   interests String?  @db.VarChar(255)
+  views     Int      @default(0)
   user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("seeker_profiles")

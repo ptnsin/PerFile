@@ -7,6 +7,59 @@ const profileRouter = Router()
 // base path: "/profile"
 
 // ─────────────────────────────────────────────────────────────
+// PROFILE STATS & VIEWS
+// ─────────────────────────────────────────────────────────────
+
+// GET /profile/stats — ดึงข้อมูลสถิติ (Views, Resumes, etc.) ของตัวเอง
+profileRouter.get('/stats', authMiddleware, async (req, res) => {
+  try {
+    // ดึงยอดวิวจาก seeker_profiles
+    const [profileRows] = await db.query(
+      'SELECT views FROM seeker_profiles WHERE user_id = ?',
+      [req.user.id]
+    );
+
+    // ดึงจำนวน Resumes ของ user
+    const [resumeRows] = await db.query(
+      'SELECT COUNT(*) as count FROM resumes WHERE user_id = ?',
+      [req.user.id]
+    );
+
+    res.json({
+      views: profileRows[0]?.views || 0,
+      resumes: resumeRows[0]?.count || 0,
+      saved: 0, // ปรับแต่งตามตาราง saved_jobs ของคุณ
+      jobs_posted: 0
+    });
+  } catch (err) {
+    console.error('GET stats error:', err.message);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /profile/:id/view — เพิ่มยอดวิว (เรียกใช้เมื่อคนอื่นกดดูโปรไฟล์นี้)
+profileRouter.post('/:id/view', async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    
+    // อัปเดตยอดวิวโดยใช้คำสั่ง increment
+    const [result] = await db.query(
+      'UPDATE seeker_profiles SET views = views + 1 WHERE user_id = ?',
+      [targetUserId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'ไม่พบโปรไฟล์' });
+    }
+
+    res.json({ message: 'บันทึกการเข้าชมสำเร็จ' });
+  } catch (err) {
+    console.error('Increment view error:', err.message);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // SKILLS
 // ─────────────────────────────────────────────────────────────
 
