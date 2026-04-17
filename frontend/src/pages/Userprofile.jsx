@@ -10,8 +10,9 @@ import { FiHome } from "react-icons/fi";
 import { useResumes } from "./ResumeContext";
 import "../styles/Userprofile.css";
 
+const API = "http://localhost:3000";
+
 const PROFILE_KEY = "userprofile_local";
-const EXP_KEY     = "userprofile_exp";
 const AVATAR_KEY  = "userprofile_avatar";
 const COVER_KEY   = "userprofile_cover";
 
@@ -23,11 +24,6 @@ const DEFAULT_PROFILE = {
   email: "",
 };
 
-const DEFAULT_EXP = [
-  { id: 1, icon: "💼", title: "Frontend Developer", company: "Tech Startup Co.", date: "2022 – ปัจจุบัน" },
-  { id: 2, icon: "🎨", title: "UX/UI Designer",     company: "Creative Agency",  date: "2020 – 2022" },
-];
-
 const TABS = [
   { key: "resumes", label: "Private Resumes" },
   { key: "jobs",    label: "Public Resumes"  },
@@ -35,6 +31,9 @@ const TABS = [
 ];
 
 const ICONS = ["💼","🎨","💻","📊","🔧","🏗️","📱","🎯","📝","⚙️"];
+
+// helper: authHeader
+const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
 export default function UserProfile() {
   const [activeTab,    setActiveTab]    = useState("resumes");
@@ -54,21 +53,15 @@ export default function UserProfile() {
   const [profileDraft,   setProfileDraft]   = useState(profile);
 
   // ── Experience state ────────────────────────────────────────
-  const [experiences, setExperiences] = useState(() => {
-    try {
-      const saved = localStorage.getItem(EXP_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_EXP;
-    } catch { return DEFAULT_EXP; }
-  });
-  const [expModal,    setExpModal]    = useState(false);   // เพิ่ม
-  const [expEditId,   setExpEditId]   = useState(null);    // แก้ไข id
+  const [experiences, setExperiences] = useState([]);
+  const [expLoading,  setExpLoading]  = useState(true);
+  const [expModal,    setExpModal]    = useState(false);
+  const [expEditId,   setExpEditId]   = useState(null);
   const [expForm,     setExpForm]     = useState({ icon: "💼", title: "", company: "", date: "" });
 
   // ── Skills state ────────────────────────────────────────────
-  const [skills, setSkills] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("userprofile_skills") || "null") || ["React","TypeScript","Figma","Node.js","Tailwind CSS","Python","PostgreSQL","Git"]; }
-    catch { return ["React","TypeScript","Figma","Node.js","Tailwind CSS","Python","PostgreSQL","Git"]; }
-  });
+  const [skills,         setSkills]         = useState([]);
+  const [skillsLoading,  setSkillsLoading]  = useState(true);
   const [showSkillModal, setShowSkillModal] = useState(false);
   const [newSkill,       setNewSkill]       = useState("");
 
@@ -85,12 +78,46 @@ export default function UserProfile() {
 
   const { privateResumes, removePrivate, removeResume, publishPrivate } = useResumes();
 
-  // ── auto-save to localStorage ────────────────────────────────
+  // ── auto-save profile to localStorage ────────────────────────
   useEffect(() => { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {} }, [profile]);
-  useEffect(() => { try { localStorage.setItem(EXP_KEY, JSON.stringify(experiences)); } catch {} }, [experiences]);
-  useEffect(() => { try { localStorage.setItem("userprofile_skills", JSON.stringify(skills)); } catch {} }, [skills]);
   useEffect(() => { try { if (avatarImg) localStorage.setItem(AVATAR_KEY, avatarImg); else localStorage.removeItem(AVATAR_KEY); } catch {} }, [avatarImg]);
   useEffect(() => { try { if (coverImg)  localStorage.setItem(COVER_KEY,  coverImg);  else localStorage.removeItem(COVER_KEY);  } catch {} }, [coverImg]);
+
+  // ── fetch skills จาก Backend ──────────────────────────────────
+  useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        const res = await fetch(`${API}/profile/skills`, { headers: authHeader() });
+        if (res.ok) {
+          const data = await res.json();
+          setSkills(data.skills); // [{ id, name }]
+        }
+      } catch (err) {
+        console.error("fetch skills error:", err);
+      } finally {
+        setSkillsLoading(false);
+      }
+    };
+    fetchSkills();
+  }, []);
+
+  // ── fetch experiences จาก Backend ────────────────────────────
+  useEffect(() => {
+    const fetchExp = async () => {
+      try {
+        const res = await fetch(`${API}/profile/experiences`, { headers: authHeader() });
+        if (res.ok) {
+          const data = await res.json();
+          setExperiences(data.experiences); // [{ id, icon, title, company, date }]
+        }
+      } catch (err) {
+        console.error("fetch experiences error:", err);
+      } finally {
+        setExpLoading(false);
+      }
+    };
+    fetchExp();
+  }, []);
 
   // ── Image upload handlers ─────────────────────────────────────
   const handleAvatarChange = (e) => {
@@ -115,7 +142,7 @@ export default function UserProfile() {
   const cancelEditProfile= () => setEditingProfile(false);
   const saveProfile      = () => { setProfile(profileDraft); setEditingProfile(false); };
 
-  // ── Experience handlers ──────────────────────────────────────
+  // ── Experience handlers (เชื่อม Backend) ─────────────────────
   const openAddExp = () => {
     setExpForm({ icon: "💼", title: "", company: "", date: "" });
     setExpEditId(null);
@@ -126,24 +153,81 @@ export default function UserProfile() {
     setExpEditId(exp.id);
     setExpModal(true);
   };
-  const saveExp = () => {
+  const saveExp = async () => {
     if (!expForm.title.trim()) return;
-    if (expEditId !== null) {
-      setExperiences(prev => prev.map(e => e.id === expEditId ? { ...e, ...expForm } : e));
-    } else {
-      setExperiences(prev => [...prev, { id: Date.now(), ...expForm }]);
+    try {
+      if (expEditId !== null) {
+        // แก้ไข
+        const res = await fetch(`${API}/profile/experiences/${expEditId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...authHeader() },
+          body: JSON.stringify(expForm),
+        });
+        if (res.ok) {
+          setExperiences(prev => prev.map(e => e.id === expEditId ? { ...e, ...expForm } : e));
+        }
+      } else {
+        // เพิ่มใหม่
+        const res = await fetch(`${API}/profile/experiences`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeader() },
+          body: JSON.stringify(expForm),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setExperiences(prev => [...prev, data.experience]);
+        }
+      }
+      setExpModal(false);
+    } catch (err) {
+      console.error("saveExp error:", err);
     }
-    setExpModal(false);
   };
-  const deleteExp = (id) => setExperiences(prev => prev.filter(e => e.id !== id));
+  const deleteExp = async (id) => {
+    try {
+      const res = await fetch(`${API}/profile/experiences/${id}`, {
+        method: "DELETE",
+        headers: authHeader(),
+      });
+      if (res.ok) setExperiences(prev => prev.filter(e => e.id !== id));
+    } catch (err) {
+      console.error("deleteExp error:", err);
+    }
+  };
 
-  // ── Skill handlers ───────────────────────────────────────────
-  const handleAddSkill = () => {
+  // ── Skill handlers (เชื่อม Backend) ──────────────────────────
+  const handleAddSkill = async () => {
     const t = newSkill.trim();
-    if (t && !skills.includes(t)) setSkills(prev => [...prev, t]);
-    setNewSkill(""); setShowSkillModal(false);
+    if (!t) return;
+    try {
+      const res = await fetch(`${API}/profile/skills`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({ name: t }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSkills(prev => [...prev, data.skill]); // { id, name }
+      } else if (res.status === 409) {
+        alert("มีทักษะนี้อยู่แล้ว");
+      }
+    } catch (err) {
+      console.error("addSkill error:", err);
+    }
+    setNewSkill("");
+    setShowSkillModal(false);
   };
-  const handleRemoveSkill = (sk) => setSkills(prev => prev.filter(s => s !== sk));
+  const handleRemoveSkill = async (skill) => {
+    try {
+      const res = await fetch(`${API}/profile/skills/${skill.id}`, {
+        method: "DELETE",
+        headers: authHeader(),
+      });
+      if (res.ok) setSkills(prev => prev.filter(s => s.id !== skill.id));
+    } catch (err) {
+      console.error("removeSkill error:", err);
+    }
+  };
 
   // ── scroll to saved ──────────────────────────────────────────
   useEffect(() => {
@@ -157,8 +241,7 @@ export default function UserProfile() {
   useEffect(() => {
     const go = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:3000/resumes/my", { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
         if (res.ok) { const d = await res.json(); setMyResumes(d.resumes ?? []); }
       } catch {}
     };
@@ -174,11 +257,10 @@ export default function UserProfile() {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
-        const res = await fetch("http://localhost:3000/auth/me", { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
           const u = (await res.json()).user;
           setUserData(u);
-          // sync email จาก server ถ้ายังว่าง
           setProfile(p => ({ ...p, email: p.email || u?.email || "", displayName: p.displayName || u?.fullName || "" }));
         } else localStorage.removeItem("token");
       } catch {}
@@ -344,12 +426,10 @@ export default function UserProfile() {
           {/* Cover + Profile Info */}
           <div className="up-cover-card">
             <div className="up-cover" style={{ position: "relative", overflow: "hidden" }}>
-              {/* Cover image or pattern */}
               {coverImg
                 ? <img src={coverImg} alt="cover" style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover" }} />
                 : <div className="up-cover-pattern" />
               }
-              {/* Hidden cover file input */}
               <input ref={coverInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleCoverChange} />
               <button
                 className="up-edit-cover-btn"
@@ -359,7 +439,6 @@ export default function UserProfile() {
                 <LuPencil size={11} /> แก้ไขปก
               </button>
 
-              {/* Avatar — clickable */}
               <input ref={avatarInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleAvatarChange} />
               <div
                 className="up-avatar-lg"
@@ -371,7 +450,6 @@ export default function UserProfile() {
                   ? <img src={avatarImg} alt="avatar" style={{ width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%" }} />
                   : initial
                 }
-                {/* hover overlay */}
                 <div style={{
                   position:"absolute",inset:0,borderRadius:"50%",
                   background:"rgba(0,0,0,0.35)",
@@ -389,7 +467,6 @@ export default function UserProfile() {
 
             <div className="up-profile-info">
               {editingProfile ? (
-                /* ── EDIT MODE ── */
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: 10 }}>
                     {[
@@ -425,7 +502,6 @@ export default function UserProfile() {
                   </div>
                 </div>
               ) : (
-                /* ── VIEW MODE ── */
                 <>
                   <div>
                     <div className="up-profile-name">{fullName}</div>
@@ -471,9 +547,11 @@ export default function UserProfile() {
               <button className="uf-filter-btn" onClick={() => setShowSkillModal(true)}><LuPlus size={12} /> เพิ่ม</button>
             </div>
             <div className="up-skills-wrap">
-              {skills.length > 0 ? skills.map(sk => (
-                <span key={sk} className="up-skill-chip" style={{ display:"inline-flex",alignItems:"center",gap:5 }}>
-                  {sk}
+              {skillsLoading ? (
+                <span style={{ color:"#9ca3af",fontSize:13 }}>กำลังโหลด...</span>
+              ) : skills.length > 0 ? skills.map(sk => (
+                <span key={sk.id} className="up-skill-chip" style={{ display:"inline-flex",alignItems:"center",gap:5 }}>
+                  {sk.name}
                   <button onClick={() => handleRemoveSkill(sk)}
                     style={{ background:"none",border:"none",cursor:"pointer",padding:0,lineHeight:1,color:"#9ca3af",fontSize:14,display:"flex",alignItems:"center" }}>
                     ×
@@ -491,10 +569,11 @@ export default function UserProfile() {
               <span><LuBriefcase size={14} style={{ marginRight:5,verticalAlign:"middle",color:"#4f46e5" }} />ประสบการณ์</span>
               <button className="uf-filter-btn" onClick={openAddExp}><LuPlus size={12} /> เพิ่ม</button>
             </div>
-            {experiences.length === 0 && (
+            {expLoading ? (
+              <p style={{ color:"#9ca3af",fontSize:13 }}>กำลังโหลด...</p>
+            ) : experiences.length === 0 ? (
               <p style={{ color:"#9ca3af",fontSize:13 }}>ยังไม่มีประสบการณ์ กด "+ เพิ่ม" เพื่อเพิ่มรายการแรก</p>
-            )}
-            {experiences.map(e => (
+            ) : experiences.map(e => (
               <div key={e.id} className="up-exp-item" style={{ position:"relative" }}>
                 <div className="up-exp-dot">{e.icon}</div>
                 <div style={{ flex:1 }}>
@@ -502,7 +581,6 @@ export default function UserProfile() {
                   <div className="up-exp-sub">{e.company}</div>
                   <div className="up-exp-date">{e.date}</div>
                 </div>
-                {/* Edit / Delete buttons */}
                 <div style={{ display:"flex",gap:4,flexShrink:0 }}>
                   <button onClick={() => openEditExp(e)}
                     style={{ background:"none",border:"1px solid #e5e7eb",borderRadius:6,padding:"3px 8px",cursor:"pointer",color:"#6b7280",fontSize:11,display:"flex",alignItems:"center",gap:3 }}>

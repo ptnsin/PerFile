@@ -12,6 +12,7 @@ import socialRouter from './routers/socialRouter.js'
 import hrRouter from './routers/hrRouter.js'
 import notificationRouter from './routers/notificationRouter.js'
  import shareRouter from './routers/shareRouter.js'
+ import profileRouter from './routers/profileRouter.js'
 
 const HOST = process.env.DB_HOST || 'localhost' 
 const PORT = process.env.PORT || 3000
@@ -70,6 +71,8 @@ app.use('/hr', hrRouter)
 
 // -------- 67162470 พงศกร 4 API ---------
 app.use('/notifications', notificationRouter)
+
+app.use('/profile', profileRouter) // ---67114610 กองทัพ (GET,POST,PUT,DELETE)
 
 // ---67118401 ปฏิภาณ(POST,DELETE) / 67114610 กองทัพ (GET)
  app.use('/share', shareRouter)
