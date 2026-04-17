@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuFileText, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard,
-  LuBadgeCheck, LuClock,LuMapPin
+  LuBadgeCheck, LuClock, LuMapPin
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 import "../styles/UsersFeed.css";
@@ -23,41 +23,33 @@ export default function UsersFeed() {
   const [menuOpen, setMenuOpen]         = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [jobs, setJobs] = useState([]);
-  const [selectedJob, setSelectedJob] = useState(null); // เก็บข้อมูลงานที่คลิก
-  const [isModalOpen, setIsModalOpen] = useState(false); // ควบคุมการเปิด Modal
+  const [selectedJob, setSelectedJob] = useState(null); 
+  const [isModalOpen, setIsModalOpen] = useState(false); 
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
+  // Fetch Jobs
   useEffect(() => {
-  const fetchJobs = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/admin/all-jobs", { // หรือ path ใหม่ที่คุณตั้ง
-        headers: { 
-          "Authorization": `Bearer ${token}` 
+    const fetchJobs = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/jobs/all"); 
+        if (res.ok) {
+          const data = await res.json();
+          setJobs(data.jobs);
         }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setJobs(data.jobs); // เก็บลง state
+      } catch (err) {
+        console.error("Fetch jobs error:", err);
       }
-    } catch (err) {
-      console.error("Fetch jobs error:", err);
-    }
+    };
+    fetchJobs();
+  }, []);
+
+  const handleOpenJobDetail = (job) => {
+    setSelectedJob(job);
+    setIsModalOpen(true);
   };
-  fetchJobs();
-}, []);
 
-const handleOpenJobDetail = (job) => {
-  setSelectedJob(job);
-  setIsModalOpen(true);
-};
-
-const handleCloseModal = () => {
-  setIsModalOpen(false);
-  setSelectedJob(null);
-};
-
+  // Fetch Public Resumes
   useEffect(() => {
     const fetchPublicResumes = async () => {
       try {
@@ -73,7 +65,6 @@ const handleCloseModal = () => {
     fetchPublicResumes();
   }, []);
 
-  // ✅ แก้ไข Filter ให้ใช้จาก publicResumes ที่ดึงมาจาก DB
   const filteredResumes = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return publicResumes.filter((r) => {
@@ -83,6 +74,7 @@ const handleCloseModal = () => {
     });
   }, [publicResumes, searchTerm]);
 
+  // Sidebar Resize Logic
   useEffect(() => {
     const sidebar = sidebarRef.current;
     if (!sidebar) return;
@@ -110,6 +102,7 @@ const handleCloseModal = () => {
     return () => handle.removeEventListener("mousedown", down);
   }, []);
 
+  // Auth Me
   useEffect(() => {
     (async () => {
       try {
@@ -144,8 +137,6 @@ const handleCloseModal = () => {
 
   return (
     <div className="uf-page">
-
-      {/* NAV */}
       <nav className="uf-nav">
         <div className="uf-nav-left">
           <button className="uf-toggle-btn" onClick={toggleSidebar} title="Toggle sidebar">
@@ -187,10 +178,7 @@ const handleCloseModal = () => {
         </div>
       </nav>
 
-      {/* BODY */}
       <div className="uf-body">
-
-        {/* SIDEBAR */}
         <aside ref={sidebarRef} className={`uf-sidebar${sidebarOpen ? "" : " closed"}`}>
           <div className="uf-resize-handle">
             <div className="uf-resize-bar" />
@@ -209,15 +197,11 @@ const handleCloseModal = () => {
           </button>
           <div className="uf-section-label">Private Profile</div>
           <div className="uf-sub-item">Development 1</div>
-          <div className="uf-sub-item">Tutor 1</div>
           <div className="uf-section-label">Public Profile</div>
           <div className="uf-sub-item">Ux/Ui 2</div>
         </aside>
 
-        {/* MAIN */}
         <main className="uf-main">
-
-          {/* Header + Tab Bar */}
           <div className="uf-header-card">
             <div className="uf-welcome">
               <h1>hi, {firstName} 👋</h1>
@@ -240,7 +224,6 @@ const handleCloseModal = () => {
             </div>
           </div>
 
-          {/* Content panel */}
           <div className="uf-panel">
             <div className="uf-filter-bar">
               <button className="uf-filter-btn" onClick={() => setIsFilterOpen((v) => !v)}>
@@ -292,38 +275,19 @@ const handleCloseModal = () => {
                   </div>
                 )
               ) : (
-               jobs.length > 0 ? (
+                jobs.length > 0 ? (
                   jobs.map((job) => (
-                    <div 
+                    <JobCard 
                       key={job.id} 
-                      className="new-job-card" /* ใช้ class ใหม่สำหรับดีไซน์รูปที่ 2 */
-                      onClick={() => handleOpenJobDetail(job)} /* ฟังก์ชันเปิด Modal รูปที่ 3 */
-                    >
-                      {/* ส่วนบนของ Card */}
-                      <div className="new-job-header">
-                        <div className="job-icon-container">
-                          <LuBriefcase size={22} />
-                        </div>
-                        {/* Tag PART-TIME ด้านขวาบนตามรูปที่ 2 */}
-                        <span className="job-type-badge-top">{job.job_type}</span>
-                      </div>
-
-                      {/* ชื่อตำแหน่งงาน */}
-                      <h3 className="new-job-title">{job.title}</h3>
-
-                      {/* รายละเอียดด้านล่าง (รูปที่ 2) */}
-                      <div className="new-job-info">
-                        <div className="info-line">
-                          <LuBadgeCheck size={14} /> <span>{job.category}</span>
-                        </div>
-                        <div className="info-line">
-                          <LuMapPin size={14} /> <span>{job.location}</span>
-                        </div>
-                      </div>
-                    </div>
+                      // ส่งชื่อบริษัทผ่าน Property นี้ เพื่อให้ JobCard ใช้งานได้ทันที
+                      job={{
+                        ...job,
+                        company_name: job.users?.hr_profile?.company 
+                      }} 
+                      onClick={() => handleOpenJobDetail(job)} 
+                    />
                   ))
                 ) : (
-                  /* กรณีไม่มีข้อมูลงาน */
                   <div className="uf-empty">
                     <div className="uf-empty-icon">💼</div>
                     <div className="uf-empty-title">ยังไม่มีประกาศรับสมัครงาน</div>
@@ -332,18 +296,15 @@ const handleCloseModal = () => {
               )}
             </div>
           </div>
-
         </main>
       </div>
-      
     </div>
   );
 }
 
 function ResumeCard({ resume, onClick }) {
-  // ฟอร์แมตวันที่ให้สั้นลง
-  const displayDate = resume.publishedAt 
-    ? new Date(resume.publishedAt).toLocaleDateString('th-TH') 
+  const displayDate = resume.published_at 
+    ? new Date(resume.published_at).toLocaleDateString('th-TH') 
     : "No date";
 
   return (
@@ -354,7 +315,7 @@ function ResumeCard({ resume, onClick }) {
       </div>
       <div className="uf-resume-title">{resume.title}</div>
       <div className="uf-resume-meta">
-        {resume.owner && <span><LuBadgeCheck /> {resume.owner}</span>}
+        {resume.users?.fullName && <span><LuBadgeCheck /> {resume.users.fullName}</span>}
         <span><LuClock /> {displayDate}</span>
       </div>
     </div>
@@ -362,21 +323,33 @@ function ResumeCard({ resume, onClick }) {
 }
 
 function JobCard({ job, onClick }) {
+  // ใช้ค่าจาก company_name ที่เรา Flatten มาจาก map ด้านบน
+  const companyName = job.company_name || "ทั่วไป";
+  
   return (
-    <div className="uf-resume-card" onClick={onClick} style={{ borderLeft: '4px solid #1e3a8a' }}>
-      <div className="uf-resume-header">
-        <div className="uf-resume-icon" style={{ color: '#1e3a8a' }}><LuBriefcase /></div>
-        <span className="uf-resume-badge" style={{ background: '#e0e7ff', color: '#1e3a8a' }}>
-          {job.job_type || 'Full-time'}
-        </span>
+    <div className="new-job-card" onClick={onClick}>
+      <div className="new-job-header">
+        <div className="job-icon-container">
+          <LuBriefcase size={22} />
+        </div>
+        <span className="job-type-badge-top">{job.job_type}</span>
       </div>
-      <div className="uf-resume-title">{job.title}</div>
-      <div className="uf-resume-meta">
-        <span>🏢 {job.company_name || "บริษัททั่วไป"}</span>
-        <span>📍 {job.location}</span>
+
+      <h3 className="new-job-title">{job.title}</h3>
+
+      <div className="new-job-info">
+        <div className="info-line">
+          <LuBadgeCheck size={14} /> 
+          <span>{companyName}</span> 
+        </div>
+        <div className="info-line">
+          <LuMapPin size={14} /> 
+          <span>{job.location}</span>
+        </div>
       </div>
-      <div style={{ marginTop: '10px', fontSize: '13px', fontWeight: 'bold', color: '#059669' }}>
-        ฿ {job.salary}
+      
+      <div className="job-card-footer">
+        <span className="job-salary">฿ {job.salary}</span>
       </div>
     </div>
   );
