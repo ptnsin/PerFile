@@ -776,28 +776,30 @@ export default function ResumeBuilder() {
 
   const removeSkill = (id) => set("skills", data.skills.filter(x => x.id !== id));
 
-  const handleSavePrivate = async () => {
+ const handleSavePrivate = async () => {
     try {
       setSavedToast(true);
       const payload = {
-        title: data.name + " - Resume",
-        template: data.template,
-        image: data.image,
+        title: data.name ? `${data.name} - Resume` : "Untitled Resume",
+        template: data.template || "modern",
         visibility: "private",
-        sections: [
-          { type: "summary", content: { text: data.summary }, order: 1 },
-          ...data.experience.map((exp, index) => ({
-            type: "experience",
-            content: { role: exp.role, company: exp.org, period: exp.period, desc: exp.desc },
-            order: index + 2,
-          })),
-          ...data.education.map((edu, index) => ({
-            type: "education",
-            content: { degree: edu.degree, school: edu.school, period: edu.period, desc: edu.desc },
-            order: data.experience.length + index + 2,
-          })),
-          { type: "skills", content: { displayMode: data.skillDisplayMode, list: data.skills }, order: 99 },
-        ],
+        summary: data.summary || null,
+
+        // ✅ ส่งตรงๆ ไม่ต้อง wrap ใน sections
+        experience: data.experience.map(exp => ({
+          role: exp.role,
+          company: exp.org,   // ⚠️ backend ใช้ 'company' ใน id 2 แต่ field จริงใน router ไม่ได้ map — ส่ง org ไปก็ได้
+          org: exp.org,
+          period: exp.period,
+          desc: exp.desc,
+        })),
+        education: data.education.map(edu => ({
+          degree: edu.degree,
+          school: edu.school,
+          period: edu.period,
+          desc: edu.desc,
+        })),
+        skills: data.skills,
       };
 
       const response = await axios.post("http://localhost:3000/resumes", payload, {
@@ -813,7 +815,6 @@ export default function ResumeBuilder() {
       alert("บันทึกไม่สำเร็จ");
     }
   };
-
   const tabs = [
     { id: "template", label: "เทมเพลต" },
     { id: "info", label: "ข้อมูล" },
