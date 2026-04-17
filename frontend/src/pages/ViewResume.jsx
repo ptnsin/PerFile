@@ -249,11 +249,11 @@ export default function ViewResume() {
                 {resume.experience.map((exp, i) => {
                   return <div key={i} className="entry">
                     <div className="entry-header">
-                      <div className="entry-title">{exp.content.role}</div>
-                      <div className="entry-period">{exp.content.period}</div>
+                      <div className="entry-title">{exp?.content?.role || "ไม่ระบุตำแหน่ง"}</div>
+                      <div className="entry-period">{exp?.content?.period}</div>
                     </div>
-                    <div className="entry-org">{exp.content.org || exp.content.company}</div>
-                    {exp.content.desc && <div className="entry-desc">{exp.content.desc}</div>}
+                    <div className="entry-org">{exp?.content?.org || exp?.content?.company}</div>
+                    {exp?.content?.desc && <div className="entry-desc">{exp.content.desc}</div>}
                   </div>
             })}
               </div>
@@ -266,11 +266,11 @@ export default function ViewResume() {
                 {resume.education.map((edu, i) => (
                   <div key={i} className="entry">
                     <div className="entry-header">
-                      <div className="entry-title">{edu.content.degree}</div>
-                      <div className="entry-period">{edu.content.period}</div>
+                      <div className="entry-title">{edu?.content?.degree || "ไม่ระบุวุฒิการศึกษา"}</div>
+                      <div className="entry-period">{edu?.content?.period}</div>
                     </div>
-                    <div className="entry-org">{edu.content.school}</div>
-                    {edu.content.desc && <div className="entry-desc">{edu.content.desc}</div>}
+                    <div className="entry-org">{edu?.content?.school}</div>
+                    {edu?.content?.desc && <div className="entry-desc">{edu.content.desc}</div>}
                   </div>
                 ))}
               </div>
@@ -283,7 +283,7 @@ export default function ViewResume() {
                 <div className="skills-grid">
                   {resume.skills.map((skill, i) => (
                     <div key={i} className="skill-tag">
-                      {typeof skill === 'string' ? skill : (skill.name || skill.label)}
+                      {typeof skill === 'string' ? skill : (skill?.name || skill?.label || "ทักษะ")}
                     </div>
                   ))}
                 </div>
