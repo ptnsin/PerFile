@@ -927,14 +927,17 @@ export default function ResumeBuilder() {
                 <div className="row">
                   <div className="field"><label>อีเมล</label><input value={data.email} onChange={e => set("email", e.target.value)} /></div>
                   <div className="field"><label>เบอร์โทรศัพท์</label><input
-                  value={data.phone}
-                  onChange={e => {
-                    const v = e.target.value.replace(/[^0-9\-+\s()]/g, "");
-                    set("phone", v);
-                  }}
-                  placeholder="08X-XXX-XXXX"
-                  inputMode="tel"
-                /></div>
+                    value={data.phone}
+                    onChange={e => {
+                      let v = e.target.value.replace(/\D/g, ""); // เอาเฉพาะตัวเลข
+                      if (v.length > 10) v = v.slice(0, 10); // จำกัดไม่เกิน 10 ตัว
+                      set("phone", v);
+                    }}
+                    placeholder="08XXXXXXXX"
+                    inputMode="numeric"
+                    maxLength={10}
+                  />
+                  </div>
                 </div>
                 <div className="row">
                   <div className="field"><label>ที่อยู่</label><input value={data.location} onChange={e => set("location", e.target.value)} placeholder="กรุงเทพฯ, ประเทศไทย" /></div>
