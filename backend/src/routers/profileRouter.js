@@ -236,3 +236,34 @@ profileRouter.put('/info', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' })
   }
 })
+
+profileRouter.get('/public/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 1. ดึงข้อมูลพื้นฐานจากตาราง users และ seeker_profiles
+    const [userRows] = await db.query(
+      `SELECT u.fullName, u.email, s.bio, s.location, s.portfolio, s.github, s.linkedin, s.avatar, s.cover_image
+       FROM users u
+       LEFT JOIN seeker_profiles s ON u.id = s.user_id
+       WHERE u.id = ?`,
+      [userId]
+    );
+
+    if (userRows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบผู้ใช้" });
+    }
+
+    // 2. ดึงรายการเรซูเม่ที่เป็น Public ของคนนั้น
+    const [resumes] = await db.query(
+      'SELECT id, title, visibility, created_at FROM resumes WHERE user_id = ? AND visibility = "public"',
+      [userId]
+    );
+    res.json({
+      user: userRows[0],
+      resumes: resumes
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});

@@ -4,7 +4,8 @@ import {
   LuSearch, LuBookmark, LuBell, LuPanelLeft,
   LuFileText, LuBriefcase, LuMapPin, LuLink, LuPencil,
   LuGithub, LuLinkedin, LuMail, LuStar, LuPlus, LuTrash2,
-  LuLayoutDashboard, LuBadgeCheck, LuCheck, LuX,
+  LuLayoutDashboard, LuBadgeCheck, LuCheck, LuX, LuCamera,
+  LuUpload, LuLoader,
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 import { useResumes } from "./ResumeContext";
@@ -13,8 +14,9 @@ import "../styles/Userprofile.css";
 const API = "http://localhost:3000";
 
 const PROFILE_KEY = "userprofile_local";
+// หมายเหตุ: AVATAR_KEY / COVER_KEY ยังคงไว้เป็น fallback แต่แหล่งข้อมูลหลักคือ backend แล้ว
 const AVATAR_KEY = "userprofile_avatar";
-const COVER_KEY = "userprofile_cover";
+const COVER_KEY  = "userprofile_cover";
 
 const DEFAULT_PROFILE = {
   displayName: "",
@@ -28,150 +30,182 @@ const DEFAULT_PROFILE = {
 
 const TABS = [
   { key: "resumes", label: "Private Resumes" },
-  { key: "jobs", label: "Public Resumes" },
-  { key: "saved", label: "Saved" },
+  { key: "jobs",    label: "Public Resumes" },
+  { key: "saved",   label: "Saved" },
 ];
 
 const ICONS = ["💼", "🎨", "💻", "📊", "🔧", "🏗️", "📱", "🎯", "📝", "⚙️"];
 
-// helper: authHeader
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
+// ── Upload รูปไปที่ Backend แล้วรับ URL กลับมา ──────────────────────
+async function uploadImage(file, type) {
+  // type = "avatar" | "cover"
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("type", type);
+
+  const res = await fetch(`${API}/profile/upload-image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  const data = await res.json();
+  return data.url; // backend ส่งกลับมาเป็น URL
+}
+
 export default function UserProfile() {
-  const [activeTab, setActiveTab] = useState("resumes");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [userData, setUserData] = useState(null);
+  const [activeTab, setActiveTab]       = useState("resumes");
+  const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [menuOpen, setMenuOpen]         = useState(false);
+  const [userData, setUserData]         = useState(null);
   const [actionMenuId, setActionMenuId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [myResumes, setMyResumes] = useState([]);
-  const [appliedJobs, setAppliedJobs] = useState([]);
-  const [savedJobs, setSavedJobs] = useState([]);
+  const [myResumes, setMyResumes]       = useState([]);
+  const [appliedJobs, setAppliedJobs]   = useState([]);
+  const [savedJobs, setSavedJobs]       = useState([]);
   const [savedResumes, setSavedResumes] = useState([]);
-  const [savedSubTab, setSavedSubTab] = useState("jobs"); // "jobs" | "resumes"
+  const [savedSubTab, setSavedSubTab]   = useState("jobs");
   const [savedLoading, setSavedLoading] = useState(false);
-  const [stats, setStats] = useState({
-    views: "0",
-    score: "0%",
-    interviewing: "0",
-    shortlisted: "0"
-  });
+  const [stats, setStats] = useState({ views: "0", score: "0%", interviewing: "0", shortlisted: "0" });
 
-  // ── Profile editable state ──────────────────────────────────
+  // ── Profile editable state ──────────────────────────────────────
   const [profile, setProfile] = useState(() => {
     try { return { ...DEFAULT_PROFILE, ...JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}") }; }
     catch { return DEFAULT_PROFILE; }
   });
   const [editingProfile, setEditingProfile] = useState(false);
-  const [profileDraft, setProfileDraft] = useState(profile);
+  const [profileDraft, setProfileDraft]     = useState(profile);
 
-  // ── Experience state ────────────────────────────────────────
-  const [experiences, setExperiences] = useState([]);
-  const [expLoading, setExpLoading] = useState(true);
-  const [expModal, setExpModal] = useState(false);
-  const [expEditId, setExpEditId] = useState(null);
-  const [expForm, setExpForm] = useState({ icon: "💼", title: "", company: "", date: "" });
+  // ── Experience ──────────────────────────────────────────────────
+  const [experiences, setExperiences]   = useState([]);
+  const [expLoading, setExpLoading]     = useState(true);
+  const [expModal, setExpModal]         = useState(false);
+  const [expEditId, setExpEditId]       = useState(null);
+  const [expForm, setExpForm]           = useState({ icon: "💼", title: "", company: "", date: "" });
 
-  // ── Skills state ────────────────────────────────────────────
-  const [skills, setSkills] = useState([]);
+  // ── Skills ──────────────────────────────────────────────────────
+  const [skills, setSkills]             = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(true);
   const [showSkillModal, setShowSkillModal] = useState(false);
-  const [newSkill, setNewSkill] = useState("");
+  const [newSkill, setNewSkill]         = useState("");
 
-  // ── Avatar & Cover image state ───────────────────────────────
-  const [avatarImg, setAvatarImg] = useState(() => localStorage.getItem(AVATAR_KEY) || null);
-  const [coverImg, setCoverImg] = useState(() => localStorage.getItem(COVER_KEY) || null);
+  // ── Avatar & Cover ───────────────────────────────────────────────
+  // แหล่งข้อมูลหลัก: URL จาก backend (เก็บใน state)
+  // fallback: base64 ใน localStorage (กรณีไม่มี backend)
+  const [avatarUrl, setAvatarUrl] = useState(null);   // URL จาก DB
+  const [coverUrl, setCoverUrl]   = useState(null);   // URL จาก DB
+  const [avatarPreview, setAvatarPreview] = useState(() => localStorage.getItem(AVATAR_KEY) || null);
+  const [coverPreview, setCoverPreview]   = useState(() => localStorage.getItem(COVER_KEY)  || null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [coverUploading, setCoverUploading]   = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
   const avatarInputRef = useRef(null);
-  const coverInputRef = useRef(null);
-
-  const sidebarRef = useRef(null);
+  const coverInputRef  = useRef(null);
+  const sidebarRef     = useRef(null);
   const savedSectionRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   const { privateResumes, removePrivate, removeResume, publishPrivate } = useResumes();
 
-  // ── auto-save profile to localStorage ────────────────────────
-  useEffect(() => { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { } }, [profile]);
-  useEffect(() => { try { if (avatarImg) localStorage.setItem(AVATAR_KEY, avatarImg); else localStorage.removeItem(AVATAR_KEY); } catch { } }, [avatarImg]);
-  useEffect(() => { try { if (coverImg) localStorage.setItem(COVER_KEY, coverImg); else localStorage.removeItem(COVER_KEY); } catch { } }, [coverImg]);
-
-  // ── fetch skills จาก Backend ──────────────────────────────────
+  // ── auto-save profile to localStorage ─────────────────────────
   useEffect(() => {
-    const fetchSkills = async () => {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { }
+  }, [profile]);
+
+  // ── Fetch profile info (รวม avatar + cover_image) ──────────────
+  useEffect(() => {
+    const fetchInfo = async () => {
       try {
-        const res = await fetch(`${API}/profile/skills`, { headers: authHeader() });
+        const res = await fetch(`${API}/profile/info`, { headers: authHeader() });
         if (res.ok) {
           const data = await res.json();
-          setSkills(data.skills); // [{ id, name }]
+          setProfile(p => ({
+            ...p,
+            bio:       data.bio       || p.bio,
+            location:  data.location  || p.location,
+            portfolio: data.portfolio || p.portfolio,
+            github:    data.github    || p.github,
+            linkedin:  data.linkedin  || p.linkedin,
+          }));
+          // ตั้งค่า URL รูปจาก backend
+          if (data.avatar)      setAvatarUrl(data.avatar);
+          if (data.cover_image) setCoverUrl(data.cover_image);
         }
       } catch (err) {
-        console.error("fetch skills error:", err);
-      } finally {
-        setSkillsLoading(false);
+        console.error("fetchInfo error:", err);
       }
     };
-    fetchSkills();
+    fetchInfo();
   }, []);
 
-  // ── fetch stats จาก Backend ──────────────────────────────────
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch(`${API}/profile/stats`, { headers: authHeader() });
-        if (res.ok) {
-          const data = await res.json();
-          setStats({
-            views: data.views?.toString() || "0",
-            score: (data.profile_score || "0") + "%", // เพิ่ม % เข้าไป
-            interviewing: data.interview_count?.toString() || "0",
-            shortlisted: data.shortlisted_count?.toString() || "0"
-          });
-        }
-      } catch (err) {
-        console.error("fetch stats error:", err);
-      }
-    };
-    fetchStats();
-  }, []);
+  // ── Image display: ใช้ URL จาก backend ก่อน ถ้าไม่มีใช้ preview ──
+  const displayAvatar = avatarUrl || avatarPreview;
+  const displayCover  = coverUrl  || coverPreview;
 
-  // ── fetch experiences จาก Backend ────────────────────────────
-  useEffect(() => {
-    const fetchExp = async () => {
-      try {
-        const res = await fetch(`${API}/profile/experiences`, { headers: authHeader() });
-        if (res.ok) {
-          const data = await res.json();
-          setExperiences(data.experiences); // [{ id, icon, title, company, date }]
-        }
-      } catch (err) {
-        console.error("fetch experiences error:", err);
-      } finally {
-        setExpLoading(false);
-      }
-    };
-    fetchExp();
-  }, []);
-
-  // ── Image upload handlers ─────────────────────────────────────
-  const handleAvatarChange = (e) => {
+  // ── Upload Handlers ───────────────────────────────────────────
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setAvatarImg(reader.result);
-    reader.readAsDataURL(file);
     e.target.value = "";
-  };
-  const handleCoverChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    setUploadError(null);
+
+    // แสดง preview ทันที (optimistic)
     const reader = new FileReader();
-    reader.onloadend = () => setCoverImg(reader.result);
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result);
+      try { localStorage.setItem(AVATAR_KEY, reader.result); } catch { }
+    };
     reader.readAsDataURL(file);
-    e.target.value = "";
+
+    // Upload จริงไปที่ backend
+    setAvatarUploading(true);
+    try {
+      const url = await uploadImage(file, "avatar");
+      setAvatarUrl(url);
+      setAvatarPreview(null); // ใช้ URL จาก backend แทน base64
+      localStorage.removeItem(AVATAR_KEY);
+    } catch (err) {
+      console.error("avatar upload error:", err);
+      setUploadError("อัปโหลดรูปโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
-  // ── Profile handlers ─────────────────────────────────────────
+  const handleCoverChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploadError(null);
+
+    // แสดง preview ทันที
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCoverPreview(reader.result);
+      try { localStorage.setItem(COVER_KEY, reader.result); } catch { }
+    };
+    reader.readAsDataURL(file);
+
+    // Upload จริง
+    setCoverUploading(true);
+    try {
+      const url = await uploadImage(file, "cover");
+      setCoverUrl(url);
+      setCoverPreview(null);
+      localStorage.removeItem(COVER_KEY);
+    } catch (err) {
+      console.error("cover upload error:", err);
+      setUploadError("อัปโหลดรูปปกไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setCoverUploading(false);
+    }
+  };
+
+  // ── Profile handlers ──────────────────────────────────────────
   const startEditProfile = () => { setProfileDraft({ ...profile }); setEditingProfile(true); };
   const cancelEditProfile = () => setEditingProfile(false);
   const saveProfile = async () => {
@@ -180,11 +214,11 @@ export default function UserProfile() {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({
-          bio: profileDraft.bio,
-          location: profileDraft.location,
+          bio:       profileDraft.bio,
+          location:  profileDraft.location,
           portfolio: profileDraft.portfolio,
-          github: profileDraft.github,
-          linkedin: profileDraft.linkedin,
+          github:    profileDraft.github,
+          linkedin:  profileDraft.linkedin,
         }),
       });
     } catch (err) {
@@ -194,94 +228,48 @@ export default function UserProfile() {
     setEditingProfile(false);
   };
 
-  // ── Experience handlers (เชื่อม Backend) ─────────────────────
-  const openAddExp = () => {
-    setExpForm({ icon: "💼", title: "", company: "", date: "" });
-    setExpEditId(null);
-    setExpModal(true);
-  };
-  const openEditExp = (exp) => {
-    setExpForm({ icon: exp.icon, title: exp.title, company: exp.company, date: exp.date });
-    setExpEditId(exp.id);
-    setExpModal(true);
-  };
+  // ── Experience handlers ───────────────────────────────────────
+  const openAddExp = () => { setExpForm({ icon: "💼", title: "", company: "", date: "" }); setExpEditId(null); setExpModal(true); };
+  const openEditExp = (exp) => { setExpForm({ icon: exp.icon, title: exp.title, company: exp.company, date: exp.date }); setExpEditId(exp.id); setExpModal(true); };
   const saveExp = async () => {
     if (!expForm.title.trim()) return;
     try {
       if (expEditId !== null) {
-        // แก้ไข
-        const res = await fetch(`${API}/profile/experiences/${expEditId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", ...authHeader() },
-          body: JSON.stringify(expForm),
-        });
-        if (res.ok) {
-          setExperiences(prev => prev.map(e => e.id === expEditId ? { ...e, ...expForm } : e));
-        }
+        const res = await fetch(`${API}/profile/experiences/${expEditId}`, { method: "PUT", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify(expForm) });
+        if (res.ok) setExperiences(prev => prev.map(e => e.id === expEditId ? { ...e, ...expForm } : e));
       } else {
-        // เพิ่มใหม่
-        const res = await fetch(`${API}/profile/experiences`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeader() },
-          body: JSON.stringify(expForm),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setExperiences(prev => [...prev, data.experience]);
-        }
+        const res = await fetch(`${API}/profile/experiences`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify(expForm) });
+        if (res.ok) { const data = await res.json(); setExperiences(prev => [...prev, data.experience]); }
       }
       setExpModal(false);
-    } catch (err) {
-      console.error("saveExp error:", err);
-    }
+    } catch (err) { console.error("saveExp error:", err); }
   };
   const deleteExp = async (id) => {
     try {
-      const res = await fetch(`${API}/profile/experiences/${id}`, {
-        method: "DELETE",
-        headers: authHeader(),
-      });
+      const res = await fetch(`${API}/profile/experiences/${id}`, { method: "DELETE", headers: authHeader() });
       if (res.ok) setExperiences(prev => prev.filter(e => e.id !== id));
-    } catch (err) {
-      console.error("deleteExp error:", err);
-    }
+    } catch (err) { console.error("deleteExp error:", err); }
   };
 
-  // ── Skill handlers (เชื่อม Backend) ──────────────────────────
+  // ── Skill handlers ────────────────────────────────────────────
   const handleAddSkill = async () => {
     const t = newSkill.trim();
     if (!t) return;
     try {
-      const res = await fetch(`${API}/profile/skills`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader() },
-        body: JSON.stringify({ name: t }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSkills(prev => [...prev, data.skill]); // { id, name }
-      } else if (res.status === 409) {
-        alert("มีทักษะนี้อยู่แล้ว");
-      }
-    } catch (err) {
-      console.error("addSkill error:", err);
-    }
-    setNewSkill("");
-    setShowSkillModal(false);
+      const res = await fetch(`${API}/profile/skills`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ name: t }) });
+      if (res.ok) { const data = await res.json(); setSkills(prev => [...prev, data.skill]); }
+      else if (res.status === 409) alert("มีทักษะนี้อยู่แล้ว");
+    } catch (err) { console.error("addSkill error:", err); }
+    setNewSkill(""); setShowSkillModal(false);
   };
   const handleRemoveSkill = async (skill) => {
     try {
-      const res = await fetch(`${API}/profile/skills/${skill.id}`, {
-        method: "DELETE",
-        headers: authHeader(),
-      });
+      const res = await fetch(`${API}/profile/skills/${skill.id}`, { method: "DELETE", headers: authHeader() });
       if (res.ok) setSkills(prev => prev.filter(s => s.id !== skill.id));
-    } catch (err) {
-      console.error("removeSkill error:", err);
-    }
+    } catch (err) { console.error("removeSkill error:", err); }
   };
 
-  // ── scroll to saved ──────────────────────────────────────────
+  // ── scroll to saved ───────────────────────────────────────────
   useEffect(() => {
     if (location.state?.scrollTo === "saved") {
       setActiveTab("saved");
@@ -289,68 +277,55 @@ export default function UserProfile() {
     }
   }, [location.state]);
 
-  // ── fetch resumes ────────────────────────────────────────────
+  // ── Fetch skills / stats / experiences ────────────────────────
   useEffect(() => {
-    const go = async () => {
-      try {
-        const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
-        if (res.ok) { const d = await res.json(); setMyResumes(d.resumes ?? []); }
-      } catch { }
-    };
-    go();
+    fetch(`${API}/profile/skills`, { headers: authHeader() })
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setSkills(d.skills); }).catch(() => {}).finally(() => setSkillsLoading(false));
+  }, []);
+  useEffect(() => {
+    fetch(`${API}/profile/stats`, { headers: authHeader() })
+      .then(r => r.ok ? r.json() : null).then(d => {
+        if (d) setStats({ views: d.views?.toString() || "0", score: (d.profile_score || "0") + "%", interviewing: d.interview_count?.toString() || "0", shortlisted: d.shortlisted_count?.toString() || "0" });
+      }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    fetch(`${API}/profile/experiences`, { headers: authHeader() })
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setExperiences(d.experiences); }).catch(() => {}).finally(() => setExpLoading(false));
+  }, []);
+
+  // ── fetch resumes ─────────────────────────────────────────────
+  useEffect(() => {
+    fetch(`${API}/resumes/my`, { headers: authHeader() })
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setMyResumes(d.resumes ?? []); }).catch(() => {});
   }, []);
 
   const privateList = myResumes.filter(r => r.visibility === "private");
-  const publicList = myResumes.filter(r => r.visibility === "public");
+  const publicList  = myResumes.filter(r => r.visibility === "public");
 
-  // ── fetch applied jobs ───────────────────────────────────────
+  // ── fetch applied jobs ────────────────────────────────────────
   useEffect(() => {
-    const go = async () => {
-      try {
-        const res = await fetch(`${API}/applications/my`, { headers: authHeader() });
-        if (res.ok) { const d = await res.json(); setAppliedJobs(d.applications ?? []); }
-      } catch { }
-    };
-    go();
+    fetch(`${API}/applications/my`, { headers: authHeader() })
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setAppliedJobs(d.applications ?? []); }).catch(() => {});
   }, []);
 
-  // ── fetch saved jobs + saved resumes (โหลดเมื่อเปิด tab saved) ─
+  // ── fetch saved jobs + resumes ────────────────────────────────
   useEffect(() => {
     if (activeTab !== "saved") return;
-    const go = async () => {
-      setSavedLoading(true);
-      try {
-        const [jobsRes, resumesRes] = await Promise.all([
-          fetch(`${API}/saved/jobs`,    { headers: authHeader() }),
-          fetch(`${API}/saved/resumes`, { headers: authHeader() }),
-        ]);
-        if (jobsRes.ok)    { const d = await jobsRes.json();    setSavedJobs(d.savedJobs ?? []); }
-        if (resumesRes.ok) { const d = await resumesRes.json(); setSavedResumes(d.savedResumes ?? []); }
-      } catch (err) {
-        console.error("fetch saved error:", err);
-      } finally {
-        setSavedLoading(false);
-      }
-    };
-    go();
+    setSavedLoading(true);
+    Promise.all([
+      fetch(`${API}/saved/jobs`,    { headers: authHeader() }).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/saved/resumes`, { headers: authHeader() }).then(r => r.ok ? r.json() : null),
+    ]).then(([j, r]) => {
+      if (j) setSavedJobs(j.savedJobs ?? []);
+      if (r) setSavedResumes(r.savedResumes ?? []);
+    }).catch(err => console.error("fetch saved error:", err)).finally(() => setSavedLoading(false));
   }, [activeTab]);
 
-  // ── unsave handlers ──────────────────────────────────────────
-  const handleUnsaveJob = async (jobId) => {
-    try {
-      const res = await fetch(`${API}/saved/jobs/${jobId}`, { method: "DELETE", headers: authHeader() });
-      if (res.ok) setSavedJobs(prev => prev.filter(j => j.job_id !== jobId));
-    } catch (err) { console.error("unsave job error:", err); }
-  };
+  // ── unsave handlers ───────────────────────────────────────────
+  const handleUnsaveJob    = async (id) => { const r = await fetch(`${API}/saved/jobs/${id}`,    { method: "DELETE", headers: authHeader() }); if (r.ok) setSavedJobs(p => p.filter(j => j.job_id !== id)); };
+  const handleUnsaveResume = async (id) => { const r = await fetch(`${API}/saved/resumes/${id}`, { method: "DELETE", headers: authHeader() }); if (r.ok) setSavedResumes(p => p.filter(r => r.resume_id !== id)); };
 
-  const handleUnsaveResume = async (resumeId) => {
-    try {
-      const res = await fetch(`${API}/saved/resumes/${resumeId}`, { method: "DELETE", headers: authHeader() });
-      if (res.ok) setSavedResumes(prev => prev.filter(r => r.resume_id !== resumeId));
-    } catch (err) { console.error("unsave resume error:", err); }
-  };
-
-  // ── fetch user ───────────────────────────────────────────────
+  // ── fetch user ────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -366,36 +341,12 @@ export default function UserProfile() {
     })();
   }, []);
 
-  // ── fetch profile info จาก Backend ──────────────────────────
-  useEffect(() => {
-    const fetchInfo = async () => {
-      try {
-        const res = await fetch(`${API}/profile/info`, { headers: authHeader() });
-        if (res.ok) {
-          const data = await res.json();
-          setProfile(p => ({
-            ...p,
-            bio: data.bio || p.bio,
-            location: data.location || p.location,
-            portfolio: data.portfolio || p.portfolio,
-            github: data.github || p.github,
-            linkedin: data.linkedin || p.linkedin,
-          }));
-        }
-      } catch (err) {
-        console.error("fetchInfo error:", err);
-      }
-    };
-    fetchInfo();
-  }, []);
-
+  // ── misc ──────────────────────────────────────────────────────
   useEffect(() => {
     const close = (e) => { if (!e.target.closest(".uf-user-area")) setMenuOpen(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
-
-  // ── resizable sidebar ────────────────────────────────────────
   useEffect(() => {
     const sidebar = sidebarRef.current;
     if (!sidebar) return;
@@ -404,22 +355,18 @@ export default function UserProfile() {
     let drag = false, startX = 0, startW = 0;
     const down = (e) => { drag = true; startX = e.clientX; startW = sidebar.offsetWidth; document.body.style.userSelect = "none"; document.addEventListener("mousemove", move); document.addEventListener("mouseup", up); };
     const move = (e) => { if (!drag) return; sidebar.style.width = Math.min(340, Math.max(80, startW + (e.clientX - startX))) + "px"; };
-    const up = () => { drag = false; document.body.style.userSelect = ""; document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    const up   = () => { drag = false; document.body.style.userSelect = ""; document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
     handle.addEventListener("mousedown", down);
     return () => handle.removeEventListener("mousedown", down);
   }, []);
 
-  const initial = userData?.username?.[0]?.toUpperCase() ?? "U";
+  const initial  = userData?.username?.[0]?.toUpperCase() ?? "U";
   const fullName = profile.displayName || userData?.fullName || "Unknown";
-
   const toggleSidebar = () => { if (sidebarOpen && sidebarRef.current) sidebarRef.current.style.width = ""; setSidebarOpen(v => !v); };
   const handleTabClick = (key) => { setActiveTab(key); if (key === "saved" && savedSectionRef.current) setTimeout(() => savedSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
   const handleDelete = async () => {
     if (!deleteConfirm) return;
-    await fetch(`${API}/resumes/${deleteConfirm.id}`, {
-      method: "DELETE", headers: authHeader()
-    });
-    // รีโหลดรายการหลังลบ
+    await fetch(`${API}/resumes/${deleteConfirm.id}`, { method: "DELETE", headers: authHeader() });
     const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
     if (res.ok) { const d = await res.json(); setMyResumes(d.resumes ?? []); }
     setDeleteConfirm(null);
@@ -449,8 +396,6 @@ export default function UserProfile() {
           <div className="up-modal" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
             <div className="up-modal-icon">{expForm.icon}</div>
             <div className="up-modal-title">{expEditId ? "แก้ไขประสบการณ์" : "เพิ่มประสบการณ์"}</div>
-
-            {/* Icon picker */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 12 }}>
               {ICONS.map(ic => (
                 <button key={ic} onClick={() => setExpForm(f => ({ ...f, icon: ic }))}
@@ -459,27 +404,21 @@ export default function UserProfile() {
                 </button>
               ))}
             </div>
-
             {[
-              { key: "title", label: "ตำแหน่งงาน", ph: "เช่น Frontend Developer" },
-              { key: "company", label: "บริษัท / องค์กร", ph: "เช่น Tech Startup Co." },
-              { key: "date", label: "ช่วงเวลา", ph: "เช่น 2022 – ปัจจุบัน" },
+              { key: "title",   label: "ตำแหน่งงาน",      ph: "เช่น Frontend Developer" },
+              { key: "company", label: "บริษัท / องค์กร",  ph: "เช่น Tech Startup Co." },
+              { key: "date",    label: "ช่วงเวลา",          ph: "เช่น 2022 – ปัจจุบัน" },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 10, textAlign: "left" }}>
                 <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 3 }}>{f.label}</label>
-                <input
-                  type="text" value={expForm[f.key]} placeholder={f.ph}
+                <input type="text" value={expForm[f.key]} placeholder={f.ph}
                   onChange={e => setExpForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                />
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
               </div>
             ))}
-
             <div className="up-modal-actions">
               <button className="up-modal-cancel" onClick={() => setExpModal(false)}>ยกเลิก</button>
-              <button className="up-modal-confirm" onClick={saveExp} disabled={!expForm.title.trim()}>
-                {expEditId ? "บันทึก" : "เพิ่ม"}
-              </button>
+              <button className="up-modal-confirm" onClick={saveExp} disabled={!expForm.title.trim()}>{expEditId ? "บันทึก" : "เพิ่ม"}</button>
             </div>
           </div>
         </div>
@@ -494,8 +433,7 @@ export default function UserProfile() {
             <input autoFocus type="text" placeholder="เช่น React, Python, Figma..." value={newSkill}
               onChange={e => setNewSkill(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") handleAddSkill(); if (e.key === "Escape") { setShowSkillModal(false); setNewSkill(""); } }}
-              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, marginBottom: 4, outline: "none", boxSizing: "border-box" }}
-            />
+              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, marginBottom: 4, outline: "none", boxSizing: "border-box" }} />
             <div className="up-modal-actions">
               <button className="up-modal-cancel" onClick={() => { setShowSkillModal(false); setNewSkill(""); }}>ยกเลิก</button>
               <button className="up-modal-confirm" onClick={handleAddSkill} disabled={!newSkill.trim()}>เพิ่ม</button>
@@ -516,8 +454,8 @@ export default function UserProfile() {
           <div className="uf-user-area" style={{ position: "relative" }}>
             <div className="uf-user-chip" onClick={() => setMenuOpen(v => !v)}>
               <div className="uf-avatar">
-                {avatarImg
-                  ? <img src={avatarImg} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                {displayAvatar
+                  ? <img src={displayAvatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} crossOrigin="anonymous" />
                   : userData?.avatar
                     ? <img src={userData.avatar} alt="avatar" crossOrigin="anonymous" />
                     : initial}
@@ -544,45 +482,30 @@ export default function UserProfile() {
           <Link to="/feed" className="uf-menu-item"><LuLayoutDashboard /> Feed</Link>
           <button className="uf-menu-item active"><FiHome /> Profile</button>
           <button className="uf-menu-item" onClick={() => handleTabClick("saved")}><LuBookmark /> Saved</button>
-
-          {/* Jobs Applied */}
           <div className="uf-section-label">
             Jobs Applied
             {appliedJobs.length > 0 && (
-              <span style={{ marginLeft: 6, background: "#1e3a8a", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>
-                {appliedJobs.length}
-              </span>
+              <span style={{ marginLeft: 6, background: "#1e3a8a", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{appliedJobs.length}</span>
             )}
           </div>
-          {appliedJobs.length > 0 ? (
-            appliedJobs.slice(0, 5).map(a => (
-              <div key={a.id} className="uf-sub-item" style={{ cursor: "default" }}>
-                <span style={{
-                  display: "inline-block", marginRight: 5,
-                  fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
-                  background: a.status === "accepted" ? "#dcfce7" : a.status === "rejected" ? "#fee2e2" : "#fef9c3",
-                  color:      a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
-                }}>
-                  {a.status === "accepted" ? "✓" : a.status === "rejected" ? "✕" : "⏳"}
-                </span>
-                {a.jobTitle}
-              </div>
-            ))
-          ) : (
+          {appliedJobs.length > 0 ? appliedJobs.slice(0, 5).map(a => (
+            <div key={a.id} className="uf-sub-item" style={{ cursor: "default" }}>
+              <span style={{ display: "inline-block", marginRight: 5, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
+                background: a.status === "accepted" ? "#dcfce7" : a.status === "rejected" ? "#fee2e2" : "#fef9c3",
+                color:      a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
+              }}>
+                {a.status === "accepted" ? "✓" : a.status === "rejected" ? "✕" : "⏳"}
+              </span>
+              {a.jobTitle}
+            </div>
+          )) : (
             <div className="uf-sub-item" style={{ color: "#9ca3af", fontSize: 11 }}>ยังไม่ได้สมัครงาน</div>
           )}
           {privateList.length > 0 && (
             <>
               <div className="uf-section-label">Private Resumes</div>
               {privateList.map(r => (
-                <div
-                  key={r.id}
-                  className="uf-sub-item"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/view-resume/${r.id}`)}
-                >
-                  🔒 {r.title}
-                </div>
+                <div key={r.id} className="uf-sub-item" style={{ cursor: "pointer" }} onClick={() => navigate(`/view-resume/${r.id}`)}>🔒 {r.title}</div>
               ))}
             </>
           )}
@@ -590,14 +513,7 @@ export default function UserProfile() {
             <>
               <div className="uf-section-label">Public Resumes</div>
               {publicList.map(r => (
-                <div
-                  key={r.id}
-                  className="uf-sub-item"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/view-resume/${r.id}`)}
-                >
-                  🌐 {r.title}
-                </div>
+                <div key={r.id} className="uf-sub-item" style={{ cursor: "pointer" }} onClick={() => navigate(`/view-resume/${r.id}`)}>🌐 {r.title}</div>
               ))}
             </>
           )}
@@ -606,66 +522,114 @@ export default function UserProfile() {
         {/* MAIN */}
         <main className="uf-main">
 
-          {/* Cover + Profile Info */}
+          {/* ── Upload Error Toast ── */}
+          {uploadError && (
+            <div style={{
+              position: "fixed", top: 72, right: 24, zIndex: 9999,
+              background: "#fef2f2", border: "1px solid #fecaca",
+              borderRadius: 10, padding: "10px 16px",
+              display: "flex", alignItems: "center", gap: 10,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.10)", fontSize: 13, color: "#dc2626",
+            }}>
+              ⚠️ {uploadError}
+              <button onClick={() => setUploadError(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", padding: 0, fontSize: 16, lineHeight: 1 }}>✕</button>
+            </div>
+          )}
+
+          {/* ── Cover + Profile Info ── */}
           <div className="up-cover-card">
             <div className="up-cover" style={{ position: "relative", overflow: "hidden" }}>
-              {coverImg
-                ? <img src={coverImg} alt="cover" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+
+              {/* Cover Image */}
+              {displayCover
+                ? <img src={displayCover} alt="cover" crossOrigin="anonymous" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                 : <div className="up-cover-pattern" />
               }
+
+              {/* Uploading overlay — Cover */}
+              {coverUploading && (
+                <div style={{
+                  position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 8, color: "#fff", fontSize: 13, fontWeight: 600, zIndex: 5,
+                }}>
+                  <LuLoader size={22} style={{ animation: "up-spin 0.9s linear infinite" }} />
+                  กำลังอัปโหลดรูปปก...
+                </div>
+              )}
+
+              {/* Hidden file input — Cover */}
               <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
+
+              {/* Edit Cover Button */}
               <button
                 className="up-edit-cover-btn"
                 onClick={() => coverInputRef.current?.click()}
+                disabled={coverUploading}
+                style={{ opacity: coverUploading ? 0.6 : 1 }}
               >
-                <LuPencil size={11} /> แก้ไขปก
+                {coverUploading
+                  ? <><LuLoader size={11} style={{ animation: "up-spin 0.9s linear infinite" }} /> กำลังอัปโหลด...</>
+                  : <><LuCamera size={11} /> เปลี่ยนรูปปก</>
+                }
               </button>
 
+              {/* Hidden file input — Avatar */}
               <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarChange} />
+
+              {/* Avatar */}
               <div
                 className="up-avatar-lg"
-                onClick={() => avatarInputRef.current?.click()}
+                onClick={() => !avatarUploading && avatarInputRef.current?.click()}
                 title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
-                style={{ cursor: "pointer", position: "relative", overflow: "hidden" }}
+                style={{ cursor: avatarUploading ? "default" : "pointer", position: "relative", overflow: "hidden" }}
               >
-                {avatarImg
-                  ? <img src={avatarImg} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
-                  : initial
+                {displayAvatar
+                  ? <img src={displayAvatar} alt="avatar" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                  : userData?.avatar
+                    ? <img src={userData.avatar} alt="avatar" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                    : initial
                 }
-                <div style={{
-                  position: "absolute", inset: 0, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.35)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  opacity: 0, transition: "opacity 0.2s",
-                  fontSize: 18, color: "#fff",
-                }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-                  onMouseLeave={e => e.currentTarget.style.opacity = "0"}
+
+                {/* Avatar hover / uploading overlay */}
+                <div className="up-avatar-overlay"
+                  style={{
+                    position: "absolute", inset: 0, borderRadius: "50%",
+                    background: avatarUploading ? "rgba(0,0,0,0.50)" : "rgba(0,0,0,0.35)",
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                    opacity: avatarUploading ? 1 : 0,
+                    transition: "opacity 0.2s",
+                    fontSize: 11, color: "#fff", fontWeight: 600, gap: 3,
+                  }}
+                  onMouseEnter={e => { if (!avatarUploading) e.currentTarget.style.opacity = "1"; }}
+                  onMouseLeave={e => { if (!avatarUploading) e.currentTarget.style.opacity = "0"; }}
                 >
-                  <LuPencil size={16} />
+                  {avatarUploading
+                    ? <LuLoader size={18} style={{ animation: "up-spin 0.9s linear infinite" }} />
+                    : <><LuCamera size={16} /><span style={{ fontSize: 10 }}>เปลี่ยนรูป</span></>
+                  }
                 </div>
               </div>
             </div>
 
+            {/* ── Profile Info ── */}
             <div className="up-profile-info">
               {editingProfile ? (
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: 10 }}>
                     {[
-                      { key: "displayName", label: "ชื่อ-นามสกุล", ph: "ชื่อที่แสดง" },
-                      { key: "email", label: "อีเมล", ph: "your@email.com" },
-                      { key: "location", label: "ที่อยู่", ph: "Bangkok, Thailand" },
-                      { key: "portfolio", label: "เว็บไซต์ / Portfolio", ph: "portfolio.dev" },
-                      { key: "github", label: "GitHub", ph: "github.com/username" },
-                      { key: "linkedin", label: "LinkedIn", ph: "linkedin.com/in/username" },
+                      { key: "displayName", label: "ชื่อ-นามสกุล",          ph: "ชื่อที่แสดง" },
+                      { key: "email",       label: "อีเมล",                   ph: "your@email.com" },
+                      { key: "location",    label: "ที่อยู่",                 ph: "Bangkok, Thailand" },
+                      { key: "portfolio",   label: "เว็บไซต์ / Portfolio",   ph: "portfolio.dev" },
+                      { key: "github",      label: "GitHub",                  ph: "github.com/username" },
+                      { key: "linkedin",    label: "LinkedIn",                ph: "linkedin.com/in/username" },
                     ].map(f => (
                       <div key={f.key}>
                         <label style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 2 }}>{f.label}</label>
-                        <input
-                          type="text" value={profileDraft[f.key]} placeholder={f.ph}
+                        <input type="text" value={profileDraft[f.key]} placeholder={f.ph}
                           onChange={e => setProfileDraft(p => ({ ...p, [f.key]: e.target.value }))}
-                          style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none", boxSizing: "border-box" }}
-                        />
+                          style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none", boxSizing: "border-box" }} />
                       </div>
                     ))}
                   </div>
@@ -675,12 +639,10 @@ export default function UserProfile() {
                       style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none", resize: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={saveProfile}
-                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 16px", borderRadius: 8, border: "none", background: "#1e3a8a", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                    <button onClick={saveProfile} style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 16px", borderRadius: 8, border: "none", background: "#1e3a8a", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
                       <LuCheck size={13} /> บันทึก
                     </button>
-                    <button onClick={cancelEditProfile}
-                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 14px", borderRadius: 8, border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                    <button onClick={cancelEditProfile} style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 14px", borderRadius: 8, border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
                       <LuX size={13} /> ยกเลิก
                     </button>
                   </div>
@@ -692,9 +654,9 @@ export default function UserProfile() {
                     <div className="up-profile-handle">@{userData?.username || "unknown"} · PerFile</div>
                     <div className="up-profile-bio">{profile.bio}</div>
                     <div className="up-profile-meta">
-                      {profile.location && <span className="up-meta-item"><LuMapPin size={11} /> {profile.location}</span>}
+                      {profile.location  && <span className="up-meta-item"><LuMapPin size={11} /> {profile.location}</span>}
                       {profile.portfolio && <a href={`https://${profile.portfolio.replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer" className="up-meta-link"><LuLink size={11} /> {profile.portfolio}</a>}
-                      {profile.email && <span className="up-meta-item"><LuMail size={11} /> {profile.email}</span>}
+                      {profile.email     && <span className="up-meta-item"><LuMail size={11} /> {profile.email}</span>}
                     </div>
                     <div className="up-social-row">
                       {profile.github ? (
@@ -702,18 +664,14 @@ export default function UserProfile() {
                           <LuGithub size={13} /> GitHub
                         </a>
                       ) : (
-                        <button className="up-social-btn" onClick={startEditProfile} title="คลิกเพื่อเพิ่ม GitHub">
-                          <LuGithub size={13} /> GitHub
-                        </button>
+                        <button className="up-social-btn" onClick={startEditProfile}><LuGithub size={13} /> GitHub</button>
                       )}
                       {profile.linkedin ? (
                         <a href={`https://${profile.linkedin.replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer" className="up-social-btn" style={{ textDecoration: "none" }}>
                           <LuLinkedin size={13} /> LinkedIn
                         </a>
                       ) : (
-                        <button className="up-social-btn" onClick={startEditProfile} title="คลิกเพื่อเพิ่ม LinkedIn">
-                          <LuLinkedin size={13} /> LinkedIn
-                        </button>
+                        <button className="up-social-btn" onClick={startEditProfile}><LuLinkedin size={13} /> LinkedIn</button>
                       )}
                     </div>
                   </div>
@@ -728,10 +686,10 @@ export default function UserProfile() {
           {/* Stats */}
           <div className="up-stats-row">
             {[
-              { num: stats.views, label: "VIEWS", color: "#1e3a8a" },
-              { num: stats.score, label: "PROFILE SCORE", color: "#4f46e5" },
-              { num: stats.interviewing, label: "INTERVIEWING", color: "#1e3a8a" },
-              { num: stats.shortlisted, label: "SHORTLISTED", color: "#1e3a8a" },
+              { num: stats.views,        label: "VIEWS",         color: "#1e3a8a" },
+              { num: stats.score,        label: "PROFILE SCORE", color: "#4f46e5" },
+              { num: stats.interviewing, label: "INTERVIEWING",  color: "#1e3a8a" },
+              { num: stats.shortlisted,  label: "SHORTLISTED",   color: "#1e3a8a" },
             ].map(s => (
               <div key={s.label} className="up-stat-card">
                 <div className="up-stat-num" style={{ color: s.color }}>{s.num}</div>
@@ -747,19 +705,14 @@ export default function UserProfile() {
               <button className="uf-filter-btn" onClick={() => setShowSkillModal(true)}><LuPlus size={12} /> เพิ่ม</button>
             </div>
             <div className="up-skills-wrap">
-              {skillsLoading ? (
-                <span style={{ color: "#9ca3af", fontSize: 13 }}>กำลังโหลด...</span>
-              ) : skills.length > 0 ? skills.map(sk => (
-                <span key={sk.id} className="up-skill-chip" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  {sk.name}
-                  <button onClick={() => handleRemoveSkill(sk)}
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#9ca3af", fontSize: 14, display: "flex", alignItems: "center" }}>
-                    ×
-                  </button>
-                </span>
-              )) : (
-                <span style={{ color: "#9ca3af", fontSize: 13 }}>ยังไม่มีทักษะ กด "+ เพิ่ม" เพื่อเพิ่มทักษะแรก</span>
-              )}
+              {skillsLoading ? <span style={{ color: "#9ca3af", fontSize: 13 }}>กำลังโหลด...</span>
+                : skills.length > 0 ? skills.map(sk => (
+                  <span key={sk.id} className="up-skill-chip" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    {sk.name}
+                    <button onClick={() => handleRemoveSkill(sk)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#9ca3af", fontSize: 14 }}>×</button>
+                  </span>
+                )) : <span style={{ color: "#9ca3af", fontSize: 13 }}>ยังไม่มีทักษะ กด "+ เพิ่ม" เพื่อเพิ่มทักษะแรก</span>
+              }
             </div>
           </div>
 
@@ -769,51 +722,42 @@ export default function UserProfile() {
               <span><LuBriefcase size={14} style={{ marginRight: 5, verticalAlign: "middle", color: "#4f46e5" }} />ประสบการณ์</span>
               <button className="uf-filter-btn" onClick={openAddExp}><LuPlus size={12} /> เพิ่ม</button>
             </div>
-            {expLoading ? (
-              <p style={{ color: "#9ca3af", fontSize: 13 }}>กำลังโหลด...</p>
-            ) : experiences.length === 0 ? (
-              <p style={{ color: "#9ca3af", fontSize: 13 }}>ยังไม่มีประสบการณ์ กด "+ เพิ่ม" เพื่อเพิ่มรายการแรก</p>
-            ) : experiences.map(e => (
-              <div key={e.id} className="up-exp-item" style={{ position: "relative" }}>
-                <div className="up-exp-dot">{e.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <div className="up-exp-title">{e.title}</div>
-                  <div className="up-exp-sub">{e.company}</div>
-                  <div className="up-exp-date">{e.date}</div>
+            {expLoading ? <p style={{ color: "#9ca3af", fontSize: 13 }}>กำลังโหลด...</p>
+              : experiences.length === 0 ? <p style={{ color: "#9ca3af", fontSize: 13 }}>ยังไม่มีประสบการณ์ กด "+ เพิ่ม"</p>
+              : experiences.map(e => (
+                <div key={e.id} className="up-exp-item" style={{ position: "relative" }}>
+                  <div className="up-exp-dot">{e.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div className="up-exp-title">{e.title}</div>
+                    <div className="up-exp-sub">{e.company}</div>
+                    <div className="up-exp-date">{e.date}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                    <button onClick={() => openEditExp(e)} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#6b7280", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
+                      <LuPencil size={11} /> แก้ไข
+                    </button>
+                    <button onClick={() => deleteExp(e.id)} style={{ background: "none", border: "1px solid #fecaca", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#ef4444", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
+                      <LuTrash2 size={11} /> ลบ
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                  <button onClick={() => openEditExp(e)}
-                    style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#6b7280", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
-                    <LuPencil size={11} /> แก้ไข
-                  </button>
-                  <button onClick={() => deleteExp(e.id)}
-                    style={{ background: "none", border: "1px solid #fecaca", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#ef4444", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
-                    <LuTrash2 size={11} /> ลบ
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))
+            }
           </div>
 
           {/* Tab Panel */}
           <div className="uf-panel">
             <div className="uf-tab-bar">
-              <>
-                {TABS.map(t => (
-                  <button key={t.key} className={`uf-tab${activeTab === t.key ? " active" : ""}`} onClick={() => handleTabClick(t.key)}>
-                    {t.label}
-                    {t.key === "resumes" && privateList.length > 0 && <span className="uf-tab-badge">{privateList.length}</span>}
-                    {t.key === "jobs" && publicList.length > 0 && <span className="uf-tab-badge" style={{ background: "#16a34a" }}>{publicList.length}</span>}
-                  </button>
-                ))}
-                <button
-                  className="uf-filter-btn"
-                  style={{ marginLeft: "auto", background: "#1e3a8a", color: "#fff", border: "none", whiteSpace: "nowrap" }}
-                  onClick={() => navigate("/resume")}
-                >
-                  <LuPlus /> สร้างเรซูเม่
+              {TABS.map(t => (
+                <button key={t.key} className={`uf-tab${activeTab === t.key ? " active" : ""}`} onClick={() => handleTabClick(t.key)}>
+                  {t.label}
+                  {t.key === "resumes" && privateList.length > 0 && <span className="uf-tab-badge">{privateList.length}</span>}
+                  {t.key === "jobs"    && publicList.length > 0  && <span className="uf-tab-badge" style={{ background: "#16a34a" }}>{publicList.length}</span>}
                 </button>
-              </>
+              ))}
+              <button className="uf-filter-btn" style={{ marginLeft: "auto", background: "#1e3a8a", color: "#fff", border: "none", whiteSpace: "nowrap" }} onClick={() => navigate("/resume")}>
+                <LuPlus /> สร้างเรซูเม่
+              </button>
             </div>
 
             {/* Private Resumes */}
@@ -827,9 +771,7 @@ export default function UserProfile() {
                         <div className="uf-resume-title">{p.title}</div>
                         <div className="uf-resume-meta">
                           <span><LuBadgeCheck /> {userData?.fullName ?? "You"}</span>
-                          {p.createdAt && <span style={{ color: "#9ca3af", fontSize: 11 }}>
-                            🔒 {new Date(p.createdAt).toLocaleDateString("th-TH")}
-                          </span>}
+                          {p.createdAt && <span style={{ color: "#9ca3af", fontSize: 11 }}>🔒 {new Date(p.createdAt).toLocaleDateString("th-TH")}</span>}
                         </div>
                         <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={e => e.stopPropagation()}>
                           <button className="uf-action-btn" onClick={e => { e.stopPropagation(); setActionMenuId(prev => prev === p.id ? null : p.id); }}>⋮</button>
@@ -838,13 +780,7 @@ export default function UserProfile() {
                               <button className="uf-action-menu-item uf-action-menu-item--accent"
                                 onClick={async () => {
                                   setActionMenuId(null);
-                                  // เรียก API เปลี่ยน visibility
-                                  await fetch(`${API}/resumes/${p.id}/visibility`, {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json", ...authHeader() },
-                                    body: JSON.stringify({ visibility: "public" })
-                                  });
-                                  // รีโหลดรายการ
+                                  await fetch(`${API}/resumes/${p.id}/visibility`, { method: "PATCH", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ visibility: "public" }) });
                                   const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
                                   if (res.ok) { const d = await res.json(); setMyResumes(d.resumes ?? []); }
                                   setActiveTab("jobs");
@@ -887,29 +823,11 @@ export default function UserProfile() {
                               <button className="uf-action-menu-item uf-action-menu-item--accent"
                                 onClick={async () => {
                                   setActionMenuId(null);
-                                  try {
-                                    // 1. เรียก API เพื่อเปลี่ยน visibility เป็น private
-                                    const res = await fetch(`${API}/resumes/${p.id}/visibility`, {
-                                      method: "PATCH",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                        ...authHeader()
-                                      },
-                                      body: JSON.stringify({ visibility: "private" })
-                                    });
-
-                                    if (res.ok) {
-                                      // 2. ถ้าสำเร็จ ให้โหลดข้อมูลใหม่เพื่อให้ UI อัปเดต
-                                      const refreshRes = await fetch(`${API}/resumes/my`, { headers: authHeader() });
-                                      if (refreshRes.ok) {
-                                        const d = await refreshRes.json();
-                                        setMyResumes(d.resumes ?? []);
-                                      }
-                                      // 3. ย้ายหน้ากลับไปที่แท็บ resumes (Private) เพื่อดูผลลัพธ์
-                                      setActiveTab("resumes");
-                                    }
-                                  } catch (err) {
-                                    console.error("Error updating visibility:", err);
+                                  const res = await fetch(`${API}/resumes/${p.id}/visibility`, { method: "PATCH", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ visibility: "private" }) });
+                                  if (res.ok) {
+                                    const r2 = await fetch(`${API}/resumes/my`, { headers: authHeader() });
+                                    if (r2.ok) { const d = await r2.json(); setMyResumes(d.resumes ?? []); }
+                                    setActiveTab("resumes");
                                   }
                                 }}>เปลี่ยนเป็น private</button>
                               <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={() => { setActionMenuId(null); setDeleteConfirm({ id: p.id, type: "public" }); }}>ลบ Resume</button>
@@ -933,139 +851,66 @@ export default function UserProfile() {
             {/* Saved */}
             {activeTab === "saved" && (
               <div ref={savedSectionRef}>
-                {/* Sub-tab bar */}
                 <div style={{ display: "flex", gap: 8, padding: "12px 16px 0" }}>
                   {[
-                    { key: "jobs",    label: "งานที่บันทึก",        count: savedJobs.length },
-                    { key: "resumes", label: "Resume ที่บันทึก",    count: savedResumes.length },
+                    { key: "jobs",    label: "งานที่บันทึก",      count: savedJobs.length },
+                    { key: "resumes", label: "Resume ที่บันทึก",  count: savedResumes.length },
                   ].map(st => (
-                    <button
-                      key={st.key}
-                      onClick={() => setSavedSubTab(st.key)}
-                      style={{
-                        padding: "6px 16px", borderRadius: 20, border: "none",
-                        cursor: "pointer", fontWeight: 600, fontSize: 13,
+                    <button key={st.key} onClick={() => setSavedSubTab(st.key)}
+                      style={{ padding: "6px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13,
                         background: savedSubTab === st.key ? "#1e3a8a" : "#f1f5f9",
                         color:      savedSubTab === st.key ? "#fff"    : "#64748b",
-                        display: "flex", alignItems: "center", gap: 6,
-                        transition: "all .15s",
-                      }}
-                    >
+                        display: "flex", alignItems: "center", gap: 6, transition: "all .15s",
+                      }}>
                       {st.label}
                       {st.count > 0 && (
-                        <span style={{
-                          background: savedSubTab === st.key ? "rgba(255,255,255,.25)" : "#e2e8f0",
-                          color:      savedSubTab === st.key ? "#fff" : "#64748b",
-                          borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700,
-                        }}>{st.count}</span>
+                        <span style={{ background: savedSubTab === st.key ? "rgba(255,255,255,.25)" : "#e2e8f0", color: savedSubTab === st.key ? "#fff" : "#64748b", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700 }}>{st.count}</span>
                       )}
                     </button>
                   ))}
                 </div>
-
                 {savedLoading ? (
                   <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>กำลังโหลด...</div>
                 ) : (
                   <>
-                    {/* ── Saved JOBS ── */}
                     {savedSubTab === "jobs" && (
                       <div className="uf-cards-grid">
                         {savedJobs.length === 0 ? (
-                          <div className="uf-empty">
-                            <div className="uf-empty-icon">🔖</div>
-                            <div className="uf-empty-title">ยังไม่มีงานที่บันทึกไว้</div>
-                            <div className="uf-empty-desc">กดปุ่ม Bookmark บนหน้า Feed เพื่อบันทึกงานที่สนใจ</div>
-                          </div>
+                          <div className="uf-empty"><div className="uf-empty-icon">🔖</div><div className="uf-empty-title">ยังไม่มีงานที่บันทึกไว้</div><div className="uf-empty-desc">กดปุ่ม Bookmark บนหน้า Feed เพื่อบันทึกงานที่สนใจ</div></div>
                         ) : savedJobs.map(item => (
-                          <div
-                            key={item.saved_id}
-                            className="uf-resume-card"
-                            onClick={() => navigate(`/jobs/${item.job_id}`)}
-                          >
-                            <div className="uf-resume-header">
-                              <div className="uf-resume-icon"><LuBriefcase /></div>
-                            </div>
+                          <div key={item.saved_id} className="uf-resume-card" onClick={() => navigate(`/jobs/${item.job_id}`)}>
+                            <div className="uf-resume-header"><div className="uf-resume-icon"><LuBriefcase /></div></div>
                             <div className="uf-resume-title" style={{ fontSize: 14 }}>{item.title}</div>
                             <div className="uf-resume-meta">
                               <span style={{ color: "#64748b" }}>🏢 {item.company_name || item.hr_name}</span>
-                              {item.location && (
-                                <span style={{ color: "#94a3b8", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
-                                  <LuMapPin size={10} /> {item.location}
-                                </span>
-                              )}
+                              {item.location && <span style={{ color: "#94a3b8", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}><LuMapPin size={10} /> {item.location}</span>}
                             </div>
-                            {item.salary && (
-                              <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>💰 {item.salary}</div>
-                            )}
-                            <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                              บันทึกเมื่อ {new Date(item.saved_at || item.created_at).toLocaleDateString("th-TH")}
-                            </div>
-                            {/* ปุ่มยกเลิก */}
-                            <button
-                              onClick={e => { e.stopPropagation(); handleUnsaveJob(item.job_id); }}
-                              style={{
-                                position: "absolute", top: 12, right: 12,
-                                background: "none", border: "1px solid #fca5a5",
-                                borderRadius: 6, padding: "3px 8px", cursor: "pointer",
-                                color: "#ef4444", fontSize: 11,
-                                display: "flex", alignItems: "center", gap: 3,
-                              }}
-                            >
+                            {item.salary && <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>💰 {item.salary}</div>}
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>บันทึกเมื่อ {new Date(item.saved_at || item.created_at).toLocaleDateString("th-TH")}</div>
+                            <button onClick={e => { e.stopPropagation(); handleUnsaveJob(item.job_id); }}
+                              style={{ position: "absolute", top: 12, right: 12, background: "none", border: "1px solid #fca5a5", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#ef4444", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
                               <LuBookmark size={11} /> ยกเลิก
                             </button>
                           </div>
                         ))}
                       </div>
                     )}
-
-                    {/* ── Saved RESUMES ── */}
                     {savedSubTab === "resumes" && (
                       <div className="uf-cards-grid">
                         {savedResumes.length === 0 ? (
-                          <div className="uf-empty">
-                            <div className="uf-empty-icon">📄</div>
-                            <div className="uf-empty-title">ยังไม่มี Resume ที่บันทึกไว้</div>
-                            <div className="uf-empty-desc">กดปุ่ม Bookmark บน Resume ของผู้อื่นเพื่อบันทึกไว้ดูทีหลัง</div>
-                          </div>
+                          <div className="uf-empty"><div className="uf-empty-icon">📄</div><div className="uf-empty-title">ยังไม่มี Resume ที่บันทึกไว้</div><div className="uf-empty-desc">กดปุ่ม Bookmark บน Resume ของผู้อื่นเพื่อบันทึกไว้ดูทีหลัง</div></div>
                         ) : savedResumes.map(item => (
-                          <div
-                            key={item.saved_id}
-                            className="uf-resume-card"
-                            onClick={() => navigate(`/view-resume/${item.resume_id}`)}
-                          >
-                            <div className="uf-resume-header">
-                              <div className="uf-resume-icon"><LuFileText /></div>
-                            </div>
+                          <div key={item.saved_id} className="uf-resume-card" onClick={() => navigate(`/view-resume/${item.resume_id}`)}>
+                            <div className="uf-resume-header"><div className="uf-resume-icon"><LuFileText /></div></div>
                             <div className="uf-resume-title" style={{ fontSize: 14 }}>{item.resume_title}</div>
                             <div className="uf-resume-meta">
                               <span><LuBadgeCheck /> {item.owner_name}</span>
-                              {item.owner_location && (
-                                <span style={{ color: "#94a3b8", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
-                                  <LuMapPin size={10} /> {item.owner_location}
-                                </span>
-                              )}
+                              {item.owner_location && <span style={{ color: "#94a3b8", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}><LuMapPin size={10} /> {item.owner_location}</span>}
                             </div>
-                            {item.owner_bio && (
-                              <div style={{
-                                fontSize: 11, color: "#64748b",
-                                overflow: "hidden", display: "-webkit-box",
-                                WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                              }}>{item.owner_bio}</div>
-                            )}
-                            <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                              บันทึกเมื่อ {new Date(item.saved_at).toLocaleDateString("th-TH")}
-                            </div>
-                            {/* ปุ่มยกเลิก */}
-                            <button
-                              onClick={e => { e.stopPropagation(); handleUnsaveResume(item.resume_id); }}
-                              style={{
-                                position: "absolute", top: 12, right: 12,
-                                background: "none", border: "1px solid #fca5a5",
-                                borderRadius: 6, padding: "3px 8px", cursor: "pointer",
-                                color: "#ef4444", fontSize: 11,
-                                display: "flex", alignItems: "center", gap: 3,
-                              }}
-                            >
+                            {item.owner_bio && <div style={{ fontSize: 11, color: "#64748b", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{item.owner_bio}</div>}
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>บันทึกเมื่อ {new Date(item.saved_at).toLocaleDateString("th-TH")}</div>
+                            <button onClick={e => { e.stopPropagation(); handleUnsaveResume(item.resume_id); }}
+                              style={{ position: "absolute", top: 12, right: 12, background: "none", border: "1px solid #fca5a5", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#ef4444", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
                               <LuBookmark size={11} /> ยกเลิก
                             </button>
                           </div>
@@ -1080,6 +925,9 @@ export default function UserProfile() {
 
         </main>
       </div>
+
+      {/* Spin keyframe */}
+      <style>{`@keyframes up-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

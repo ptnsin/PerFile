@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuFileText, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard,
-  LuBadgeCheck, LuClock, LuMapPin, LuBadgeMinus
+  LuBadgeCheck, LuClock, LuMapPin, LuBadgeMinus, LuUser
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 import JobDetailModal from "./JobDetailModal";
@@ -13,23 +13,30 @@ import "../styles/UsersFeed.css";
 
 const TABS = [
   { key: "resume", label: "Public Resumes", icon: <LuFileText /> },
-  { key: "job",    label: "Job Vacancies",  icon: <LuBriefcase /> },
+  { key: "job", label: "Job Vacancies", icon: <LuBriefcase /> },
 ];
 
 export default function UsersFeed() {
-  const [activeTab, setActiveTab]       = useState("resume");
-  const [userData, setUserData]         = useState(null);
+  const [activeTab, setActiveTab] = useState("resume");
+  const [userData, setUserData] = useState(null);
   const [publicResumes, setPublicResumes] = useState([]);
-  const [searchTerm, setSearchTerm]     = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [menuOpen, setMenuOpen]         = useState(false);
-  const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [myResumes, setMyResumes] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [selectedJob, setSelectedJob] = useState(null); 
+  const [selectedJob, setSelectedJob] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Saved resumes (stored in localStorage for persistence)
+  const [savedResumes, setSavedResumes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("savedResumes") || "[]");
+    } catch { return []; }
+  });
 
   // Notification
   const [notifOpen, setNotifOpen] = useState(false);
@@ -41,7 +48,30 @@ export default function UsersFeed() {
   // Filter states — Job
   const [jobFilter, setJobFilter] = useState({ type: "", location: "", salaryMin: "", salaryMax: "" });
   const sidebarRef = useRef(null);
-  const navigate   = useNavigate();
+  const navigate = useNavigate();
+
+  // Persist saved resumes
+  useEffect(() => {
+    localStorage.setItem("savedResumes", JSON.stringify(savedResumes));
+  }, [savedResumes]);
+
+  const toggleSave = async (resumeId) => {
+    const token = localStorage.getItem("token");
+    if (!token) return alert("กรุณาเข้าสู่ระบบก่อนบันทึก");
+
+    const method = savedResumes.includes(resumeId) ? "DELETE" : "POST";
+    const res = await fetch(`http://localhost:3000/saved/resumes/${resumeId}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      // อัปเดต UI หลังจากบันทึกสำเร็จ
+      setSavedResumes(prev =>
+        prev.includes(resumeId) ? prev.filter(id => id !== resumeId) : [...prev, resumeId]
+      );
+    }
+  };
 
   // Fetch Notifications
   useEffect(() => {
@@ -74,7 +104,7 @@ export default function UsersFeed() {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const res = await fetch("http://localhost:3000/jobs/all"); 
+        const res = await fetch("http://localhost:3000/jobs/all");
         if (res.ok) {
           const data = await res.json();
           setJobs(data.jobs);
@@ -210,12 +240,12 @@ export default function UsersFeed() {
   }, []);
 
   const JOB_CATEGORIES = [
-    { key: "IT",        label: "💻 IT & Software" },
-    { key: "Design",    label: "🎨 Design" },
+    { key: "IT", label: "💻 IT & Software" },
+    { key: "Design", label: "🎨 Design" },
     { key: "Marketing", label: "📣 Marketing" },
-    { key: "Finance",   label: "💰 Finance" },
-    { key: "Engineer",  label: "⚙️ Engineer" },
-    { key: "Other",     label: "📋 Other" },
+    { key: "Finance", label: "💰 Finance" },
+    { key: "Engineer", label: "⚙️ Engineer" },
+    { key: "Other", label: "📋 Other" },
   ];
 
   // Fetch My Resumes (for sidebar)
@@ -239,7 +269,7 @@ export default function UsersFeed() {
   }, []);
 
   const privateList = myResumes.filter(r => r.visibility === "private");
-  const publicList  = myResumes.filter(r => r.visibility === "public");
+  const publicList = myResumes.filter(r => r.visibility === "public");
 
   useEffect(() => {
     const close = (e) => {
@@ -252,7 +282,7 @@ export default function UsersFeed() {
   // Close filter dropdown on tab change
   useEffect(() => { setIsFilterOpen(false); }, [activeTab]);
 
-  const initial   = userData?.username?.[0]?.toUpperCase() ?? "U";
+  const initial = userData?.username?.[0]?.toUpperCase() ?? "U";
   const firstName = userData?.fullName?.split(" ")[0] ?? "there";
 
   const toggleSidebar = () => {
@@ -391,23 +421,14 @@ export default function UsersFeed() {
                 key={a.id}
                 className="uf-sub-item"
                 style={{ cursor: "pointer" }}
-                onClick={() => { setActiveTab("job"); setSelectedCategory(null); }}
+                onClick={() => navigate(`/jobs/${a.job_id}`)}
               >
-                <span style={{
-                  display: "inline-block", marginRight: 5,
-                  fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
-                  background: a.status === "accepted" ? "#dcfce7" : a.status === "rejected" ? "#fee2e2" : "#fef9c3",
-                  color:      a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
-                }}>
-                  {a.status === "accepted" ? "✓" : a.status === "rejected" ? "✕" : "⏳"}
-                </span>
-                {a.jobTitle}
+                💼 {a.jobs?.title ?? "งาน"}
               </div>
             ))
           ) : (
-            <div className="uf-sub-item" style={{ color: "#9ca3af", fontSize: 11 }}>ยังไม่ได้สมัครงาน</div>
+            <div className="uf-sub-item" style={{ color: "#9ca3af", fontSize: 11 }}>ยังไม่ได้สมัคร</div>
           )}
-
           {/* Job Categories */}
           <div className="uf-section-label">Job Categories</div>
           {JOB_CATEGORIES.map(cat => (
@@ -486,14 +507,13 @@ export default function UsersFeed() {
               <button
                 className="uf-filter-btn"
                 onClick={() => setIsFilterOpen((v) => !v)}
-                style={ isFilterOpen ? { background: "#eff6ff", color: "#1e3a8a", borderColor: "#1e3a8a" } : {} }
+                style={isFilterOpen ? { background: "#eff6ff", color: "#1e3a8a", borderColor: "#1e3a8a" } : {}}
               >
                 <LuFilter /> กรอง
-                {/* active dot */}
                 {((activeTab === "resume" && resumeFilter.position) ||
                   (activeTab === "job" && (jobFilter.type || jobFilter.location || jobFilter.salaryMin || jobFilter.salaryMax))) && (
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1e3a8a", display: "inline-block", marginLeft: 4 }} />
-                )}
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1e3a8a", display: "inline-block", marginLeft: 4 }} />
+                  )}
               </button>
 
               {/* ── Filter Dropdown ── */}
@@ -583,7 +603,21 @@ export default function UsersFeed() {
                     <ResumeCard
                       key={resume.id}
                       resume={resume}
-                      onClick={() => navigate(`/view-resume/${resume.id}`)}
+                      isSaved={savedResumes.includes(resume.id)}
+                      onToggleSave={() => toggleSave(resume.id)}
+                      // แก้ไขตรงนี้: ตรวจสอบลำดับของ ID ให้ชัวร์ (ใช้ user_id หรือ users.id)
+                      onOwnerClick={(e) => {
+                        e.stopPropagation();
+                        // เช็คทุก Key ที่อาจจะเป็น ID ของเจ้าของ
+                        const targetId = resume.user_id || resume.userId || (resume.users && resume.users.id);
+                        
+                        if (targetId) {
+                          navigate(`/view-profile/${targetId}`);
+                        } else {
+                          console.error("ไม่พบ ID ใน Object resume:", resume);
+                          alert("ไม่พบข้อมูลโปรไฟล์ของเจ้าของเรซูเม่นี้");
+                        }
+                      }}
                     />
                   ))
                 ) : (
@@ -631,26 +665,31 @@ export default function UsersFeed() {
         </main>
       </div>
 
-      {/* วาง Modal ไว้ที่นี่ (ด้านนอกสุดของโครงสร้างหลัก) */}
       <JobDetailModal
         open={isModalOpen}
         job={selectedJob}
         onClose={handleCloseModal}
-        onViewApplicants={() => {}} 
+        onViewApplicants={() => { }}
       />
     </div>
   );
 }
 
-function ResumeCard({ resume, onClick }) {
+// ─────────────────────────────────────────────
+// ResumeCard — ชื่อเจ้าของเด่นสุด + ปุ่ม Save
+// ─────────────────────────────────────────────
+function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
   const cardRef = useRef(null);
   const [inView, setInView] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const displayDate =
     resume.published_at || resume.publishedAt
       ? new Date(resume.published_at || resume.publishedAt).toLocaleDateString("th-TH")
       : "No date";
-  const ownerName = resume.users?.fullName || resume.owner;
+  const ownerName = resume.fullName || resume.ownerName || (resume.users && resume.users.fullName) || "Unknown User";
+  const ownerAvatar = resume.users?.avatar;
+  const ownerInitial = ownerName?.[0]?.toUpperCase() ?? "?";
 
   useEffect(() => {
     const el = cardRef.current;
@@ -663,7 +702,7 @@ function ResumeCard({ resume, onClick }) {
     return () => obs.disconnect();
   }, []);
 
-  const CARD_W = 236;        // 260px card - 12px padding x2
+  const CARD_W = 236;
   const IFRAME_W = 794;
   const IFRAME_H = 1123;
   const scale = CARD_W / IFRAME_W;
@@ -674,6 +713,8 @@ function ResumeCard({ resume, onClick }) {
       ref={cardRef}
       className="uf-resume-card"
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         cursor: "pointer",
         padding: "12px 12px 0 12px",
@@ -681,9 +722,40 @@ function ResumeCard({ resume, onClick }) {
         display: "flex",
         flexDirection: "column",
         borderRadius: "12px",
+        position: "relative",
+        transition: "box-shadow 0.2s",
+        boxShadow: hovered ? "0 8px 28px rgba(30,58,138,0.13)" : undefined,
       }}
     >
-      {/* ── PREVIEW AREA (มีขอบและ padding รอบๆ) ── */}
+      {/* ── Save Button (top-right corner) ── */}
+      <button
+        onClick={onSave}
+        title={isSaved ? "Unsave" : "Save"}
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          zIndex: 10,
+          background: isSaved ? "#1e3a8a" : "rgba(255,255,255,0.92)",
+          border: isSaved ? "none" : "1.5px solid #e2e8f0",
+          borderRadius: "50%",
+          width: 30,
+          height: 30,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+          transition: "background 0.2s, transform 0.15s",
+          transform: hovered ? "scale(1.08)" : "scale(1)",
+          color: isSaved ? "#fff" : "#6b7280",
+          fontSize: 14,
+        }}
+      >
+        <LuBookmark style={{ fill: isSaved ? "#fff" : "none" }} size={14} />
+      </button>
+
+      {/* ── PREVIEW AREA ── */}
       <div style={{
         position: "relative",
         width: "100%",
@@ -725,27 +797,96 @@ function ResumeCard({ resume, onClick }) {
           style={{
             position: "absolute",
             inset: 0,
-            background: "transparent",
+            background: hovered ? "rgba(30,58,138,0.06)" : "transparent",
             transition: "background 0.2s",
             borderRadius: "8px",
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = "rgba(30,58,138,0.06)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
         />
-
-        {/* PUBLIC badge */}
-       {/* PUBLIC badge */}
-
       </div>
 
       {/* ── FOOTER ── */}
       <div style={{ padding: "10px 2px 12px" }}>
-        <div className="uf-resume-title" style={{ marginBottom: 5, fontSize: "13px" }}>
+
+        {/* ── Owner Row (คลิกดูโปรไฟล์) ── */}
+        <div
+          onClick={onOwnerClick}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 6,
+            padding: "5px 7px",
+            borderRadius: 8,
+            cursor: "pointer",
+            transition: "background 0.15s",
+            background: hovered ? "#f0f4ff" : "transparent",
+          }}
+          title={`ดูโปรไฟล์ ${ownerName}`}
+        >
+          {/* Avatar */}
+          <div style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#fff",
+            overflow: "hidden",
+            border: "2px solid #e0e7ff",
+          }}>
+            {ownerAvatar
+              ? <img src={ownerAvatar} alt={ownerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+              : ownerInitial}
+          </div>
+
+          {/* Name */}
+          <span style={{
+            fontSize: "14px",
+            fontWeight: 700,
+            color: "#1e3a8a",
+            letterSpacing: "-0.01em",
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {ownerName}
+          </span>
+
+          {/* View profile arrow */}
+          <LuUser size={12} style={{ color: "#93c5fd", flexShrink: 0 }} />
+        </div>
+
+        {/* ── Resume Title (รอง) ── */}
+        <div style={{
+          fontSize: "12px",
+          fontWeight: 500,
+          color: "#4b5563",
+          marginBottom: 4,
+          paddingLeft: 2,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
           {resume.title}
         </div>
-        <div className="uf-resume-meta">
-          {ownerName && <span><LuBadgeCheck /> {ownerName}</span>}
-          <span><LuClock /> {displayDate}</span>
+
+        {/* ── Date ── */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          fontSize: "11px",
+          color: "#9ca3af",
+          paddingLeft: 2,
+        }}>
+          <LuClock size={11} />
+          {displayDate}
         </div>
       </div>
     </div>
@@ -759,20 +900,15 @@ function JobCard({ job, onClick }) {
       onClick={onClick}
       style={{ cursor: "pointer", position: "relative", overflow: "visible" }}
     >
-      {/* ── Header: icon + job type ── */}
       <div className="hrf-job-header" style={{ marginBottom: "12px" }}>
         <div className="hrf-job-icon"><LuBriefcase /></div>
         <span className="hrf-job-type" style={{ marginTop: 8 }}>
           {job.job_type || "ไม่ระบุ"}
         </span>
       </div>
-
-      {/* ── Title ── */}
       <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem" }}>
         {job.title || "ไม่ระบุตำแหน่ง"}
       </div>
-
-      {/* ── Company (ข้อความรอง) ── */}
       {(job.company_name || job.users?.hr_profile?.company) && (
         <div style={{
           fontSize: 12, color: "#6366f1", fontWeight: 600,
@@ -782,14 +918,10 @@ function JobCard({ job, onClick }) {
           {job.company_name || job.users?.hr_profile?.company}
         </div>
       )}
-
-      {/* ── Meta: category + location ── */}
       <div className="hrf-job-meta" style={{ marginTop: "8px" }}>
         {job.category && <span><LuBadgeCheck /> {job.category}</span>}
-        {job.location  && <span><LuMapPin /> {job.location}</span>}
+        {job.location && <span><LuMapPin /> {job.location}</span>}
       </div>
-
-      {/* ── Salary ── */}
       <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #f1f5f9" }}>
         <span style={{ color: "#059669", fontWeight: 700, fontSize: "14px" }}>
           ฿ {job.salary ?? "ไม่ระบุ"}

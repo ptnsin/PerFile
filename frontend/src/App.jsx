@@ -16,6 +16,7 @@ import HrFeed from "./pages/HrFeed";
 import HRProfile from "./pages/HRProfile";
 // import PrivateFeed from "./pages/Private Profile";
 import AdminDashboard from "./pages/AdminDashboard";
+import ViewProfile from "./pages/ViewProfile";
 function App() {
   
 
@@ -34,6 +35,7 @@ function App() {
           <Route path="/view-resume/:id" element={<ViewResume />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/hr-feed" element={<HrFeed />} />
+          <Route path="/view-profile/:userId" element={<ViewProfile />} />
 
           {/* <Route path="/private-feed" element={<PrivateFeed />} /> */}
           <Route path="/admin" element={<AdminDashboard />} />
