@@ -8,10 +8,11 @@ import {
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
+import JobDetailModal from "./JobDetailModal"; // ✅ เพิ่ม import
 
 export default function AdminDashboard() {
-  const [userFeedPosts, setUserFeedPosts] = useState([]); // สำหรับหน้า User Feed
-  const [hrJobPosts, setHrJobPosts] = useState([]);      // สำหรับหน้า HR Feed
+  const [userFeedPosts, setUserFeedPosts] = useState([]);
+  const [hrJobPosts, setHrJobPosts] = useState([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [currentTab, setCurrentTab] = useState("overview");
   const [stats, setStats] = useState(null);
@@ -38,10 +39,16 @@ export default function AdminDashboard() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState("");
   const navigate = useNavigate();
-  const [resumes, setResumes] = useState([]); 
-  const [resumeSearch, setResumeSearch] = useState(""); 
+  const [resumes, setResumes] = useState([]);
+  const [resumeSearch, setResumeSearch] = useState("");
   const [resumeVisibility, setResumeVisibility] = useState("");
- 
+
+  // ✅ State สำหรับ JobDetailModal
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+
+  // ✅ State สำหรับ HR Feed search
+  const [hrSearchTerm, setHrSearchTerm] = useState("");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -49,43 +56,36 @@ export default function AdminDashboard() {
   };
 
   const fetchUserFeed = async () => {
-  setFeedLoading(true);
-  try {
-    const token = localStorage.getItem("token");
-    // เปลี่ยนจาก "/posts" เป็น Path ที่ Backend มีจริง 
-    // เช่น ถ้าจะดูโพสต์งานทั้งหมดให้ใช้ "/admin/all-jobs"
-    const res = await axios.get("http://localhost:3000/admin/all-jobs", { 
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setUserFeedPosts(res.data.jobs); // อย่าลืมใส่ .jobs เพราะ backend ส่งกลับมาเป็น object { jobs: [] }
-  } catch (err) {
-    console.error("Error fetching user feed:", err);
-  } finally {
-    setFeedLoading(false);
-  }
+    setFeedLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:3000/admin/all-jobs", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserFeedPosts(res.data.jobs);
+    } catch (err) {
+      console.error("Error fetching user feed:", err);
+    } finally {
+      setFeedLoading(false);
+    }
   };
 
-const fetchHRFeed = async () => {
-  setFeedLoading(true);
-  try {
-    const token = localStorage.getItem("token");
-    // 💡 เปลี่ยน URL ให้ชี้ไปที่ /admin/all-jobs ตามที่คุณเขียนใน Backend
-    const res = await axios.get("http://localhost:3000/admin/all-jobs", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    console.log("Response Data:", res.data);
-    
-    // 💡 Backend ส่งมาในรูปแบบ { jobs: [...] } ดังนั้นต้องเข้าถึง res.data.jobs
-    setHrJobPosts(res.data.jobs); 
-  } catch (err) {
-    console.error("Error fetching HR feed:", err);
-  } finally {
-    setFeedLoading(false);
-  }
-};
+  const fetchHRFeed = async () => {
+    setFeedLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:3000/admin/all-jobs", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log("Response Data:", res.data);
+      setHrJobPosts(res.data.jobs);
+    } catch (err) {
+      console.error("Error fetching HR feed:", err);
+    } finally {
+      setFeedLoading(false);
+    }
+  };
 
-  // --- 2. Helper Functions (ประกาศไว้ก่อนเพื่อให้ Effects เรียกใช้ได้) ---
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -99,92 +99,112 @@ const fetchHRFeed = async () => {
   };
 
   const fetchAuditLogs = useCallback(async () => {
-  try {
-    const token = localStorage.getItem("token");
-    const params = new URLSearchParams({
-      page: 1,
-      limit: 20,
-      action: filterLogAction,
-      admin: filterLogAdmin,
-      target: filterLogTarget
-    });
-
-    const res = await axios.get(`http://localhost:3000/admin/audit-logs?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setAuditLogs(res.data.logs);
-    setAuditTotal(res.data.total);
-  } catch (err) {
-    console.error("Error fetching audit logs:", err);
-  }
-}, [filterLogAction, filterLogAdmin, filterLogTarget]); // ใส่ค่าที่ฟังก์ชันนี้ใช้งาน
-
-useEffect(() => {
-  fetchAuditLogs(); // ทุกครั้งที่ค่าใน [] เปลี่ยน ให้เรียกฟังก์ชันดึงข้อมูลใหม่
-}, [filterLogAction, filterLogAdmin, filterLogTarget, fetchAuditLogs]);
-
-  const fetchAllResumes = async () => {
-  try {
-    const token = localStorage.getItem("token"); //
-    const res = await axios.get("http://localhost:3000/admin/resumes", {
-      headers: { Authorization: `Bearer ${token}` } //
-    });
-    setResumes(res.data); //
-  } catch (err) {
-    console.error("Error fetching resumes:", err); //
-  }
-};
-
-const handleDeleteResume = async (resumeId) => {
-  if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบ Resume นี้ถาวร?")) return;
-  try {
-    const token = localStorage.getItem("token");
-    await axios.delete(`http://localhost:3000/resumes/${resumeId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    // Update state ทันทีเพื่อให้ UI เปลี่ยนแปลงโดยไม่ต้อง Refresh
-    setResumes(resumes.filter((r) => r.id !== resumeId));
-    await fetchStats(); // อัปเดตตัวเลข Stats บน Dashboard ด้วย
-    alert("ลบข้อมูล Resume สำเร็จ");
-  } catch (err) {
-    console.error("Delete Resume Error:", err);
-    alert("ไม่สามารถลบ Resume ได้");
-  }
-};
-
-  // --- 3. Effects ---
-
-  // ดึงข้อมูลครั้งแรกเมื่อโหลดหน้า
-useEffect(() => {
-  const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
-      
-      // 🌟 จุดสำคัญ: ต้อง Decode และเก็บลง State ตรงนี้
-      if (token) {
-        const decoded = jwtDecode(token);
-        console.log("Decoded Token:", decoded); // <--- ลองดูใน Console (F12) ว่ามีคำว่า username ไหม
-        setUserData(decoded);
-      }
-
-      const headers = { Authorization: `Bearer ${token}` };
-      await fetchStats();
-      await fetchAuditLogs();
-      await fetchAllResumes();
-      const usersRes = await axios.get("http://localhost:3000/admin/users?page=1", { headers });
-      setUsers(usersRes.data.users);
-      const settingsRes = await axios.get("http://localhost:3000/admin/settings", { headers });
-      setSettings(settingsRes.data);
-      setLoading(false);
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 20,
+        action: filterLogAction,
+        admin: filterLogAdmin,
+        target: filterLogTarget
+      });
+      const res = await axios.get(`http://localhost:3000/admin/audit-logs?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAuditLogs(res.data.logs);
+      setAuditTotal(res.data.total);
     } catch (err) {
-      console.error("Fetch Error:", err);
-      setLoading(false);
+      console.error("Error fetching audit logs:", err);
+    }
+  }, [filterLogAction, filterLogAdmin, filterLogTarget]);
+
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [filterLogAction, filterLogAdmin, filterLogTarget, fetchAuditLogs]);
+
+  const fetchAllResumes = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:3000/admin/resumes", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setResumes(res.data);
+    } catch (err) {
+      console.error("Error fetching resumes:", err);
     }
   };
-  fetchData();
-}, []);
 
-  // ระบบลาก Sidebar
+  const handleDeleteResume = async (resumeId) => {
+    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบ Resume นี้ถาวร?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      // ✅ ใช้ /admin/resumes/:id ซึ่งมี adminMiddleware รองรับอยู่แล้วใน Backend
+      await axios.delete(`http://localhost:3000/admin/resumes/${resumeId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setResumes(resumes.filter((r) => r.id !== resumeId));
+      await fetchStats();
+      alert("ลบข้อมูล Resume สำเร็จ");
+    } catch (err) {
+      console.error("Delete Resume Error:", err);
+      alert("ไม่สามารถลบ Resume ได้");
+    }
+  };
+
+  // ✅ ฟังก์ชันลบ Job Post
+  const handleDeleteJob = async (jobId) => {
+    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบ Job Post นี้ถาวร?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:3000/admin/jobs/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setHrJobPosts(hrJobPosts.filter((job) => job.id !== jobId));
+      await fetchStats();
+      alert("ลบ Job Post สำเร็จ");
+    } catch (err) {
+      console.error("Delete Job Error:", err);
+      alert("ไม่สามารถลบ Job Post ได้");
+    }
+  };
+
+  // ✅ ฟังก์ชันเปิด JobDetailModal
+  const handleViewJobDetail = (job) => {
+    setSelectedJob(job);
+    setIsJobModalOpen(true);
+  };
+
+  // ✅ ฟังก์ชันปิด JobDetailModal
+  const handleCloseJobModal = () => {
+    setIsJobModalOpen(false);
+    setSelectedJob(null);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (token) {
+          const decoded = jwtDecode(token);
+          setUserData(decoded);
+        }
+        const headers = { Authorization: `Bearer ${token}` };
+        await fetchStats();
+        await fetchAuditLogs();
+        await fetchAllResumes();
+        const usersRes = await axios.get("http://localhost:3000/admin/users?page=1", { headers });
+        setUsers(usersRes.data.users);
+        const settingsRes = await axios.get("http://localhost:3000/admin/settings", { headers });
+        setSettings(settingsRes.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Fetch Error:", err);
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   useEffect(() => {
     const sidebar = sidebarRef.current;
     if (!sidebar) return;
@@ -227,28 +247,24 @@ useEffect(() => {
     };
   }, [loading]);
 
-  // เปลี่ยนสถานะ User (จาก Select Dropdown หรือปุ่ม Ban)
   const handleUpdateStatus = async (userId, newStatus) => {
     const msg = newStatus === 'banned' ? "ระงับการใช้งาน User นี้?" : "คืนสถานะ User นี้?";
     if (!window.confirm(msg)) return;
-    
     try {
       const token = localStorage.getItem("token");
-      await axios.put(`http://localhost:3000/admin/users/${userId}/status`, 
+      await axios.put(`http://localhost:3000/admin/users/${userId}/status`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
       setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus } : u));
-      await fetchStats(); // อัปเดตตัวเลข Stats จาก DB จริง
-      await fetchAuditLogs(); // อัปเดต audit logs ด้วย
+      await fetchStats();
+      await fetchAuditLogs();
     } catch (err) {
       console.error("Update Status Error:", err);
       alert("ไม่สามารถเปลี่ยนสถานะได้");
     }
   };
 
-  // ลบ User ถาวร
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบ User นี้ถาวร?")) return;
     try {
@@ -258,19 +274,17 @@ useEffect(() => {
       });
       setUsers(users.filter((user) => user.id !== userId));
       await fetchStats();
-      await fetchAuditLogs(); // 🌟 อัปเดต Log หลังจากลบ
+      await fetchAuditLogs();
       alert("ลบข้อมูลสำเร็จเรียบร้อยแล้ว");
     } catch (err) {
       console.error("Delete User Error:", err);
     }
   };
 
-  // ฟังก์ชันนี้เรียกใช้ Logic เดียวกับ handleUpdateStatus เพื่อความไม่งง
   const handleStatusChange = (userId, newStatus) => {
     handleUpdateStatus(userId, newStatus);
   };
 
-  // ปิด Admin Menu เมื่อคลิกข้างนอก
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (adminMenuRef.current && !adminMenuRef.current.contains(e.target)) {
@@ -321,15 +335,14 @@ useEffect(() => {
   };
 
   const scrollToUserManagement = () => {
-  if (userTableRef.current) {
-    userTableRef.current.scrollIntoView({ 
-      behavior: "smooth", // เลื่อนแบบนุ่มนวล
-      block: "start"      // ให้ส่วนหัวของตารางอยู่บนสุดของหน้าจอ
-    });
-  }
+    if (userTableRef.current) {
+      userTableRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
   };
 
-  // --- 5. Render Logic ---
   if (loading) return <div className="admin-page">Loading Dashboard...</div>;
 
   return (
@@ -382,7 +395,7 @@ useEffect(() => {
         <aside ref={sidebarRef} className={`admin-sidebar ${isSidebarOpen ? "open" : "closed"}`}>
           <div className="sidebar-content-wrapper">
             <div className="section-title">Page</div>
-            <button className={`page-nav-btn ${currentTab === "overview" ? "active" : ""}`} 
+            <button className={`page-nav-btn ${currentTab === "overview" ? "active" : ""}`}
                     onClick={() => setCurrentTab("overview")}
                     style={{
                       backgroundColor: currentTab === "overview" ? "#6366f1" : "transparent",
@@ -390,7 +403,7 @@ useEffect(() => {
                     }}
                     >Admin Page
             </button>
-            <button className={`page-nav-btn ${currentTab === "user-feed" ? "active" : ""}`} 
+            <button className={`page-nav-btn ${currentTab === "user-feed" ? "active" : ""}`}
                     onClick={() => { setCurrentTab("user-feed"); fetchUserFeed(); }}
                     style={{
                       backgroundColor: currentTab === "user-feed" ? "#4f46e5" : "transparent",
@@ -398,7 +411,7 @@ useEffect(() => {
                     }}
                     >User Feed
             </button>
-            <button className={`page-nav-btn ${currentTab === "hr-feed" ? "active" : ""}`} 
+            <button className={`page-nav-btn ${currentTab === "hr-feed" ? "active" : ""}`}
                     onClick={() => { setCurrentTab("hr-feed"); fetchHRFeed(); }}
                     style={{
                       backgroundColor: currentTab === "hr-feed" ? "#3b82f6" : "transparent",
@@ -408,7 +421,7 @@ useEffect(() => {
             </button>
 
             <div className="section-title">Main Menu</div>
-            <button className={`menu-item ${currentTab === "overview" ? "active" : ""}`} 
+            <button className={`menu-item ${currentTab === "overview" ? "active" : ""}`}
             onClick={goToOverview}><FiHome /> <span>Overview</span></button>
             <button className={`menu-item ${currentTab === "user-management" ? "active" : ""}`} onClick={() => {
               setCurrentTab("user-management");
@@ -424,18 +437,16 @@ useEffect(() => {
             <button className={`menu-item ${currentTab === "settings" ? "active" : ""}`} onClick={() => { setCurrentTab("settings"); scrollToSettings(); }}><LuSettings /> <span>System Settings</span></button>
           </div>
 
-          {/* ตัวสำหรับลากขยายซ้ายขวา */}
           <div className="sidebar-handle">
             <div className="handle-line"></div>
           </div>
         </aside>
 
         <main className="admin-main">
-          {/* --- หน้า ADMIN PAGE (เดิม) --- */}
-          {(currentTab === "overview" || 
-            currentTab === "user-management" || 
-            currentTab === "resume-controls" || 
-            currentTab === "audit-logs" || 
+          {(currentTab === "overview" ||
+            currentTab === "user-management" ||
+            currentTab === "resume-controls" ||
+            currentTab === "audit-logs" ||
             currentTab === "settings") && (
             <>
           <header className="dashboard-header" ref={overviewRef}>
@@ -443,9 +454,7 @@ useEffect(() => {
             <p style={{ color: '#6b7280', fontSize: '14px' }}>ข้อมูลสรุปภาพรวมของระบบ PerFile</p>
           </header>
 
-          {/* STATS CARDS (ใช้ข้อมูลจริงจาก API) */}
           <div className="stats-grid">
-
             <div className="stat-card">
               <span className="stat-label">Total Users</span>
               <span className="stat-num">{users.length}</span>
@@ -462,7 +471,6 @@ useEffect(() => {
               <span className="stat-label">Pending Approval</span>
               <span className="stat-num" style={{ color: '#d97706' }}>{stats?.pendingHR || 0}</span>
             </div>
-            
             <div className="stat-card">
               <span className="stat-label">Total Resumes</span>
               <span className="stat-num">{resumes.length}</span>
@@ -473,10 +481,9 @@ useEffect(() => {
             <h3>Pending Approval</h3>
             <div className="pending-list">
               {users
-                .filter((user) => user.status === "pending") // 🌟 กรองเฉพาะคนที่สถานะเป็น pending
+                .filter((user) => user.status === "pending")
                 .map((user) => (
                   <div key={user.id} className="pending-item">
-                    {/* ส่วน User Info (Avatar + Username/Email) */}
                     <div className="user-info-brief">
                       <div className="mini-avatar">
                         {user.username?.charAt(0).toUpperCase()}
@@ -486,16 +493,12 @@ useEffect(() => {
                         <p className="email">{user.email}</p>
                       </div>
                     </div>
-
-                    {/* ส่วน Full Name & Company */}
                     <div className="work-info">
                       <p className="fullname">{user.fullName || "ไม่ระบุชื่อ"}</p>
                       <p className="company">{user.company || "ไม่มีข้อมูลบริษัท"}</p>
                     </div>
-
-                    {/* ปุ่ม Action (เผื่อคุณต้องการกดอนุมัติจากตรงนี้ได้เลย) */}
                     <div className="action-group">
-                      <button 
+                      <button
                         className="approve-btn"
                         onClick={() => handleUpdateStatus(user.id, 'active')}
                       >
@@ -504,8 +507,6 @@ useEffect(() => {
                     </div>
                   </div>
                 ))}
-              
-              {/* กรณีไม่มีใครรออนุมัติเลย */}
               {users.filter(u => u.status === "pending").length === 0 && (
                 <p style={{ textAlign: 'center', color: '#9ca3af', padding: '20px' }}>
                   ไม่มีรายการรอนุมัติ
@@ -514,28 +515,25 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* ตารางแสดงข้อมูล User ล่าสุด */}
-          <div className="data-section" ref={userTableRef} >
+          <div className="data-section" ref={userTableRef}>
             <div className="table-header">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <h2 style={{ fontSize: '16px', fontWeight: 700 }}>User Management</h2>
-                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500  }}>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
                   Total {users.length} user
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <div className="nav-search" style={{ width: '200px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={15} />
-                  <input 
-                    placeholder="ค้นหาชื่อ, อีเมล, บริษัท..." 
+                  <input
+                    placeholder="ค้นหาชื่อ, อีเมล, บริษัท..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-
-                {/* เลือก Method */}
-                <select 
-                  className="action-btn" 
+                <select
+                  className="action-btn"
                   value={selectedMethod}
                   onChange={(e) => setSelectedMethod(e.target.value)}
                   style={{ fontSize: '12px' }}
@@ -545,10 +543,8 @@ useEffect(() => {
                   <option value="github">GitHub</option>
                   <option value="email">Email</option>
                 </select>
-
-                {/* เลือก Role */}
-                <select 
-                  className="action-btn" 
+                <select
+                  className="action-btn"
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
                   style={{ fontSize: '12px' }}
@@ -558,8 +554,7 @@ useEffect(() => {
                   <option value="2">Seeker</option>
                   <option value="3">HR Agent</option>
                 </select>
-
-                <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => {setSearchTerm(""); setSelectedRole(""); setSelectedMethod("");}} >Reset</button>
+                <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => { setSearchTerm(""); setSelectedRole(""); setSelectedMethod(""); }}>Reset</button>
               </div>
             </div>
             <table className="admin-table">
@@ -576,124 +571,106 @@ useEffect(() => {
               </thead>
               <tbody>
                 {users
-                .filter((user) => {
-                  const searchTermLower = searchTerm.toLowerCase();
-                  
-                  const matchesSearch =
-                    user.username?.toLowerCase().includes(searchTermLower) ||
-                    user.email?.toLowerCase().includes(searchTermLower) ||
-                    user.fullName?.toLowerCase().includes(searchTermLower) ||
-                    user.company?.toLowerCase().includes(searchTermLower);
-                  const matchesRole = selectedRole === "" || user.roles_id.toString() === selectedRole;
-                  let userMethod = "email";
-                  if (user.google_id) userMethod = "google";
-                  else if (user.github_id) userMethod = "github";
-                  
-                  const matchesMethod = selectedMethod === "" || userMethod === selectedMethod;
-
-                  return matchesSearch && matchesRole && matchesMethod;
-                })
-                .map((user) => (
-                  <tr key={user.id}>
-                    {/* 1. ข้อมูล Username & Email */}
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {user.avatar ? (
-                          <img src={user.avatar} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover',border: '1px solid #e5e7eb' }} alt="avt" onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${user.username}&background=random` }} />
-                        ) : (
-                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LuUser size={16} /></div>
-                        )}
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{user.username}</div>
-                          <div style={{ fontSize: '11px', color: '#9ca3af' }}>{user.email}</div>
+                  .filter((user) => {
+                    const searchTermLower = searchTerm.toLowerCase();
+                    const matchesSearch =
+                      user.username?.toLowerCase().includes(searchTermLower) ||
+                      user.email?.toLowerCase().includes(searchTermLower) ||
+                      user.fullName?.toLowerCase().includes(searchTermLower) ||
+                      user.company?.toLowerCase().includes(searchTermLower);
+                    const matchesRole = selectedRole === "" || user.roles_id.toString() === selectedRole;
+                    let userMethod = "email";
+                    if (user.google_id) userMethod = "google";
+                    else if (user.github_id) userMethod = "github";
+                    const matchesMethod = selectedMethod === "" || userMethod === selectedMethod;
+                    return matchesSearch && matchesRole && matchesMethod;
+                  })
+                  .map((user) => (
+                    <tr key={user.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {user.avatar ? (
+                            <img src={user.avatar} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e5e7eb' }} alt="avt" onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${user.username}&background=random` }} />
+                          ) : (
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LuUser size={16} /></div>
+                          )}
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{user.username}</div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af' }}>{user.email}</div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-
-                    {/* 2. ชื่อจริง และ บริษัท (ถ้าเป็น HR) */}
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{user.fullName || "-"}</div>
-                      {user.roles_id === 3 && (
-                        <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 600 }}>
-                          🏢 {user.company || "No Company"}
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>{user.fullName || "-"}</div>
+                        {user.roles_id === 3 && (
+                          <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 600 }}>
+                            🏢 {user.company || "No Company"}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 500 }}>
+                          {user.google_id && (
+                            <><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="16" alt="G" /> Google</>
+                          )}
+                          {user.github_id && (
+                            <><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="16" alt="GH" /> GitHub</>
+                          )}
+                          {!user.google_id && !user.github_id && (
+                            <><LuFileText size={14} color="#6b7280" /> Email</>
+                          )}
                         </div>
-                      )}
-                    </td>
-
-                    {/* 3. คอลัมน์บอกวิธีการ Login */}
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 500 }}>
-                        {user.google_id && (
-                          <><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="16" alt="G" /> Google</>
-                        )}
-                        {user.github_id && (
-                          <><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="16" alt="GH" /> GitHub</>
-                        )}
-                        {!user.google_id && !user.github_id && (
-                          <><LuFileText size={14} color="#6b7280" /> Email</>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* 4. สิทธิ์การใช้งาน */}
-                    <td>
-                      <span style={{ 
-                        fontSize: '12px', 
-                        fontWeight: 600,
-                        color: user.roles_id === 1 ? '#ef4444' : user.roles_id === 3 ? '#4f46e5' : '#6b7280'
-                      }}>
-                        {user.roles_id === 1 ? "Admin" : user.roles_id === 3 ? "HR Agent" : "Seeker"}
-                      </span>
-                    </td>
-
-                    {/* 5. วันที่สมัคร */}
-                    <td style={{ fontSize: '12px', color: '#6b7280' }}>
-                      {new Date(user.created_at).toLocaleDateString('th-TH', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </td>
-
-                    {/* 6. สถานะ */}
-                    <td>
-                      {/* เปลี่ยนจากแค่โชว์ Badge เป็น Select Dropdown */}
-                      <select 
-                        className={`status-select-box status-${user.status}`}
-                        value={user.status}
-                        onChange={(e) => handleStatusChange(user.id, e.target.value)}
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
+                      </td>
+                      <td>
+                        <span style={{
                           fontSize: '12px',
-                          fontWeight: 'bold',
-                          border: '1px solid #ddd',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <option value="active">active</option> 
-                        <option value="pending">pending</option>
-                        <option value="suspended">suspended</option>
-                        <option value="banned">banned</option>
-                      </select>
-                    </td>
-
-                    {/* 7. ปุ่ม Delete */}
-                    <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        {/* ปุ่มลบ User (API ข้อ 4) */}
-                        <button 
-                          className="action-btn" 
-                          onClick={() => handleDeleteUser(user.id)}
-                          style={{ color: '#ffffff', backgroundColor: '#ef4444' }}
-                          title="Delete User"
+                          fontWeight: 600,
+                          color: user.roles_id === 1 ? '#ef4444' : user.roles_id === 3 ? '#4f46e5' : '#6b7280'
+                        }}>
+                          {user.roles_id === 1 ? "Admin" : user.roles_id === 3 ? "HR Agent" : "Seeker"}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {new Date(user.created_at).toLocaleDateString('th-TH', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </td>
+                      <td>
+                        <select
+                          className={`status-select-box status-${user.status}`}
+                          value={user.status}
+                          onChange={(e) => handleStatusChange(user.id, e.target.value)}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            border: '1px solid #ddd',
+                            cursor: 'pointer'
+                          }}
                         >
-                          <LuTrash2  />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <option value="active">active</option>
+                          <option value="pending">pending</option>
+                          <option value="suspended">suspended</option>
+                          <option value="banned">banned</option>
+                        </select>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button
+                            className="action-btn"
+                            onClick={() => handleDeleteUser(user.id)}
+                            style={{ color: '#ffffff', backgroundColor: '#ef4444' }}
+                            title="Delete User"
+                          >
+                            <LuTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -705,19 +682,17 @@ useEffect(() => {
                 <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
                   Total {resumes.length} resumes
                 </span>
-              </div>  
-
+              </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={15} />
-                  <input 
-                    placeholder="ค้นหาชื่อ Resume หรือเจ้าของ..." 
+                  <input
+                    placeholder="ค้นหาชื่อ Resume หรือเจ้าของ..."
                     value={resumeSearch}
                     onChange={(e) => setResumeSearch(e.target.value)}
-                    style={{ outline: 'none', color: '#111827' }} 
+                    style={{ outline: 'none', color: '#111827' }}
                   />
                 </div>
-
                 <select
                   className="action-btn"
                   value={resumeVisibility}
@@ -728,11 +703,9 @@ useEffect(() => {
                   <option value="public">Public</option>
                   <option value="private">Private</option>
                 </select>
-
                 <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => { setResumeSearch(""); setResumeVisibility(""); }}>Reset</button>
               </div>
             </div>
-
             <table className="admin-table">
               <thead>
                 <tr>
@@ -748,7 +721,7 @@ useEffect(() => {
                 {resumes
                   .filter(r => {
                     const matchesSearch =
-                      r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) || 
+                      r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) ||
                       r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase());
                     const matchesVisibility = resumeVisibility === "" || r.visibility === resumeVisibility;
                     return matchesSearch && matchesVisibility;
@@ -774,8 +747,8 @@ useEffect(() => {
                         {new Date(resume.created_at).toLocaleDateString('th-TH')}
                       </td>
                       <td>
-                        <button 
-                          className="action-btn" 
+                        <button
+                          className="action-btn"
                           onClick={() => handleDeleteResume(resume.id)}
                           style={{ color: '#ffffff', backgroundColor: '#ef4444', border: 'none' }}
                         >
@@ -783,7 +756,7 @@ useEffect(() => {
                         </button>
                       </td>
                     </tr>
-                ))}
+                  ))}
               </tbody>
             </table>
             {resumes.length === 0 && (
@@ -793,43 +766,33 @@ useEffect(() => {
 
           <div className="audit-section" ref={auditLogsRef}>
             <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-  
-            {/* ฝั่งซ้าย: หัวข้อและฟิลเตอร์ */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Audit Logs System</h2>
-              <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
-                Total {auditTotal} activities
-              </span>
-            </div>
-            
-          {/* กลุ่มฟิลเตอร์ */}
-            {/* ฝั่งขวา: จำนวนรายการทั้งหมด */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-                {/* ค้นหา Admin */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Audit Logs System</h2>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                  Total {auditTotal} activities
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
                 <div className="nav-search" style={{ width: '160px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={14} />
-                  <input 
-                    placeholder="Filter Admin..." 
+                  <input
+                    placeholder="Filter Admin..."
                     value={filterLogAdmin}
                     onChange={(e) => setFilterLogAdmin(e.target.value)}
                     style={{ fontSize: '12px' }}
                   />
                 </div>
-
-                {/* ค้นหา Target User */}
                 <div className="nav-search" style={{ width: '160px', marginBottom: 0 }}>
                   <LuSearch color="#9ca3af" size={14} />
-                  <input 
-                    placeholder="Filter Target..." 
+                  <input
+                    placeholder="Filter Target..."
                     value={filterLogTarget}
                     onChange={(e) => setFilterLogTarget(e.target.value)}
                     style={{ fontSize: '12px' }}
                   />
                 </div>
-
-                {/* เลือก Action */}
-                <select 
-                  className="action-btn" 
+                <select
+                  className="action-btn"
                   value={filterLogAction}
                   onChange={(e) => setFilterLogAction(e.target.value)}
                   style={{ fontSize: '12px', padding: '6px' }}
@@ -840,19 +803,15 @@ useEffect(() => {
                   <option value="CHANGE_ROLE">CHANGE_ROLE</option>
                   <option value="DELETE_USER">DELETE_USER</option>
                 </select>
-
-                <button 
-                  className="action-btn" 
-                  onClick={() => {setFilterLogAdmin(""); setFilterLogAction(""); setFilterLogTarget("");}}
+                <button
+                  className="action-btn"
+                  onClick={() => { setFilterLogAdmin(""); setFilterLogAction(""); setFilterLogTarget(""); }}
                   style={{ padding: '3px 12px' }}
                 >
                   Reset
                 </button>
               </div>
-
-          </div>
-
-
+            </div>
             <table className="admin-table">
               <thead>
                 <tr>
@@ -864,7 +823,6 @@ useEffect(() => {
                 </tr>
               </thead>
               <tbody>
-                {/* 🌟 นำ auditLogs มาวนลูปแสดงผล */}
                 {auditLogs.map((log) => (
                   <tr key={log.id}>
                     <td>{new Date(log.created_at).toLocaleString('th-TH')}</td>
@@ -884,7 +842,6 @@ useEffect(() => {
             </table>
           </div>
 
-          {/* ─── System Settings ─── */}
           <div ref={settingsRef} style={{ background: '#fff', border: '1px solid #eeeeee', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
             <div className="table-header">
               <h2 style={{ fontSize: '16px', fontWeight: 700 }}>System Settings</h2>
@@ -897,8 +854,6 @@ useEffect(() => {
             </div>
 
             <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-
-              {/* Max File Size */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Max File Size</div>
@@ -913,15 +868,12 @@ useEffect(() => {
                         key={mb}
                         onClick={() => setSettings(s => ({ ...s, maxFileSize: bytes }))}
                         style={{
-                          padding: '7px 18px',
-                          borderRadius: '8px',
+                          padding: '7px 18px', borderRadius: '8px',
                           border: active ? '2px solid #4f46e5' : '1px solid #e5e7eb',
                           background: active ? '#ede9fe' : '#fff',
                           color: active ? '#4f46e5' : '#6b7280',
-                          fontWeight: active ? 700 : 500,
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s'
+                          fontWeight: active ? 700 : 500, fontSize: '13px',
+                          cursor: 'pointer', transition: 'all 0.15s'
                         }}
                       >
                         {mb} MB
@@ -933,7 +885,6 @@ useEffect(() => {
 
               <div style={{ height: '1px', background: '#f0f0f0' }} />
 
-              {/* Maintenance Mode */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Maintenance Mode</div>
@@ -958,7 +909,6 @@ useEffect(() => {
 
               <div style={{ height: '1px', background: '#f0f0f0' }} />
 
-              {/* Max Resumes Per User */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Max Resumes Per User</div>
@@ -989,7 +939,6 @@ useEffect(() => {
 
               <div style={{ height: '1px', background: '#f0f0f0' }} />
 
-              {/* Allow New Registration */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Allow New Registration</div>
@@ -1014,7 +963,6 @@ useEffect(() => {
 
               <div style={{ height: '1px', background: '#f0f0f0' }} />
 
-              {/* Auto Approve HR */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>Auto Approve HR</div>
@@ -1051,13 +999,11 @@ useEffect(() => {
                   {settingsSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
                 </button>
               </div>
-
             </div>
           </div>
           </>
           )}
 
-          {/* --- หน้า USER FEED VIEW --- */}
           {currentTab === "user-feed" && (
             <div className="feed-view-section">
               <header className="dashboard-header">
@@ -1069,12 +1015,12 @@ useEffect(() => {
                   {userFeedPosts.map(post => (
                     <div key={post.id} className="feed-card">
                       <div className="feed-card-header">
-                          <strong>{post.username}</strong>
-                          <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                        <strong>{post.username}</strong>
+                        <span>{new Date(post.created_at).toLocaleDateString()}</span>
                       </div>
                       <p>{post.content}</p>
                       {post.image && <img src={post.image} alt="post" />}
-                      <button className="delete-min-btn" onClick={() => {/* Logic ลบโพสต์ไม่เหมาะสม */}}>ลบโพสต์</button>
+                      <button className="delete-min-btn" onClick={() => {}}>ลบโพสต์</button>
                     </div>
                   ))}
                 </div>
@@ -1082,44 +1028,65 @@ useEffect(() => {
             </div>
           )}
 
-          {/* --- หน้า HR FEED VIEW --- */}
+          {/* ─── HR FEED ─── */}
           {currentTab === "hr-feed" && (
-              <div className="data-section"> {/* 💡 ใช้ Class เดียวกับ User Management */}
-                <div className="table-header">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <h2 style={{ fontSize: '16px', fontWeight: 700 }}>HR Job Feed</h2>
-                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
-                      Total {hrJobPosts.length} job posts
-                    </span>
-                  </div>
-                  {/* ส่วน Search Bar ของตาราง Job */}
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
-                      <LuSearch color="#9ca3af" size={15} />
-                      <input placeholder="ค้นหาชื่องาน หรือบริษัท..." />
-                    </div>
-                  </div>
+            <div className="data-section">
+              <div className="table-header">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700 }}>HR Job Feed</h2>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                    Total {hrJobPosts.length} job posts
+                  </span>
                 </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
+                    <LuSearch color="#9ca3af" size={15} />
+                    {/* ✅ เชื่อม search กับ state */}
+                    <input
+                      placeholder="ค้นหาชื่องาน หรือบริษัท..."
+                      value={hrSearchTerm}
+                      onChange={(e) => setHrSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="action-btn"
+                    style={{ padding: '6px 12px' }}
+                    onClick={() => setHrSearchTerm("")}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
 
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Company Info</th>
-                      <th>Job Details</th>
-                      <th>Location</th>
-                      <th>Salary</th>
-                      <th>Posted Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {hrJobPosts.map((job) => (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Company Info</th>
+                    <th>Job Details</th>
+                    <th>Location</th>
+                    <th>Salary</th>
+                    <th>Posted Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* ✅ กรองข้อมูลตาม hrSearchTerm */}
+                  {hrJobPosts
+                    .filter((job) => {
+                      const term = hrSearchTerm.toLowerCase();
+                      return (
+                        job.title?.toLowerCase().includes(term) ||
+                        job.company_name?.toLowerCase().includes(term) ||
+                        job.hr_name?.toLowerCase().includes(term)
+                      );
+                    })
+                    .map((job) => (
                       <tr key={job.id}>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ 
-                              width: '32px', height: '32px', borderRadius: '50%', 
-                              background: '#4f46e5', color: '#fff', 
+                            <div style={{
+                              width: '32px', height: '32px', borderRadius: '50%',
+                              background: '#4f46e5', color: '#fff',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontWeight: 'bold', fontSize: '12px'
                             }}>
@@ -1132,7 +1099,6 @@ useEffect(() => {
                           </div>
                         </td>
 
-                        {/* ส่วน Job Details เหมือนช่อง Full Name */}
                         <td>
                           <div style={{ fontWeight: 500 }}>{job.title}</div>
                           <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 600 }}>
@@ -1140,43 +1106,42 @@ useEffect(() => {
                           </div>
                         </td>
 
-                        {/* ส่วน Location */}
                         <td>
                           <span style={{ fontSize: '12px', color: '#6b7280' }}>
                             📍 {job.location}
                           </span>
                         </td>
 
-                        {/* ส่วน Salary เหมือนช่อง Role (มีสีสัน) */}
                         <td>
-                          <span style={{ 
-                            fontSize: '12px', fontWeight: 600, color: '#059669' 
-                          }}>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: '#059669' }}>
                             ฿ {job.salary}
                           </span>
                         </td>
 
-                        {/* ส่วน Joined Date */}
                         <td style={{ fontSize: '12px', color: '#6b7280' }}>
                           {new Date(job.createdAt).toLocaleDateString('th-TH', {
                             year: 'numeric', month: 'short', day: 'numeric'
                           })}
                         </td>
 
-                        {/* ส่วน Delete/Actions */}
                         <td>
                           <div style={{ display: 'flex', gap: '5px' }}>
-                            <button 
-                              className="action-btn" 
+                            {/* ✅ ปุ่มสีม่วง → เปิด JobDetailModal */}
+                            <button
+                              className="action-btn"
                               style={{ color: '#ffffff', backgroundColor: '#6366f1' }}
                               title="View Detail"
+                              onClick={() => handleViewJobDetail(job)}
                             >
                               <LuFileText size={14} />
                             </button>
-                            <button 
-                              className="action-btn" 
+
+                            {/* ✅ ปุ่มแดง → ลบ Job Post จริง */}
+                            <button
+                              className="action-btn"
                               style={{ color: '#ffffff', backgroundColor: '#ef4444' }}
                               title="Delete Post"
+                              onClick={() => handleDeleteJob(job.id)}
                             >
                               <LuTrash2 size={14} />
                             </button>
@@ -1184,12 +1149,39 @@ useEffect(() => {
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                </tbody>
+              </table>
+
+              {/* แสดงเมื่อไม่มีข้อมูล */}
+              {hrJobPosts.length === 0 && !feedLoading && (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+                  ไม่พบข้อมูล Job Post
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
+
+      {/* ✅ JobDetailModal - วางไว้นอก main เพื่อให้ overlay ครอบทั้งหน้า */}
+      <JobDetailModal
+        open={isJobModalOpen}
+        job={selectedJob ? {
+          ...selectedJob,
+          // map field ให้ตรงกับที่ JobDetailModal ต้องการ
+          company: selectedJob.company_name,
+          type: selectedJob.job_type,
+          salary: selectedJob.salary
+            ? `฿${Number(selectedJob.salaryMin || 0).toLocaleString()} – ฿${Number(selectedJob.salaryMax || selectedJob.salary).toLocaleString()}`
+            : "ไม่ระบุ",
+        } : null}
+        onClose={handleCloseJobModal}
+        onDelete={(job) => {
+          handleCloseJobModal();
+          handleDeleteJob(job.id);
+        }}
+        // ไม่ส่ง onEdit และ onViewApplicants เพราะ Admin ไม่จำเป็นต้องแก้ไข
+      />
     </div>
   );
 }

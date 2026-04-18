@@ -6,9 +6,6 @@ import { requireRole } from '../middleware/requireRole.js'
 
 const router = Router();
 
-// ─────────────────────────────────────────────
-// Middleware: ตรวจสอบว่าเป็น admin เท่านั้น
-// ─────────────────────────────────────────────
 const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.roles_id !== 1 ) {
     return res.status(403).json({ message: "Access denied: Admins only" });
@@ -16,10 +13,8 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// Helper: บันทึก audit log
 const logAction = async (adminId, action, targetId = null, detail = null) => {
   try {
-    // ตัด created_at ออก เพราะ DB ใส่ให้เองอัตโนมัติ
     await db.query(
       "INSERT INTO audit_logs (admin_id, action, target_id, detail) VALUES (?, ?, ?, ?)",
       [adminId, action, targetId, detail]
@@ -29,72 +24,6 @@ const logAction = async (adminId, action, targetId = null, detail = null) => {
   }
 };
 
-/**
- * @swagger
- * tags:
- *   name: Admin
- *   description: API สำหรับผู้ดูแลระบบ (Admin only)
- */
-
-// ─────────────────────────────────────────────
-// 1. GET /admin/users
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/users:
- *   get:
- *     summary: ดูรายชื่อ user ทั้งหมด
- *     description: ดึงรายชื่อ user ทั้งหมดในระบบ สามารถกรองตาม role และ status ได้
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: role
- *         schema:
- *           type: string
- *           enum: [user, hr, admin]
- *         description: กรองตาม role
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [active, suspended, banned, pending]
- *         description: กรองตาม status
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: หน้าที่ต้องการ (20 รายการต่อหน้า)
- *     responses:
- *       200:
- *         description: ดึงข้อมูลสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 users:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id: { type: integer }
- *                       name: { type: string }
- *                       email: { type: string }
- *                       role: { type: string }
- *                       status: { type: string }
- *                       created_at: { type: string, format: date-time }
- *                 total:
- *                   type: integer
- *                   example: 42
- *       403:
- *         description: Access denied
- *       500:
- *         description: Internal server error
- */
 router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
   try {
     const { role, status, page = 1, search } = req.query;
@@ -160,69 +89,11 @@ router.get("/users",authMiddleware, requireRole(1), async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 2. PUT /admin/users/:id/role
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/users/{id}/role:
- *   put:
- *     summary: เปลี่ยน role ของ user
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID ของ user
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [role]
- *             properties:
- *               role:
- *                 type: string
- *                 enum: [user, hr, admin]
- *                 example: hr
- *     responses:
- *       200:
- *         description: เปลี่ยน role สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message: { type: string }
- *                 user:
- *                   type: object
- *                   properties:
- *                     id: { type: integer }
- *                     name: { type: string }
- *                     email: { type: string }
- *                     role: { type: string }
- *                     status: { type: string }
- *       400:
- *         description: role ไม่ถูกต้อง
- *       403:
- *         description: Access denied
- *       404:
- *         description: ไม่พบ user
- *       500:
- *         description: Internal server error
- */
 router.put("/users/:id/role",authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body; // รับมาเป็น 'admin', 'hr', หรือ 'user'
+    const { role } = req.body;
 
-    // 1. แปลงคำอ่านจาก Body ให้เป็นตัวเลข ID ตามตาราง roles ที่คุณเปิดโชว์
     const roleMap = { admin: 1, user: 2, hr: 3 };
     const roleId = roleMap[role];
 
@@ -230,7 +101,6 @@ router.put("/users/:id/role",authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "Invalid role. Allowed: admin, user, hr" });
     }
 
-    // 2. อัปเดต roles_id (ต้องใช้ชื่อคอลัมน์นี้ตามตาราง users ของคุณ)
     const [result] = await db.query(
       "UPDATE users SET roles_id = ? WHERE id = ?",
       [roleId, id]
@@ -240,14 +110,12 @@ router.put("/users/:id/role",authMiddleware, requireAdmin, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 3. ดึงข้อมูลกลับมาโชว์ (เปลี่ยน name เป็น username / role เป็น roles_id)
     const [rows] = await db.query(
       "SELECT id, username, email, roles_id, status FROM users WHERE id = ?",
       [id]
     );
     const user = rows[0];
 
-    // 4. บันทึก Log (ถ้ายังไม่มีตาราง audit_logs ให้คอมเมนต์บรรทัดนี้ไว้ก่อน)
     await logAction(req.user.id, "CHANGE_ROLE", id, `Changed to: ${role}`);
 
     res.status(200).json({ message: "Role updated successfully", user });
@@ -257,63 +125,6 @@ router.put("/users/:id/role",authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 3. PUT /admin/users/:id/status
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/users/{id}/status:
- *   put:
- *     summary: ban / suspend / activate user
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID ของ user
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [status]
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [active, suspended, banned]
- *                 example: banned
- *     responses:
- *       200:
- *         description: เปลี่ยนสถานะสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message: { type: string }
- *                 user:
- *                   type: object
- *                   properties:
- *                     id: { type: integer }
- *                     name: { type: string }
- *                     email: { type: string }
- *                     role: { type: string }
- *                     status: { type: string }
- *       400:
- *         description: status ไม่ถูกต้อง
- *       403:
- *         description: Access denied
- *       404:
- *         description: ไม่พบ user
- *       500:
- *         description: Internal server error
- */
 router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -347,41 +158,6 @@ router.put("/users/:id/status",authMiddleware , requireAdmin, async (req, res) =
   }
 });
 
-// ─────────────────────────────────────────────
-// 4. DELETE /admin/users/:id
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/users/{id}:
- *   delete:
- *     summary: ลบ user ออกจากระบบถาวร
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID ของ user ที่ต้องการลบ
- *     responses:
- *       200:
- *         description: ลบ user สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message: { type: string, example: "User deleted successfully" }
- *       403:
- *         description: Access denied
- *       404:
- *         description: ไม่พบ user
- *       500:
- *         description: Internal server error
- */
 router.delete("/users/:id",authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -406,69 +182,27 @@ router.delete("/users/:id",authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 5. POST /admin/hr/approve/:id
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/hr/approve/{id}:
- *   post:
- *     summary: อนุมัติ HR account ที่รอ pending
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID ของ HR ที่ต้องการอนุมัติ
- *     responses:
- *       200:
- *         description: อนุมัติ HR สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message: { type: string, example: "HR account approved successfully" }
- *       400:
- *         description: HR account ไม่ได้อยู่ในสถานะ pending
- *       403:
- *         description: Access denied
- *       404:
- *         description: ไม่พบ HR account
- *       500:
- *         description: Internal server error
- */
 router.post("/hr/approve/:id", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. แก้ role เป็น roles_id และเช็คเลข 3 (HR)
     const [rows] = await db.query(
       "SELECT id, username, status FROM users WHERE id = ? AND roles_id = 3",
       [id]
     );
 
-    // เช็คว่าเจอ HR ไหม
     if (rows.length === 0) {
       return res.status(404).json({ message: "ไม่พบบัญชี HR นี้ในระบบ" });
     }
 
     const hrUser = rows[0];
 
-    // 2. เช็คสถานะว่ารออนุมัติ (pending) จริงไหม
     if (hrUser.status !== "pending") {
       return res.status(400).json({ message: "บัญชีนี้ไม่ได้อยู่ในสถานะรออนุมัติ" });
     }
 
-    // 3. อัปเดตสถานะเป็น active
     await db.query("UPDATE users SET status = 'active' WHERE id = ?", [id]);
 
-    // 4. บันทึก Log โดยใช้ username จริง
     await logAction(req.user.id, "APPROVE_HR", id, `Approved HR: ${hrUser.username}`);
 
     res.status(200).json({ message: "อนุมัติบัญชี HR เรียบร้อยแล้ว" });
@@ -478,47 +212,10 @@ router.post("/hr/approve/:id", authMiddleware, requireAdmin, async (req, res) =>
   }
 });
 
-// ─────────────────────────────────────────────
-// 6. DELETE /admin/hr/revoke/:id
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/hr/revoke/{id}:
- *   delete:
- *     summary: ยกเลิกสิทธิ์ HR ให้กลับไปเป็น pending
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID ของ HR ที่ต้องการยกเลิกสิทธิ์
- *     responses:
- *       200:
- *         description: ยกเลิกสิทธิ์ HR สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message: { type: string, example: "HR account revoked and set back to pending" }
- *       403:
- *         description: Access denied
- *       404:
- *         description: ไม่พบ HR account
- *       500:
- *         description: Internal server error
- */
 router.delete("/hr/revoke/:id", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. ตรวจสอบว่ามี User นี้จริงไหม และต้องเป็น HR (roles_id = 3)
-    // เปลี่ยนจาก role = 'hr' เป็น roles_id = 3
     const [rows] = await db.query(
       "SELECT id FROM users WHERE id = ? AND roles_id = 3",
       [id]
@@ -528,10 +225,8 @@ router.delete("/hr/revoke/:id", authMiddleware, requireAdmin, async (req, res) =
       return res.status(404).json({ message: "ไม่พบข้อมูล HR ที่ต้องการยกเลิกสิทธิ์" });
     }
 
-    // 2. อัปเดตสถานะกลับเป็น pending (เพื่อให้ HR เข้าใช้งานไม่ได้จนกว่าจะอนุมัติใหม่)
     await db.query("UPDATE users SET status = 'pending' WHERE id = ?", [id]);
 
-    // 3. บันทึก Log การกระทำของ Admin
     if (typeof logAction === "function") {
       await logAction(
         req.user.id, 
@@ -548,80 +243,25 @@ router.delete("/hr/revoke/:id", authMiddleware, requireAdmin, async (req, res) =
   }
 });
 
-// ─────────────────────────────────────────────
-// 7. GET /admin/audit-logs
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/audit-logs:
- *   get:
- *     summary: ดู log การกระทำทั้งหมดในระบบ
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: หน้าที่ต้องการ
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *         description: จำนวนรายการต่อหน้า
- *     responses:
- *       200:
- *         description: ดึง logs สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 logs:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id: { type: integer }
- *                       action: { type: string }
- *                       target_id: { type: integer }
- *                       detail: { type: string }
- *                       created_at: { type: string, format: date-time }
- *                       admin_name: { type: string }
- *                       admin_email: { type: string }
- *                 total:
- *                   type: integer
- *       403:
- *         description: Access denied
- *       500:
- *         description: Internal server error
- */
 router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, action, admin, target } = req.query; // รับค่าจาก query
+    const { page = 1, limit = 20, action, admin, target } = req.query;
     const parsedLimit = parseInt(limit);
     const offset = (parseInt(page) - 1) * parsedLimit;
 
     let conditions = [];
     let params = [];
 
-    // ฟิลเตอร์ตามประเภทการกระทำ
     if (action) {
       conditions.push("al.action = ?");
       params.push(action);
     }
 
-    // ฟิลเตอร์ตามชื่อ Admin
     if (admin) {
       conditions.push("u1.username LIKE ?");
       params.push(`%${admin}%`);
     }
 
-    // ฟิลเตอร์ตามชื่อ Target User
     if (target) {
       conditions.push("u2.username LIKE ?");
       params.push(`%${target}%`);
@@ -662,60 +302,8 @@ router.get("/audit-logs", authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 8. GET /admin/dashboard-stats
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/dashboard-stats:
- *   get:
- *     summary: ดึงข้อมูลสถิติทั้งหมดสำหรับหน้า Admin Dashboard
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: ข้อมูลสถิติภาพรวมของระบบ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 userStats:
- *                   type: object
- *                   properties:
- *                     admin:
- *                       type: integer
- *                     generalUser:
- *                       type: integer
- *                     hr:
- *                       type: integer
- *                 resumeStats:
- *                   type: object
- *                   properties:
- *                     public:
- *                       type: integer
- *                     private:
- *                       type: integer
- *                 postStats:
- *                   type: object
- *                   properties:
- *                     public:
- *                       type: integer
- *                     private:
- *                       type: integer
- *                 pendingHR:
- *                   type: integer
- *       403:
- *         description: Access denied - Admins only
- *       500:
- *         description: Internal server error
- */
-
 router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    // 1. นับ User แยกตาม roles_id (1=Admin, 2=Seeker, 3=HR)
     const [userRows] = await db.query(
       "SELECT roles_id, COUNT(*) as count FROM users GROUP BY roles_id"
     );
@@ -726,7 +314,6 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
       hr: userRows.find(r => r.roles_id === 3)?.count || 0
     };
 
-    // 2. นับ Resume แยกตาม visibility
     const [resumeRows] = await db.query(
       "SELECT visibility, COUNT(*) as count FROM resumes GROUP BY visibility"
     );
@@ -736,11 +323,9 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
       private: resumeRows.find(r => r.visibility === 'private')?.count || 0
     };
 
-    // 3. เปลี่ยนจากนับ posts เป็นนับ Job แทน (เพราะ SQL มีตาราง Job)
     const [jobRows] = await db.query("SELECT COUNT(*) as count FROM Job");
     const jobStats = { total: jobRows[0].count || 0 };
 
-    // 4. นับ HR ที่สถานะเป็น pending
     const [pendingRows] = await db.query(
       "SELECT COUNT(*) as pendingHR FROM users WHERE roles_id = 3 AND status = 'pending'"
     );
@@ -748,7 +333,7 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
     res.status(200).json({
       userStats,
       resumeStats,
-      jobStats, // ส่งค่า Job แทน
+      jobStats,
       pendingHR: pendingRows[0].pendingHR
     });
 
@@ -758,55 +343,6 @@ router.get("/dashboard-stats", authMiddleware, requireAdmin, async (req, res) =>
   }
 });
 
-// ─────────────────────────────────────────────
-// 9. PUT /admin/settings
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/settings:
- *   put:
- *     summary: ตั้งค่าระบบ
- *     description: ปรับค่า เช่น ขนาดไฟล์สูงสุด และ maintenance mode
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               maxFileSize:
- *                 type: integer
- *                 description: ขนาดไฟล์สูงสุด (bytes)
- *                 example: 10485760
- *               maintenanceMode:
- *                 type: boolean
- *                 description: เปิด/ปิด maintenance mode
- *                 example: false
- *     responses:
- *       200:
- *         description: บันทึกการตั้งค่าสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message: { type: string }
- *                 settings:
- *                   type: object
- *                   properties:
- *                     maxFileSize: { type: integer }
- *                     maintenanceMode: { type: boolean }
- *       400:
- *         description: ไม่มี field ที่จะอัปเดต
- *       403:
- *         description: Access denied
- *       500:
- *         description: Internal server error
- */
 router.put("/settings", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { maxFileSize, maintenanceMode, maxResumesPerUser, allowRegistration, autoApproveHr } = req.body;
@@ -863,52 +399,6 @@ router.put("/settings", authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 10. GET /admin/settings
-// ─────────────────────────────────────────────
-
-/**
- * @swagger
- * /admin/settings:
- *   get:
- *     summary: ดึงค่าการตั้งค่าระบบปัจจุบัน
- *     description: ดึงค่าทั้งหมดจากตาราง system_settings ถ้ายังไม่มีข้อมูลจะสร้าง default ให้อัตโนมัติ
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: ดึงค่าตั้งค่าสำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 maxFileSize:
- *                   type: integer
- *                   description: ขนาดไฟล์สูงสุดที่อนุญาต (bytes)
- *                   example: 10485760
- *                 maintenanceMode:
- *                   type: boolean
- *                   description: สถานะ maintenance mode
- *                   example: false
- *                 maxResumesPerUser:
- *                   type: integer
- *                   description: จำนวน resume สูงสุดต่อ user
- *                   example: 5
- *                 allowRegistration:
- *                   type: boolean
- *                   description: เปิด/ปิดการสมัครสมาชิกใหม่
- *                   example: true
- *                 autoApproveHr:
- *                   type: boolean
- *                   description: อนุมัติ HR อัตโนมัติโดยไม่ต้องรอ Admin
- *                   example: false
- *       403:
- *         description: Access denied - Admins only
- *       500:
- *         description: Internal server error
- */
 router.get("/settings", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const [rows] = await db.query("SELECT * FROM system_settings WHERE id = 1");
@@ -936,11 +426,6 @@ router.get("/settings", authMiddleware, requireAdmin, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// ─────────────────────────────────────────────
-// 11. GET /admin/resumes
-// ─────────────────────────────────────────────
-
 
 router.get("/resumes", authMiddleware, requireAdmin, async (req, res) => {
   try {
@@ -977,9 +462,6 @@ router.get("/resumes", authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 12. DELETE /admin/resumes/:id
-// ─────────────────────────────────────────────
 router.delete("/resumes/:id", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -999,10 +481,6 @@ router.delete("/resumes/:id", authMiddleware, requireAdmin, async (req, res) => 
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// ─────────────────────────────────────────────
-// 12. GET /admin/all-jobs
-// ─────────────────────────────────────────────
 
 router.get('/all-jobs', authMiddleware, async (req, res) => {
   try {
@@ -1024,4 +502,31 @@ router.get('/all-jobs', authMiddleware, async (req, res) => {
   }
 });
 
-export default router; 
+// ─────────────────────────────────────────────
+// ✅ NEW: DELETE /admin/jobs/:id
+// ลบ Job Post โดย Admin
+// ─────────────────────────────────────────────
+router.delete("/jobs/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. ตรวจสอบว่า Job นี้มีอยู่จริง
+    const [[job]] = await db.query("SELECT id FROM Job WHERE id = ?", [id]);
+    if (!job) {
+      return res.status(404).json({ message: "ไม่พบ Job Post ที่ต้องการลบ" });
+    }
+
+    // 2. ลบ Job
+    await db.query("DELETE FROM Job WHERE id = ?", [id]);
+
+    // 3. บันทึก Audit Log
+    await logAction(req.user.id, "DELETE_JOB", id, `Admin deleted Job ID: ${id}`);
+
+    res.status(200).json({ message: "ลบ Job Post สำเร็จ" });
+  } catch (err) {
+    console.error("Admin Delete Job Error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+export default router;
