@@ -187,3 +187,52 @@ profileRouter.delete('/experiences/:id', authMiddleware, async (req, res) => {
 })
 
 export default profileRouter
+// ─────────────────────────────────────────────────────────────
+// PROFILE INFO (github, linkedin, portfolio, bio, location)
+// ─────────────────────────────────────────────────────────────
+
+// GET /profile/info — ดึงข้อมูลโปรไฟล์ของตัวเอง
+profileRouter.get('/info', authMiddleware, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT bio, location, portfolio, github, linkedin FROM seeker_profiles WHERE user_id = ?',
+      [req.user.id]
+    )
+    if (rows.length === 0) {
+      return res.json({ bio: '', location: '', portfolio: '', github: '', linkedin: '' })
+    }
+    res.json(rows[0])
+  } catch (err) {
+    console.error('GET info error:', err.message)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// PUT /profile/info — บันทึกข้อมูลโปรไฟล์
+profileRouter.put('/info', authMiddleware, async (req, res) => {
+  try {
+    const { bio, location, portfolio, github, linkedin } = req.body
+
+    const [existing] = await db.query(
+      'SELECT user_id FROM seeker_profiles WHERE user_id = ?',
+      [req.user.id]
+    )
+
+    if (existing.length === 0) {
+      await db.query(
+        'INSERT INTO seeker_profiles (user_id, bio, location, portfolio, github, linkedin) VALUES (?, ?, ?, ?, ?, ?)',
+        [req.user.id, bio || '', location || '', portfolio || '', github || '', linkedin || '']
+      )
+    } else {
+      await db.query(
+        'UPDATE seeker_profiles SET bio = ?, location = ?, portfolio = ?, github = ?, linkedin = ? WHERE user_id = ?',
+        [bio || '', location || '', portfolio || '', github || '', linkedin || '', req.user.id]
+      )
+    }
+
+    res.json({ message: 'บันทึกโปรไฟล์สำเร็จ' })
+  } catch (err) {
+    console.error('PUT info error:', err.message)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
