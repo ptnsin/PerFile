@@ -1030,22 +1030,35 @@ export default function ResumeBuilder() {
       const payload = {
         title: data.name + " - Resume",
         template: data.template,
+        themeColor: data.themeColor || "#d4af37",
         image: data.image,
         visibility: "private",
-        sections: [
-          { type: "summary", content: { text: data.summary }, order: 1 },
-          ...data.experience.map((exp, index) => ({
-            type: "experience",
-            content: { role: exp.role, company: exp.org, period: exp.period, desc: exp.desc },
-            order: index + 2,
-          })),
-          ...data.education.map((edu, index) => ({
-            type: "education",
-            content: { degree: edu.degree, school: edu.school, period: edu.period, desc: edu.desc },
-            order: data.experience.length + index + 2,
-          })),
-          { type: "skills", content: { displayMode: data.skillDisplayMode, list: data.skills }, order: 99 },
-        ],
+        // ข้อมูลส่วนตัว
+        name: data.name,
+        jobTitle: data.title,
+        email: data.email,
+        phone: data.phone,
+        location: data.location,
+        linkedin: data.linkedin,
+        website: data.website,
+        // เนื้อหา Resume
+        summary: data.summary,
+        experience: data.experience.map((exp) => ({
+          role: exp.role,
+          org: exp.org,
+          period: exp.period,
+          desc: exp.desc,
+        })),
+        education: data.education.map((edu) => ({
+          degree: edu.degree,
+          school: edu.school,
+          period: edu.period,
+          desc: edu.desc,
+        })),
+        skills: {
+          displayMode: data.skillDisplayMode,
+          list: data.skills,
+        },
       };
 
       const response = await axios.post("http://localhost:3000/resumes", payload, {
