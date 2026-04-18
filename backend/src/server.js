@@ -14,6 +14,7 @@ import notificationRouter from './routers/notificationRouter.js'
 import shareRouter from './routers/shareRouter.js'
 import profileRouter from './routers/profileRouter.js'
 import jobRouter from './routers/jobRouter.js'
+import applicationsRouter from './routers/applicationsRouter.js'
 
 const HOST = process.env.DB_HOST || 'localhost' 
 const PORT = process.env.PORT || 3000
@@ -70,6 +71,7 @@ app.use('/files', fileRouter)
 app.use('/social', socialRouter)
 app.use('/hr', hrRouter)
 app.use('/jobs', jobRouter)
+app.use('/applications', applicationsRouter) // ---Seeker applications
 
 // -------- 67162470 พงศกร 4 API ---------
 app.use('/notifications', notificationRouter)
