@@ -524,10 +524,10 @@ const updateHr = (key) => (val) => {
         </div>
         <div className="hr-company-body">
           <div className="hr-company-top">
-            <div className="hr-company-logo">{hr?.companyLogo ?? "?"}</div>
+            
             <div>
               <div className="hr-company-name"><EditableField value={hr?.company}  onChange={updateHr("company")} /></div>
-              <div className="hr-company-industry"><EditableField value={hr?.industry} onChange={updateHr("industry")} /></div>
+             
             </div>
           </div>
           <div className="hr-company-desc"><EditableField value={hr?.companyDesc} onChange={updateHr("company_desc")} multiline /></div>
