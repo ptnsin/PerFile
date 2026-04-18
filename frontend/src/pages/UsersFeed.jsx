@@ -464,7 +464,7 @@ export default function UsersFeed() {
         <main className="uf-main">
           <div className="uf-header-card">
             <div className="uf-welcome">
-              <h1>hi, {firstName} 👋</h1>
+              <h1>hi, {firstName} </h1>
               <p>Explore public resumes and job opportunities</p>
             </div>
             <div className="uf-tab-bar">
