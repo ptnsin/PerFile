@@ -22,6 +22,8 @@ const DEFAULT_PROFILE = {
   location: "Bangkok, Thailand",
   portfolio: "portfolio.dev",
   email: "",
+  github: "",
+  linkedin: "",
 };
 
 const TABS = [
@@ -44,6 +46,10 @@ export default function UserProfile() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [myResumes, setMyResumes] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
+  const [savedJobs, setSavedJobs] = useState([]);
+  const [savedResumes, setSavedResumes] = useState([]);
+  const [savedSubTab, setSavedSubTab] = useState("jobs"); // "jobs" | "resumes"
+  const [savedLoading, setSavedLoading] = useState(false);
   const [stats, setStats] = useState({
     views: "0",
     score: "0%",
@@ -168,7 +174,25 @@ export default function UserProfile() {
   // ── Profile handlers ─────────────────────────────────────────
   const startEditProfile = () => { setProfileDraft({ ...profile }); setEditingProfile(true); };
   const cancelEditProfile = () => setEditingProfile(false);
-  const saveProfile = () => { setProfile(profileDraft); setEditingProfile(false); };
+  const saveProfile = async () => {
+    try {
+      await fetch(`${API}/profile/info`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({
+          bio: profileDraft.bio,
+          location: profileDraft.location,
+          portfolio: profileDraft.portfolio,
+          github: profileDraft.github,
+          linkedin: profileDraft.linkedin,
+        }),
+      });
+    } catch (err) {
+      console.error("saveProfile error:", err);
+    }
+    setProfile(profileDraft);
+    setEditingProfile(false);
+  };
 
   // ── Experience handlers (เชื่อม Backend) ─────────────────────
   const openAddExp = () => {
@@ -290,6 +314,42 @@ export default function UserProfile() {
     go();
   }, []);
 
+  // ── fetch saved jobs + saved resumes (โหลดเมื่อเปิด tab saved) ─
+  useEffect(() => {
+    if (activeTab !== "saved") return;
+    const go = async () => {
+      setSavedLoading(true);
+      try {
+        const [jobsRes, resumesRes] = await Promise.all([
+          fetch(`${API}/saved/jobs`,    { headers: authHeader() }),
+          fetch(`${API}/saved/resumes`, { headers: authHeader() }),
+        ]);
+        if (jobsRes.ok)    { const d = await jobsRes.json();    setSavedJobs(d.savedJobs ?? []); }
+        if (resumesRes.ok) { const d = await resumesRes.json(); setSavedResumes(d.savedResumes ?? []); }
+      } catch (err) {
+        console.error("fetch saved error:", err);
+      } finally {
+        setSavedLoading(false);
+      }
+    };
+    go();
+  }, [activeTab]);
+
+  // ── unsave handlers ──────────────────────────────────────────
+  const handleUnsaveJob = async (jobId) => {
+    try {
+      const res = await fetch(`${API}/saved/jobs/${jobId}`, { method: "DELETE", headers: authHeader() });
+      if (res.ok) setSavedJobs(prev => prev.filter(j => j.job_id !== jobId));
+    } catch (err) { console.error("unsave job error:", err); }
+  };
+
+  const handleUnsaveResume = async (resumeId) => {
+    try {
+      const res = await fetch(`${API}/saved/resumes/${resumeId}`, { method: "DELETE", headers: authHeader() });
+      if (res.ok) setSavedResumes(prev => prev.filter(r => r.resume_id !== resumeId));
+    } catch (err) { console.error("unsave resume error:", err); }
+  };
+
   // ── fetch user ───────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -304,6 +364,29 @@ export default function UserProfile() {
         } else localStorage.removeItem("token");
       } catch { }
     })();
+  }, []);
+
+  // ── fetch profile info จาก Backend ──────────────────────────
+  useEffect(() => {
+    const fetchInfo = async () => {
+      try {
+        const res = await fetch(`${API}/profile/info`, { headers: authHeader() });
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(p => ({
+            ...p,
+            bio: data.bio || p.bio,
+            location: data.location || p.location,
+            portfolio: data.portfolio || p.portfolio,
+            github: data.github || p.github,
+            linkedin: data.linkedin || p.linkedin,
+          }));
+        }
+      } catch (err) {
+        console.error("fetchInfo error:", err);
+      }
+    };
+    fetchInfo();
   }, []);
 
   useEffect(() => {
@@ -533,7 +616,6 @@ export default function UserProfile() {
               <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
               <button
                 className="up-edit-cover-btn"
-                style={{ position: "relative", zIndex: 2 }}
                 onClick={() => coverInputRef.current?.click()}
               >
                 <LuPencil size={11} /> แก้ไขปก
@@ -574,6 +656,8 @@ export default function UserProfile() {
                       { key: "email", label: "อีเมล", ph: "your@email.com" },
                       { key: "location", label: "ที่อยู่", ph: "Bangkok, Thailand" },
                       { key: "portfolio", label: "เว็บไซต์ / Portfolio", ph: "portfolio.dev" },
+                      { key: "github", label: "GitHub", ph: "github.com/username" },
+                      { key: "linkedin", label: "LinkedIn", ph: "linkedin.com/in/username" },
                     ].map(f => (
                       <div key={f.key}>
                         <label style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 2 }}>{f.label}</label>
@@ -613,8 +697,24 @@ export default function UserProfile() {
                       {profile.email && <span className="up-meta-item"><LuMail size={11} /> {profile.email}</span>}
                     </div>
                     <div className="up-social-row">
-                      <button className="up-social-btn"><LuGithub size={13} /> GitHub</button>
-                      <button className="up-social-btn"><LuLinkedin size={13} /> LinkedIn</button>
+                      {profile.github ? (
+                        <a href={`https://${profile.github.replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer" className="up-social-btn" style={{ textDecoration: "none" }}>
+                          <LuGithub size={13} /> GitHub
+                        </a>
+                      ) : (
+                        <button className="up-social-btn" onClick={startEditProfile} title="คลิกเพื่อเพิ่ม GitHub">
+                          <LuGithub size={13} /> GitHub
+                        </button>
+                      )}
+                      {profile.linkedin ? (
+                        <a href={`https://${profile.linkedin.replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer" className="up-social-btn" style={{ textDecoration: "none" }}>
+                          <LuLinkedin size={13} /> LinkedIn
+                        </a>
+                      ) : (
+                        <button className="up-social-btn" onClick={startEditProfile} title="คลิกเพื่อเพิ่ม LinkedIn">
+                          <LuLinkedin size={13} /> LinkedIn
+                        </button>
+                      )}
                     </div>
                   </div>
                   <button className="up-edit-profile-btn" onClick={startEditProfile}>
@@ -832,11 +932,148 @@ export default function UserProfile() {
 
             {/* Saved */}
             {activeTab === "saved" && (
-              <div ref={savedSectionRef} className="uf-cards-grid">
-                <div className="uf-empty">
-                  <div className="uf-empty-icon">🔖</div>
-                  <div className="uf-empty-title">ยังไม่มีรายการที่บันทึกไว้</div>
+              <div ref={savedSectionRef}>
+                {/* Sub-tab bar */}
+                <div style={{ display: "flex", gap: 8, padding: "12px 16px 0" }}>
+                  {[
+                    { key: "jobs",    label: "งานที่บันทึก",        count: savedJobs.length },
+                    { key: "resumes", label: "Resume ที่บันทึก",    count: savedResumes.length },
+                  ].map(st => (
+                    <button
+                      key={st.key}
+                      onClick={() => setSavedSubTab(st.key)}
+                      style={{
+                        padding: "6px 16px", borderRadius: 20, border: "none",
+                        cursor: "pointer", fontWeight: 600, fontSize: 13,
+                        background: savedSubTab === st.key ? "#1e3a8a" : "#f1f5f9",
+                        color:      savedSubTab === st.key ? "#fff"    : "#64748b",
+                        display: "flex", alignItems: "center", gap: 6,
+                        transition: "all .15s",
+                      }}
+                    >
+                      {st.label}
+                      {st.count > 0 && (
+                        <span style={{
+                          background: savedSubTab === st.key ? "rgba(255,255,255,.25)" : "#e2e8f0",
+                          color:      savedSubTab === st.key ? "#fff" : "#64748b",
+                          borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700,
+                        }}>{st.count}</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
+
+                {savedLoading ? (
+                  <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>กำลังโหลด...</div>
+                ) : (
+                  <>
+                    {/* ── Saved JOBS ── */}
+                    {savedSubTab === "jobs" && (
+                      <div className="uf-cards-grid">
+                        {savedJobs.length === 0 ? (
+                          <div className="uf-empty">
+                            <div className="uf-empty-icon">🔖</div>
+                            <div className="uf-empty-title">ยังไม่มีงานที่บันทึกไว้</div>
+                            <div className="uf-empty-desc">กดปุ่ม Bookmark บนหน้า Feed เพื่อบันทึกงานที่สนใจ</div>
+                          </div>
+                        ) : savedJobs.map(item => (
+                          <div
+                            key={item.saved_id}
+                            className="uf-resume-card"
+                            onClick={() => navigate(`/jobs/${item.job_id}`)}
+                          >
+                            <div className="uf-resume-header">
+                              <div className="uf-resume-icon"><LuBriefcase /></div>
+                            </div>
+                            <div className="uf-resume-title" style={{ fontSize: 14 }}>{item.title}</div>
+                            <div className="uf-resume-meta">
+                              <span style={{ color: "#64748b" }}>🏢 {item.company_name || item.hr_name}</span>
+                              {item.location && (
+                                <span style={{ color: "#94a3b8", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
+                                  <LuMapPin size={10} /> {item.location}
+                                </span>
+                              )}
+                            </div>
+                            {item.salary && (
+                              <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>💰 {item.salary}</div>
+                            )}
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                              บันทึกเมื่อ {new Date(item.saved_at || item.created_at).toLocaleDateString("th-TH")}
+                            </div>
+                            {/* ปุ่มยกเลิก */}
+                            <button
+                              onClick={e => { e.stopPropagation(); handleUnsaveJob(item.job_id); }}
+                              style={{
+                                position: "absolute", top: 12, right: 12,
+                                background: "none", border: "1px solid #fca5a5",
+                                borderRadius: 6, padding: "3px 8px", cursor: "pointer",
+                                color: "#ef4444", fontSize: 11,
+                                display: "flex", alignItems: "center", gap: 3,
+                              }}
+                            >
+                              <LuBookmark size={11} /> ยกเลิก
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* ── Saved RESUMES ── */}
+                    {savedSubTab === "resumes" && (
+                      <div className="uf-cards-grid">
+                        {savedResumes.length === 0 ? (
+                          <div className="uf-empty">
+                            <div className="uf-empty-icon">📄</div>
+                            <div className="uf-empty-title">ยังไม่มี Resume ที่บันทึกไว้</div>
+                            <div className="uf-empty-desc">กดปุ่ม Bookmark บน Resume ของผู้อื่นเพื่อบันทึกไว้ดูทีหลัง</div>
+                          </div>
+                        ) : savedResumes.map(item => (
+                          <div
+                            key={item.saved_id}
+                            className="uf-resume-card"
+                            onClick={() => navigate(`/view-resume/${item.resume_id}`)}
+                          >
+                            <div className="uf-resume-header">
+                              <div className="uf-resume-icon"><LuFileText /></div>
+                            </div>
+                            <div className="uf-resume-title" style={{ fontSize: 14 }}>{item.resume_title}</div>
+                            <div className="uf-resume-meta">
+                              <span><LuBadgeCheck /> {item.owner_name}</span>
+                              {item.owner_location && (
+                                <span style={{ color: "#94a3b8", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
+                                  <LuMapPin size={10} /> {item.owner_location}
+                                </span>
+                              )}
+                            </div>
+                            {item.owner_bio && (
+                              <div style={{
+                                fontSize: 11, color: "#64748b",
+                                overflow: "hidden", display: "-webkit-box",
+                                WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                              }}>{item.owner_bio}</div>
+                            )}
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                              บันทึกเมื่อ {new Date(item.saved_at).toLocaleDateString("th-TH")}
+                            </div>
+                            {/* ปุ่มยกเลิก */}
+                            <button
+                              onClick={e => { e.stopPropagation(); handleUnsaveResume(item.resume_id); }}
+                              style={{
+                                position: "absolute", top: 12, right: 12,
+                                background: "none", border: "1px solid #fca5a5",
+                                borderRadius: 6, padding: "3px 8px", cursor: "pointer",
+                                color: "#ef4444", fontSize: 11,
+                                display: "flex", alignItems: "center", gap: 3,
+                              }}
+                            >
+                              <LuBookmark size={11} /> ยกเลิก
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
