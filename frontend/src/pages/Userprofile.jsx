@@ -13,8 +13,8 @@ import "../styles/Userprofile.css";
 const API = "http://localhost:3000";
 
 const PROFILE_KEY = "userprofile_local";
-const AVATAR_KEY  = "userprofile_avatar";
-const COVER_KEY   = "userprofile_cover";
+const AVATAR_KEY = "userprofile_avatar";
+const COVER_KEY = "userprofile_cover";
 
 const DEFAULT_PROFILE = {
   displayName: "",
@@ -26,24 +26,29 @@ const DEFAULT_PROFILE = {
 
 const TABS = [
   { key: "resumes", label: "Private Resumes" },
-  { key: "jobs",    label: "Public Resumes"  },
-  { key: "saved",   label: "Saved"           },
+  { key: "jobs", label: "Public Resumes" },
+  { key: "saved", label: "Saved" },
 ];
 
-const ICONS = ["💼","🎨","💻","📊","🔧","🏗️","📱","🎯","📝","⚙️"];
+const ICONS = ["💼", "🎨", "💻", "📊", "🔧", "🏗️", "📱", "🎯", "📝", "⚙️"];
 
 // helper: authHeader
 const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
 export default function UserProfile() {
-  const [activeTab,    setActiveTab]    = useState("resumes");
-  const [sidebarOpen,  setSidebarOpen]  = useState(true);
-  const [menuOpen,     setMenuOpen]     = useState(false);
-  const [userData,     setUserData]     = useState(null);
+  const [activeTab, setActiveTab] = useState("resumes");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [userData, setUserData] = useState(null);
   const [actionMenuId, setActionMenuId] = useState(null);
-  const [deleteConfirm,setDeleteConfirm]= useState(null);
-  const [myResumes,    setMyResumes]    = useState([]);
-  const [stats, setStats] = useState({ resumes: "0", views: "0", saved: "0", jobs: "0" });
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [myResumes, setMyResumes] = useState([]);
+  const [stats, setStats] = useState({
+    views: "0",
+    score: "0%",
+    interviewing: "0",
+    shortlisted: "0"
+  });
 
   // ── Profile editable state ──────────────────────────────────
   const [profile, setProfile] = useState(() => {
@@ -51,38 +56,38 @@ export default function UserProfile() {
     catch { return DEFAULT_PROFILE; }
   });
   const [editingProfile, setEditingProfile] = useState(false);
-  const [profileDraft,   setProfileDraft]   = useState(profile);
+  const [profileDraft, setProfileDraft] = useState(profile);
 
   // ── Experience state ────────────────────────────────────────
   const [experiences, setExperiences] = useState([]);
-  const [expLoading,  setExpLoading]  = useState(true);
-  const [expModal,    setExpModal]    = useState(false);
-  const [expEditId,   setExpEditId]   = useState(null);
-  const [expForm,     setExpForm]     = useState({ icon: "💼", title: "", company: "", date: "" });
+  const [expLoading, setExpLoading] = useState(true);
+  const [expModal, setExpModal] = useState(false);
+  const [expEditId, setExpEditId] = useState(null);
+  const [expForm, setExpForm] = useState({ icon: "💼", title: "", company: "", date: "" });
 
   // ── Skills state ────────────────────────────────────────────
-  const [skills,         setSkills]         = useState([]);
-  const [skillsLoading,  setSkillsLoading]  = useState(true);
+  const [skills, setSkills] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
   const [showSkillModal, setShowSkillModal] = useState(false);
-  const [newSkill,       setNewSkill]       = useState("");
+  const [newSkill, setNewSkill] = useState("");
 
   // ── Avatar & Cover image state ───────────────────────────────
   const [avatarImg, setAvatarImg] = useState(() => localStorage.getItem(AVATAR_KEY) || null);
-  const [coverImg,  setCoverImg]  = useState(() => localStorage.getItem(COVER_KEY)  || null);
+  const [coverImg, setCoverImg] = useState(() => localStorage.getItem(COVER_KEY) || null);
   const avatarInputRef = useRef(null);
-  const coverInputRef  = useRef(null);
+  const coverInputRef = useRef(null);
 
-  const sidebarRef      = useRef(null);
+  const sidebarRef = useRef(null);
   const savedSectionRef = useRef(null);
-  const navigate        = useNavigate();
-  const location        = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const { privateResumes, removePrivate, removeResume, publishPrivate } = useResumes();
 
   // ── auto-save profile to localStorage ────────────────────────
-  useEffect(() => { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {} }, [profile]);
-  useEffect(() => { try { if (avatarImg) localStorage.setItem(AVATAR_KEY, avatarImg); else localStorage.removeItem(AVATAR_KEY); } catch {} }, [avatarImg]);
-  useEffect(() => { try { if (coverImg)  localStorage.setItem(COVER_KEY,  coverImg);  else localStorage.removeItem(COVER_KEY);  } catch {} }, [coverImg]);
+  useEffect(() => { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { } }, [profile]);
+  useEffect(() => { try { if (avatarImg) localStorage.setItem(AVATAR_KEY, avatarImg); else localStorage.removeItem(AVATAR_KEY); } catch { } }, [avatarImg]);
+  useEffect(() => { try { if (coverImg) localStorage.setItem(COVER_KEY, coverImg); else localStorage.removeItem(COVER_KEY); } catch { } }, [coverImg]);
 
   // ── fetch skills จาก Backend ──────────────────────────────────
   useEffect(() => {
@@ -103,25 +108,25 @@ export default function UserProfile() {
   }, []);
 
   // ── fetch stats จาก Backend ──────────────────────────────────
-useEffect(() => {
-  const fetchStats = async () => {
-    try {
-      const res = await fetch(`${API}/profile/stats`, { headers: authHeader() });
-      if (res.ok) {
-        const data = await res.json();
-        setStats({
-          resumes: data.resumes.toString(),
-          views: data.views.toString(),
-          saved: data.saved.toString(),
-          jobs: data.jobs_posted.toString()
-        });
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`${API}/profile/stats`, { headers: authHeader() });
+        if (res.ok) {
+          const data = await res.json();
+          setStats({
+            views: data.views?.toString() || "0",
+            score: (data.profile_score || "0") + "%", // เพิ่ม % เข้าไป
+            interviewing: data.interview_count?.toString() || "0",
+            shortlisted: data.shortlisted_count?.toString() || "0"
+          });
+        }
+      } catch (err) {
+        console.error("fetch stats error:", err);
       }
-    } catch (err) {
-      console.error("fetch stats error:", err);
-    }
-  };
-  fetchStats();
-}, []);
+    };
+    fetchStats();
+  }, []);
 
   // ── fetch experiences จาก Backend ────────────────────────────
   useEffect(() => {
@@ -161,8 +166,8 @@ useEffect(() => {
 
   // ── Profile handlers ─────────────────────────────────────────
   const startEditProfile = () => { setProfileDraft({ ...profile }); setEditingProfile(true); };
-  const cancelEditProfile= () => setEditingProfile(false);
-  const saveProfile      = () => { setProfile(profileDraft); setEditingProfile(false); };
+  const cancelEditProfile = () => setEditingProfile(false);
+  const saveProfile = () => { setProfile(profileDraft); setEditingProfile(false); };
 
   // ── Experience handlers (เชื่อม Backend) ─────────────────────
   const openAddExp = () => {
@@ -265,13 +270,13 @@ useEffect(() => {
       try {
         const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
         if (res.ok) { const d = await res.json(); setMyResumes(d.resumes ?? []); }
-      } catch {}
+      } catch { }
     };
     go();
   }, []);
 
   const privateList = myResumes.filter(r => r.visibility === "private");
-  const publicList  = myResumes.filter(r => r.visibility === "public");
+  const publicList = myResumes.filter(r => r.visibility === "public");
 
   // ── fetch user ───────────────────────────────────────────────
   useEffect(() => {
@@ -285,7 +290,7 @@ useEffect(() => {
           setUserData(u);
           setProfile(p => ({ ...p, email: p.email || u?.email || "", displayName: p.displayName || u?.fullName || "" }));
         } else localStorage.removeItem("token");
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -302,22 +307,22 @@ useEffect(() => {
     const handle = sidebar.querySelector(".uf-resize-handle");
     if (!handle) return;
     let drag = false, startX = 0, startW = 0;
-    const down = (e) => { drag=true; startX=e.clientX; startW=sidebar.offsetWidth; document.body.style.userSelect="none"; document.addEventListener("mousemove",move); document.addEventListener("mouseup",up); };
-    const move = (e) => { if(!drag) return; sidebar.style.width=Math.min(340,Math.max(80,startW+(e.clientX-startX)))+"px"; };
-    const up   = () => { drag=false; document.body.style.userSelect=""; document.removeEventListener("mousemove",move); document.removeEventListener("mouseup",up); };
+    const down = (e) => { drag = true; startX = e.clientX; startW = sidebar.offsetWidth; document.body.style.userSelect = "none"; document.addEventListener("mousemove", move); document.addEventListener("mouseup", up); };
+    const move = (e) => { if (!drag) return; sidebar.style.width = Math.min(340, Math.max(80, startW + (e.clientX - startX))) + "px"; };
+    const up = () => { drag = false; document.body.style.userSelect = ""; document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
     handle.addEventListener("mousedown", down);
     return () => handle.removeEventListener("mousedown", down);
   }, []);
 
-  const initial  = userData?.username?.[0]?.toUpperCase() ?? "U";
+  const initial = userData?.username?.[0]?.toUpperCase() ?? "U";
   const fullName = profile.displayName || userData?.fullName || "Unknown";
 
-  const toggleSidebar = () => { if (sidebarOpen && sidebarRef.current) sidebarRef.current.style.width=""; setSidebarOpen(v=>!v); };
-  const handleTabClick= (key) => { setActiveTab(key); if (key==="saved"&&savedSectionRef.current) setTimeout(()=>savedSectionRef.current.scrollIntoView({behavior:"smooth",block:"start"}),50); };
+  const toggleSidebar = () => { if (sidebarOpen && sidebarRef.current) sidebarRef.current.style.width = ""; setSidebarOpen(v => !v); };
+  const handleTabClick = (key) => { setActiveTab(key); if (key === "saved" && savedSectionRef.current) setTimeout(() => savedSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     await fetch(`${API}/resumes/${deleteConfirm.id}`, {
-      method:"DELETE", headers:authHeader()
+      method: "DELETE", headers: authHeader()
     });
     // รีโหลดรายการหลังลบ
     const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
@@ -354,16 +359,16 @@ useEffect(() => {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 12 }}>
               {ICONS.map(ic => (
                 <button key={ic} onClick={() => setExpForm(f => ({ ...f, icon: ic }))}
-                  style={{ fontSize: 20, background: expForm.icon===ic ? "#eff6ff" : "transparent", border: expForm.icon===ic ? "2px solid #1e3a8a" : "2px solid transparent", borderRadius: 8, padding: "2px 6px", cursor: "pointer" }}>
+                  style={{ fontSize: 20, background: expForm.icon === ic ? "#eff6ff" : "transparent", border: expForm.icon === ic ? "2px solid #1e3a8a" : "2px solid transparent", borderRadius: 8, padding: "2px 6px", cursor: "pointer" }}>
                   {ic}
                 </button>
               ))}
             </div>
 
             {[
-              { key: "title",   label: "ตำแหน่งงาน",     ph: "เช่น Frontend Developer" },
+              { key: "title", label: "ตำแหน่งงาน", ph: "เช่น Frontend Developer" },
               { key: "company", label: "บริษัท / องค์กร", ph: "เช่น Tech Startup Co." },
-              { key: "date",    label: "ช่วงเวลา",        ph: "เช่น 2022 – ปัจจุบัน" },
+              { key: "date", label: "ช่วงเวลา", ph: "เช่น 2022 – ปัจจุบัน" },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 10, textAlign: "left" }}>
                 <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 3 }}>{f.label}</label>
@@ -393,8 +398,8 @@ useEffect(() => {
             <div className="up-modal-title">เพิ่มทักษะ</div>
             <input autoFocus type="text" placeholder="เช่น React, Python, Figma..." value={newSkill}
               onChange={e => setNewSkill(e.target.value)}
-              onKeyDown={e => { if(e.key==="Enter") handleAddSkill(); if(e.key==="Escape"){setShowSkillModal(false);setNewSkill("");} }}
-              style={{ width:"100%",padding:"8px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:14,marginBottom:4,outline:"none",boxSizing:"border-box" }}
+              onKeyDown={e => { if (e.key === "Enter") handleAddSkill(); if (e.key === "Escape") { setShowSkillModal(false); setNewSkill(""); } }}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, marginBottom: 4, outline: "none", boxSizing: "border-box" }}
             />
             <div className="up-modal-actions">
               <button className="up-modal-cancel" onClick={() => { setShowSkillModal(false); setNewSkill(""); }}>ยกเลิก</button>
@@ -414,10 +419,10 @@ useEffect(() => {
         <div className="uf-nav-right">
           <button className="uf-icon-btn"><LuBell /></button>
           <div className="uf-user-area" style={{ position: "relative" }}>
-            <div className="uf-user-chip" onClick={() => setMenuOpen(v=>!v)}>
+            <div className="uf-user-chip" onClick={() => setMenuOpen(v => !v)}>
               <div className="uf-avatar">
                 {avatarImg
-                  ? <img src={avatarImg} alt="avatar" style={{ width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%" }} />
+                  ? <img src={avatarImg} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                   : userData?.avatar
                     ? <img src={userData.avatar} alt="avatar" crossOrigin="anonymous" />
                     : initial}
@@ -444,11 +449,36 @@ useEffect(() => {
           <Link to="/feed" className="uf-menu-item"><LuLayoutDashboard /> Feed</Link>
           <button className="uf-menu-item active"><FiHome /> Profile</button>
           <button className="uf-menu-item" onClick={() => handleTabClick("saved")}><LuBookmark /> Saved</button>
-          <div className="uf-section-label">Private Profile</div>
-          <div className="uf-sub-item">Development 1</div>
-          <div className="uf-sub-item">Tutor 1</div>
-          <div className="uf-section-label">Public Profile</div>
-          <div className="uf-sub-item">Ux/Ui 2</div>
+          {privateList.length > 0 && (
+            <>
+              <div className="uf-section-label">Private Resumes</div>
+              {privateList.map(r => (
+                <div
+                  key={r.id}
+                  className="uf-sub-item"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/view-resume/${r.id}`)}
+                >
+                  🔒 {r.title}
+                </div>
+              ))}
+            </>
+          )}
+          {publicList.length > 0 && (
+            <>
+              <div className="uf-section-label">Public Resumes</div>
+              {publicList.map(r => (
+                <div
+                  key={r.id}
+                  className="uf-sub-item"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/view-resume/${r.id}`)}
+                >
+                  🌐 {r.title}
+                </div>
+              ))}
+            </>
+          )}
         </aside>
 
         {/* MAIN */}
@@ -458,38 +488,38 @@ useEffect(() => {
           <div className="up-cover-card">
             <div className="up-cover" style={{ position: "relative", overflow: "hidden" }}>
               {coverImg
-                ? <img src={coverImg} alt="cover" style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover" }} />
+                ? <img src={coverImg} alt="cover" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                 : <div className="up-cover-pattern" />
               }
-              <input ref={coverInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleCoverChange} />
+              <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
               <button
                 className="up-edit-cover-btn"
-                style={{ position:"relative",zIndex:2 }}
+                style={{ position: "relative", zIndex: 2 }}
                 onClick={() => coverInputRef.current?.click()}
               >
                 <LuPencil size={11} /> แก้ไขปก
               </button>
 
-              <input ref={avatarInputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleAvatarChange} />
+              <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarChange} />
               <div
                 className="up-avatar-lg"
                 onClick={() => avatarInputRef.current?.click()}
                 title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
-                style={{ cursor:"pointer", position:"relative", overflow:"hidden" }}
+                style={{ cursor: "pointer", position: "relative", overflow: "hidden" }}
               >
                 {avatarImg
-                  ? <img src={avatarImg} alt="avatar" style={{ width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%" }} />
+                  ? <img src={avatarImg} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                   : initial
                 }
                 <div style={{
-                  position:"absolute",inset:0,borderRadius:"50%",
-                  background:"rgba(0,0,0,0.35)",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  opacity:0,transition:"opacity 0.2s",
-                  fontSize:18,color:"#fff",
+                  position: "absolute", inset: 0, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.35)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: 0, transition: "opacity 0.2s",
+                  fontSize: 18, color: "#fff",
                 }}
-                  onMouseEnter={e => e.currentTarget.style.opacity="1"}
-                  onMouseLeave={e => e.currentTarget.style.opacity="0"}
+                  onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                  onMouseLeave={e => e.currentTarget.style.opacity = "0"}
                 >
                   <LuPencil size={16} />
                 </div>
@@ -501,10 +531,10 @@ useEffect(() => {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: 10 }}>
                     {[
-                      { key: "displayName", label: "ชื่อ-นามสกุล",    ph: "ชื่อที่แสดง" },
-                      { key: "email",       label: "อีเมล",            ph: "your@email.com" },
-                      { key: "location",    label: "ที่อยู่",           ph: "Bangkok, Thailand" },
-                      { key: "portfolio",   label: "เว็บไซต์ / Portfolio", ph: "portfolio.dev" },
+                      { key: "displayName", label: "ชื่อ-นามสกุล", ph: "ชื่อที่แสดง" },
+                      { key: "email", label: "อีเมล", ph: "your@email.com" },
+                      { key: "location", label: "ที่อยู่", ph: "Bangkok, Thailand" },
+                      { key: "portfolio", label: "เว็บไซต์ / Portfolio", ph: "portfolio.dev" },
                     ].map(f => (
                       <div key={f.key}>
                         <label style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 2 }}>{f.label}</label>
@@ -523,11 +553,11 @@ useEffect(() => {
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={saveProfile}
-                      style={{ display:"flex",alignItems:"center",gap:4,padding:"8px 16px",borderRadius:8,border:"none",background:"#1e3a8a",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 16px", borderRadius: 8, border: "none", background: "#1e3a8a", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
                       <LuCheck size={13} /> บันทึก
                     </button>
                     <button onClick={cancelEditProfile}
-                      style={{ display:"flex",alignItems:"center",gap:4,padding:"8px 14px",borderRadius:8,border:"1.5px solid #e5e7eb",background:"#fff",color:"#374151",fontWeight:600,fontSize:12,cursor:"pointer" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 14px", borderRadius: 8, border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
                       <LuX size={13} /> ยกเลิก
                     </button>
                   </div>
@@ -539,9 +569,9 @@ useEffect(() => {
                     <div className="up-profile-handle">@{userData?.username || "unknown"} · PerFile</div>
                     <div className="up-profile-bio">{profile.bio}</div>
                     <div className="up-profile-meta">
-                      {profile.location  && <span className="up-meta-item"><LuMapPin size={11} /> {profile.location}</span>}
-                      {profile.portfolio && <a href={`https://${profile.portfolio.replace(/^https?:\/\//,"")}`} target="_blank" rel="noreferrer" className="up-meta-link"><LuLink size={11} /> {profile.portfolio}</a>}
-                      {profile.email     && <span className="up-meta-item"><LuMail size={11} /> {profile.email}</span>}
+                      {profile.location && <span className="up-meta-item"><LuMapPin size={11} /> {profile.location}</span>}
+                      {profile.portfolio && <a href={`https://${profile.portfolio.replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer" className="up-meta-link"><LuLink size={11} /> {profile.portfolio}</a>}
+                      {profile.email && <span className="up-meta-item"><LuMail size={11} /> {profile.email}</span>}
                     </div>
                     <div className="up-social-row">
                       <button className="up-social-btn"><LuGithub size={13} /> GitHub</button>
@@ -559,13 +589,13 @@ useEffect(() => {
           {/* Stats */}
           <div className="up-stats-row">
             {[
-              { num: privateResumes.length.toString(), label: "RESUMES"     },
-              { num: stats.views,                            label: "VIEWS"       },
-              { num: "14",                             label: "SAVED"       },
-              { num: "5",                              label: "JOBS POSTED" },
+              { num: stats.views, label: "VIEWS", color: "#1e3a8a" },
+              { num: stats.score, label: "PROFILE SCORE", color: "#4f46e5" },
+              { num: stats.interviewing, label: "INTERVIEWING", color: "#1e3a8a" },
+              { num: stats.shortlisted, label: "SHORTLISTED", color: "#1e3a8a" },
             ].map(s => (
               <div key={s.label} className="up-stat-card">
-                <div className="up-stat-num">{s.num}</div>
+                <div className="up-stat-num" style={{ color: s.color }}>{s.num}</div>
                 <div className="up-stat-label">{s.label}</div>
               </div>
             ))}
@@ -574,22 +604,22 @@ useEffect(() => {
           {/* Skills */}
           <div className="up-section-card">
             <div className="up-section-header">
-              <span><LuStar size={14} style={{ marginRight:5,verticalAlign:"middle",color:"#4f46e5" }} />ทักษะ</span>
+              <span><LuStar size={14} style={{ marginRight: 5, verticalAlign: "middle", color: "#4f46e5" }} />ทักษะ</span>
               <button className="uf-filter-btn" onClick={() => setShowSkillModal(true)}><LuPlus size={12} /> เพิ่ม</button>
             </div>
             <div className="up-skills-wrap">
               {skillsLoading ? (
-                <span style={{ color:"#9ca3af",fontSize:13 }}>กำลังโหลด...</span>
+                <span style={{ color: "#9ca3af", fontSize: 13 }}>กำลังโหลด...</span>
               ) : skills.length > 0 ? skills.map(sk => (
-                <span key={sk.id} className="up-skill-chip" style={{ display:"inline-flex",alignItems:"center",gap:5 }}>
+                <span key={sk.id} className="up-skill-chip" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                   {sk.name}
                   <button onClick={() => handleRemoveSkill(sk)}
-                    style={{ background:"none",border:"none",cursor:"pointer",padding:0,lineHeight:1,color:"#9ca3af",fontSize:14,display:"flex",alignItems:"center" }}>
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#9ca3af", fontSize: 14, display: "flex", alignItems: "center" }}>
                     ×
                   </button>
                 </span>
               )) : (
-                <span style={{ color:"#9ca3af",fontSize:13 }}>ยังไม่มีทักษะ กด "+ เพิ่ม" เพื่อเพิ่มทักษะแรก</span>
+                <span style={{ color: "#9ca3af", fontSize: 13 }}>ยังไม่มีทักษะ กด "+ เพิ่ม" เพื่อเพิ่มทักษะแรก</span>
               )}
             </div>
           </div>
@@ -597,28 +627,28 @@ useEffect(() => {
           {/* Experience */}
           <div className="up-section-card">
             <div className="up-section-header">
-              <span><LuBriefcase size={14} style={{ marginRight:5,verticalAlign:"middle",color:"#4f46e5" }} />ประสบการณ์</span>
+              <span><LuBriefcase size={14} style={{ marginRight: 5, verticalAlign: "middle", color: "#4f46e5" }} />ประสบการณ์</span>
               <button className="uf-filter-btn" onClick={openAddExp}><LuPlus size={12} /> เพิ่ม</button>
             </div>
             {expLoading ? (
-              <p style={{ color:"#9ca3af",fontSize:13 }}>กำลังโหลด...</p>
+              <p style={{ color: "#9ca3af", fontSize: 13 }}>กำลังโหลด...</p>
             ) : experiences.length === 0 ? (
-              <p style={{ color:"#9ca3af",fontSize:13 }}>ยังไม่มีประสบการณ์ กด "+ เพิ่ม" เพื่อเพิ่มรายการแรก</p>
+              <p style={{ color: "#9ca3af", fontSize: 13 }}>ยังไม่มีประสบการณ์ กด "+ เพิ่ม" เพื่อเพิ่มรายการแรก</p>
             ) : experiences.map(e => (
-              <div key={e.id} className="up-exp-item" style={{ position:"relative" }}>
+              <div key={e.id} className="up-exp-item" style={{ position: "relative" }}>
                 <div className="up-exp-dot">{e.icon}</div>
-                <div style={{ flex:1 }}>
+                <div style={{ flex: 1 }}>
                   <div className="up-exp-title">{e.title}</div>
                   <div className="up-exp-sub">{e.company}</div>
                   <div className="up-exp-date">{e.date}</div>
                 </div>
-                <div style={{ display:"flex",gap:4,flexShrink:0 }}>
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                   <button onClick={() => openEditExp(e)}
-                    style={{ background:"none",border:"1px solid #e5e7eb",borderRadius:6,padding:"3px 8px",cursor:"pointer",color:"#6b7280",fontSize:11,display:"flex",alignItems:"center",gap:3 }}>
+                    style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#6b7280", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
                     <LuPencil size={11} /> แก้ไข
                   </button>
                   <button onClick={() => deleteExp(e.id)}
-                    style={{ background:"none",border:"1px solid #fecaca",borderRadius:6,padding:"3px 8px",cursor:"pointer",color:"#ef4444",fontSize:11,display:"flex",alignItems:"center",gap:3 }}>
+                    style={{ background: "none", border: "1px solid #fecaca", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#ef4444", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
                     <LuTrash2 size={11} /> ลบ
                   </button>
                 </div>
@@ -631,15 +661,15 @@ useEffect(() => {
             <div className="uf-tab-bar">
               <>
                 {TABS.map(t => (
-                  <button key={t.key} className={`uf-tab${activeTab===t.key?" active":""}`} onClick={() => handleTabClick(t.key)}>
+                  <button key={t.key} className={`uf-tab${activeTab === t.key ? " active" : ""}`} onClick={() => handleTabClick(t.key)}>
                     {t.label}
-                    {t.key==="resumes"&&privateList.length>0&&<span className="uf-tab-badge">{privateList.length}</span>}
-                    {t.key==="jobs"&&publicList.length>0&&<span className="uf-tab-badge" style={{background:"#16a34a"}}>{publicList.length}</span>}
+                    {t.key === "resumes" && privateList.length > 0 && <span className="uf-tab-badge">{privateList.length}</span>}
+                    {t.key === "jobs" && publicList.length > 0 && <span className="uf-tab-badge" style={{ background: "#16a34a" }}>{publicList.length}</span>}
                   </button>
                 ))}
                 <button
                   className="uf-filter-btn"
-                  style={{marginLeft:"auto",background:"#1e3a8a",color:"#fff",border:"none",whiteSpace:"nowrap"}}
+                  style={{ marginLeft: "auto", background: "#1e3a8a", color: "#fff", border: "none", whiteSpace: "nowrap" }}
                   onClick={() => navigate("/resume")}
                 >
                   <LuPlus /> สร้างเรซูเม่
@@ -648,7 +678,7 @@ useEffect(() => {
             </div>
 
             {/* Private Resumes */}
-            {activeTab==="resumes"&&(
+            {activeTab === "resumes" && (
               <div className="uf-cards-grid">
                 {privateList.length > 0 ? (
                   <>
@@ -657,30 +687,30 @@ useEffect(() => {
                         <div className="uf-resume-header"><div className="uf-resume-icon"><LuFileText /></div></div>
                         <div className="uf-resume-title">{p.title}</div>
                         <div className="uf-resume-meta">
-                          <span><LuBadgeCheck /> {userData?.fullName??"You"}</span>
-                          {p.createdAt&&<span style={{color:"#9ca3af",fontSize:11}}>
+                          <span><LuBadgeCheck /> {userData?.fullName ?? "You"}</span>
+                          {p.createdAt && <span style={{ color: "#9ca3af", fontSize: 11 }}>
                             🔒 {new Date(p.createdAt).toLocaleDateString("th-TH")}
                           </span>}
                         </div>
-                        <div style={{position:"absolute",top:16,right:16,zIndex:1}} onClick={e=>e.stopPropagation()}>
-                          <button className="uf-action-btn" onClick={e=>{e.stopPropagation();setActionMenuId(prev=>prev===p.id?null:p.id);}}>⋮</button>
-                          {actionMenuId===p.id&&(
-                            <div className="uf-action-menu" onClick={e=>e.stopPropagation()}>
+                        <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={e => e.stopPropagation()}>
+                          <button className="uf-action-btn" onClick={e => { e.stopPropagation(); setActionMenuId(prev => prev === p.id ? null : p.id); }}>⋮</button>
+                          {actionMenuId === p.id && (
+                            <div className="uf-action-menu" onClick={e => e.stopPropagation()}>
                               <button className="uf-action-menu-item uf-action-menu-item--accent"
-                                onClick={async()=>{
+                                onClick={async () => {
                                   setActionMenuId(null);
                                   // เรียก API เปลี่ยน visibility
                                   await fetch(`${API}/resumes/${p.id}/visibility`, {
-                                    method:"PATCH",
-                                    headers:{"Content-Type":"application/json",...authHeader()},
-                                    body:JSON.stringify({visibility:"public"})
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json", ...authHeader() },
+                                    body: JSON.stringify({ visibility: "public" })
                                   });
                                   // รีโหลดรายการ
-                                  const res = await fetch(`${API}/resumes/my`,{headers:authHeader()});
-                                  if(res.ok){const d=await res.json();setMyResumes(d.resumes??[]);}
+                                  const res = await fetch(`${API}/resumes/my`, { headers: authHeader() });
+                                  if (res.ok) { const d = await res.json(); setMyResumes(d.resumes ?? []); }
                                   setActiveTab("jobs");
                                 }}>เปลี่ยนเป็น public</button>
-                              <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={()=>{setActionMenuId(null);setDeleteConfirm({id:p.id,type:"private"});}}>ลบ Resume</button>
+                              <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={() => { setActionMenuId(null); setDeleteConfirm({ id: p.id, type: "private" }); }}>ลบ Resume</button>
                             </div>
                           )}
                         </div>
@@ -692,14 +722,14 @@ useEffect(() => {
                   <div className="uf-empty">
                     <div className="uf-empty-icon">📄</div>
                     <div className="uf-empty-title">ยังไม่มี Resume ที่บันทึกไว้</div>
-                    <div className="uf-empty-desc">กด <span style={{color:"#1e3a8a",cursor:"pointer",fontWeight:700}} onClick={()=>navigate("/resume")}>Create Resume</span> เพื่อสร้าง Resume แรกของคุณ</div>
+                    <div className="uf-empty-desc">กด <span style={{ color: "#1e3a8a", cursor: "pointer", fontWeight: 700 }} onClick={() => navigate("/resume")}>Create Resume</span> เพื่อสร้าง Resume แรกของคุณ</div>
                   </div>
                 )}
               </div>
             )}
 
             {/* Public Resumes */}
-            {activeTab==="jobs"&&(
+            {activeTab === "jobs" && (
               <div className="uf-cards-grid">
                 {publicList.length > 0 ? (
                   <>
@@ -708,15 +738,42 @@ useEffect(() => {
                         <div className="uf-resume-header"><div className="uf-resume-icon"><LuFileText /></div></div>
                         <div className="uf-resume-title">{p.title}</div>
                         <div className="uf-resume-meta">
-                          <span><LuBadgeCheck /> {userData?.fullName||"You"}</span>
-                          {p.createdAt&&<span style={{color:"#16a34a",fontSize:11}}>🌐 {new Date(p.createdAt).toLocaleDateString("th-TH")}</span>}
+                          <span><LuBadgeCheck /> {userData?.fullName || "You"}</span>
+                          {p.createdAt && <span style={{ color: "#16a34a", fontSize: 11 }}>🌐 {new Date(p.createdAt).toLocaleDateString("th-TH")}</span>}
                         </div>
-                        <div style={{position:"absolute",top:16,right:16,zIndex:1}} onClick={e=>e.stopPropagation()}>
-                          <button className="uf-action-btn" onClick={e=>{e.stopPropagation();setActionMenuId(prev=>prev===p.id?null:p.id);}}>⋮</button>
-                          {actionMenuId===p.id&&(
-                            <div className="uf-action-menu" onClick={e=>e.stopPropagation()}>
-                              <button className="uf-action-menu-item uf-action-menu-item--accent" onClick={()=>{setActionMenuId(null);alert("กำลังเปลี่ยนเป็น Private...");}}>เปลี่ยนเป็น private</button>
-                              <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={()=>{setActionMenuId(null);setDeleteConfirm({id:p.id,type:"public"});}}>ลบ Resume</button>
+                        <div style={{ position: "absolute", top: 16, right: 16, zIndex: 1 }} onClick={e => e.stopPropagation()}>
+                          <button className="uf-action-btn" onClick={e => { e.stopPropagation(); setActionMenuId(prev => prev === p.id ? null : p.id); }}>⋮</button>
+                          {actionMenuId === p.id && (
+                            <div className="uf-action-menu" onClick={e => e.stopPropagation()}>
+                              <button className="uf-action-menu-item uf-action-menu-item--accent"
+                                onClick={async () => {
+                                  setActionMenuId(null);
+                                  try {
+                                    // 1. เรียก API เพื่อเปลี่ยน visibility เป็น private
+                                    const res = await fetch(`${API}/resumes/${p.id}/visibility`, {
+                                      method: "PATCH",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        ...authHeader()
+                                      },
+                                      body: JSON.stringify({ visibility: "private" })
+                                    });
+
+                                    if (res.ok) {
+                                      // 2. ถ้าสำเร็จ ให้โหลดข้อมูลใหม่เพื่อให้ UI อัปเดต
+                                      const refreshRes = await fetch(`${API}/resumes/my`, { headers: authHeader() });
+                                      if (refreshRes.ok) {
+                                        const d = await refreshRes.json();
+                                        setMyResumes(d.resumes ?? []);
+                                      }
+                                      // 3. ย้ายหน้ากลับไปที่แท็บ resumes (Private) เพื่อดูผลลัพธ์
+                                      setActiveTab("resumes");
+                                    }
+                                  } catch (err) {
+                                    console.error("Error updating visibility:", err);
+                                  }
+                                }}>เปลี่ยนเป็น private</button>
+                              <button className="uf-action-menu-item uf-action-menu-item--danger" onClick={() => { setActionMenuId(null); setDeleteConfirm({ id: p.id, type: "public" }); }}>ลบ Resume</button>
                             </div>
                           )}
                         </div>
@@ -735,7 +792,7 @@ useEffect(() => {
             )}
 
             {/* Saved */}
-            {activeTab==="saved"&&(
+            {activeTab === "saved" && (
               <div ref={savedSectionRef} className="uf-cards-grid">
                 <div className="uf-empty">
                   <div className="uf-empty-icon">🔖</div>

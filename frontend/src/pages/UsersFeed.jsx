@@ -24,6 +24,7 @@ export default function UsersFeed() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [menuOpen, setMenuOpen]         = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [myResumes, setMyResumes] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null); 
   const [isModalOpen, setIsModalOpen] = useState(false); 
@@ -126,6 +127,29 @@ export default function UsersFeed() {
     })();
   }, []);
 
+  // Fetch My Resumes (for sidebar)
+  useEffect(() => {
+    const fetchMyResumes = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("http://localhost:3000/resumes/my", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMyResumes(data.resumes ?? []);
+        }
+      } catch (err) {
+        console.error("Fetch my resumes error:", err);
+      }
+    };
+    fetchMyResumes();
+  }, []);
+
+  const privateList = myResumes.filter(r => r.visibility === "private");
+  const publicList  = myResumes.filter(r => r.visibility === "public");
+
   useEffect(() => {
     const close = (e) => {
       if (!e.target.closest(".uf-user-area")) setMenuOpen(false);
@@ -202,10 +226,36 @@ export default function UsersFeed() {
           <button className="uf-menu-item" onClick={() => navigate("/profile", { state: { scrollTo: "saved" } })}>
             <LuBookmark /> Saved
           </button>
-          <div className="uf-section-label">Private Profile</div>
-          <div className="uf-sub-item">Development 1</div>
-          <div className="uf-section-label">Public Profile</div>
-          <div className="uf-sub-item">Ux/Ui 2</div>
+          {privateList.length > 0 && (
+            <>
+              <div className="uf-section-label">Private Resumes</div>
+              {privateList.map(r => (
+                <div
+                  key={r.id}
+                  className="uf-sub-item"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/view-resume/${r.id}`)}
+                >
+                  🔒 {r.title}
+                </div>
+              ))}
+            </>
+          )}
+          {publicList.length > 0 && (
+            <>
+              <div className="uf-section-label">Public Resumes</div>
+              {publicList.map(r => (
+                <div
+                  key={r.id}
+                  className="uf-sub-item"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/view-resume/${r.id}`)}
+                >
+                  🌐 {r.title}
+                </div>
+              ))}
+            </>
+          )}
         </aside>
 
         <main className="uf-main">
