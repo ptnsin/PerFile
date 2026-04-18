@@ -505,6 +505,14 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
       </div>
 
       <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{job.title}</div>
+      {job.company && (
+        <div style={{
+          fontSize: 12, color: "#6366f1", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 4, marginTop: 4,
+        }}>
+          <LuBadgeCheck size={12} /> {job.company}
+        </div>
+      )}
       <div className="hrf-job-meta" style={{ marginTop: "8px" }}>
         {job.category && <span><LuBadgeCheck /> {job.category}</span>}
         {job.location  && <span><LuMapPin /> {job.location}</span>}

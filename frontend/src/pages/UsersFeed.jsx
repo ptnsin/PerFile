@@ -29,9 +29,46 @@ export default function UsersFeed() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null); 
-  const [isModalOpen, setIsModalOpen] = useState(false); 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Notification
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notifRef = useRef(null);
+
+  // Filter states — Resume
+  const [resumeFilter, setResumeFilter] = useState({ position: "" });
+  // Filter states — Job
+  const [jobFilter, setJobFilter] = useState({ type: "", location: "", salaryMin: "", salaryMax: "" });
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
+
+  // Fetch Notifications
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("http://localhost:3000/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.notifications ?? []);
+        }
+      } catch (err) {
+        console.error("Fetch notifications error:", err);
+      }
+    };
+    fetchNotifs();
+  }, []);
+
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    const close = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
   // Fetch Jobs
   useEffect(() => {
@@ -78,11 +115,34 @@ export default function UsersFeed() {
   const filteredResumes = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     return publicResumes.filter((r) => {
-      if (!q) return true;
-      return (r.title?.toLowerCase() || "").includes(q) ||
-             (r.owner?.toLowerCase() || "").includes(q);
+      const matchSearch = !q ||
+        (r.title?.toLowerCase() || "").includes(q) ||
+        (r.owner?.toLowerCase() || "").includes(q) ||
+        (r.users?.fullName?.toLowerCase() || "").includes(q);
+      const matchPosition = !resumeFilter.position ||
+        (r.title?.toLowerCase() || "").includes(resumeFilter.position.toLowerCase());
+      return matchSearch && matchPosition;
     });
-  }, [publicResumes, searchTerm]);
+  }, [publicResumes, searchTerm, resumeFilter]);
+
+  const filteredJobs = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return jobs.filter((j) => {
+      const matchSearch = !q ||
+        (j.title?.toLowerCase() || "").includes(q) ||
+        (j.users?.hr_profile?.company?.toLowerCase() || "").includes(q) ||
+        (j.location?.toLowerCase() || "").includes(q);
+      const matchCategory = !selectedCategory ||
+        (j.job_type || "Other").toLowerCase().includes(selectedCategory.toLowerCase());
+      const matchType = !jobFilter.type || j.job_type === jobFilter.type;
+      const matchLocation = !jobFilter.location ||
+        (j.location?.toLowerCase() || "").includes(jobFilter.location.toLowerCase());
+      const salary = parseFloat(j.salary) || 0;
+      const matchMin = !jobFilter.salaryMin || salary >= parseFloat(jobFilter.salaryMin);
+      const matchMax = !jobFilter.salaryMax || salary <= parseFloat(jobFilter.salaryMax);
+      return matchSearch && matchCategory && matchType && matchLocation && matchMin && matchMax;
+    });
+  }, [jobs, searchTerm, selectedCategory, jobFilter]);
 
   // Sidebar Resize Logic
   useEffect(() => {
@@ -181,10 +241,6 @@ export default function UsersFeed() {
   const privateList = myResumes.filter(r => r.visibility === "private");
   const publicList  = myResumes.filter(r => r.visibility === "public");
 
-  const filteredJobs = selectedCategory
-    ? jobs.filter(j => (j.job_type || "Other").toLowerCase().includes(selectedCategory.toLowerCase()))
-    : jobs;
-
   useEffect(() => {
     const close = (e) => {
       if (!e.target.closest(".uf-user-area")) setMenuOpen(false);
@@ -192,6 +248,9 @@ export default function UsersFeed() {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
+
+  // Close filter dropdown on tab change
+  useEffect(() => { setIsFilterOpen(false); }, [activeTab]);
 
   const initial   = userData?.username?.[0]?.toUpperCase() ?? "U";
   const firstName = userData?.fullName?.split(" ")[0] ?? "there";
@@ -221,7 +280,64 @@ export default function UsersFeed() {
         </div>
 
         <div className="uf-nav-right">
-          <button className="uf-icon-btn" title="Notifications"><LuBell /></button>
+          <div ref={notifRef} style={{ position: "relative" }}>
+            <button className="uf-icon-btn" title="Notifications" onClick={() => setNotifOpen(v => !v)}
+              style={{ position: "relative" }}>
+              <LuBell />
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span style={{
+                  position: "absolute", top: 4, right: 4,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#ef4444", border: "1.5px solid #fff",
+                }} />
+              )}
+            </button>
+            {notifOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                width: 320, background: "#fff", borderRadius: 12,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.13)", border: "1px solid #e5e7eb",
+                zIndex: 999, overflow: "hidden",
+              }}>
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>แจ้งเตือน</span>
+                  {notifications.filter(n => !n.is_read).length > 0 && (
+                    <span style={{ background: "#eff6ff", color: "#1e3a8a", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>
+                      {notifications.filter(n => !n.is_read).length} ใหม่
+                    </span>
+                  )}
+                </div>
+                <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                  {notifications.length > 0 ? notifications.map((n, i) => (
+                    <div key={n.id ?? i} style={{
+                      padding: "10px 16px", borderBottom: "1px solid #f9fafb",
+                      background: n.is_read ? "#fff" : "#f0f7ff",
+                      display: "flex", gap: 10, alignItems: "flex-start",
+                    }}>
+                      <div style={{ fontSize: 18, flexShrink: 0 }}>
+                        {n.type === "application" ? "📋" : n.type === "shortlist" ? "⭐" : n.type === "interview" ? "📅" : "🔔"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, color: "#111827", fontWeight: n.is_read ? 400 : 600 }}>{n.message ?? n.title}</div>
+                        {n.created_at && (
+                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                            {new Date(n.created_at).toLocaleDateString("th-TH")}
+                          </div>
+                        )}
+                      </div>
+                      {!n.is_read && (
+                        <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#1e3a8a", flexShrink: 0, marginTop: 4 }} />
+                      )}
+                    </div>
+                  )) : (
+                    <div style={{ padding: 24, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+                      ยังไม่มีแจ้งเตือน
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="uf-user-area" style={{ position: "relative" }}>
             <div className="uf-user-chip" onClick={() => setMenuOpen((v) => !v)}>
               <div className="uf-avatar">
@@ -369,10 +485,89 @@ export default function UsersFeed() {
           </div>
 
           <div className="uf-panel">
-            <div className="uf-filter-bar">
-              <button className="uf-filter-btn" onClick={() => setIsFilterOpen((v) => !v)}>
+            <div className="uf-filter-bar" style={{ position: "relative" }}>
+              <button
+                className="uf-filter-btn"
+                onClick={() => setIsFilterOpen((v) => !v)}
+                style={ isFilterOpen ? { background: "#eff6ff", color: "#1e3a8a", borderColor: "#1e3a8a" } : {} }
+              >
                 <LuFilter /> กรอง
+                {/* active dot */}
+                {((activeTab === "resume" && resumeFilter.position) ||
+                  (activeTab === "job" && (jobFilter.type || jobFilter.location || jobFilter.salaryMin || jobFilter.salaryMax))) && (
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1e3a8a", display: "inline-block", marginLeft: 4 }} />
+                )}
               </button>
+
+              {/* ── Filter Dropdown ── */}
+              {isFilterOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", left: 0,
+                  background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.10)", zIndex: 100,
+                  padding: 16, minWidth: 280,
+                }}>
+                  {activeTab === "resume" ? (
+                    <>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 10 }}>🔍 กรอง Resume</div>
+                      <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 4 }}>ตำแหน่ง / ชื่อเรซูเม่</label>
+                      <input
+                        type="text" placeholder="เช่น Frontend, Designer..."
+                        value={resumeFilter.position}
+                        onChange={e => setResumeFilter(f => ({ ...f, position: e.target.value }))}
+                        style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                      />
+                      <button onClick={() => setResumeFilter({ position: "" })}
+                        style={{ marginTop: 10, fontSize: 11, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                        ล้างตัวกรอง
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 10 }}>🔍 กรอง Job</div>
+                      <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 4 }}>ประเภทงาน</label>
+                      <select
+                        value={jobFilter.type}
+                        onChange={e => setJobFilter(f => ({ ...f, type: e.target.value }))}
+                        style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none", marginBottom: 10, boxSizing: "border-box" }}
+                      >
+                        <option value="">ทั้งหมด</option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Freelance">Freelance</option>
+                        <option value="Internship">Internship</option>
+                      </select>
+                      <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 4 }}>สถานที่ทำงาน</label>
+                      <input
+                        type="text" placeholder="เช่น Bangkok, Remote..."
+                        value={jobFilter.location}
+                        onChange={e => setJobFilter(f => ({ ...f, location: e.target.value }))}
+                        style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none", marginBottom: 10, boxSizing: "border-box" }}
+                      />
+                      <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 4 }}>เงินเดือน (฿)</label>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          type="number" placeholder="ต่ำสุด"
+                          value={jobFilter.salaryMin}
+                          onChange={e => setJobFilter(f => ({ ...f, salaryMin: e.target.value }))}
+                          style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none" }}
+                        />
+                        <input
+                          type="number" placeholder="สูงสุด"
+                          value={jobFilter.salaryMax}
+                          onChange={e => setJobFilter(f => ({ ...f, salaryMax: e.target.value }))}
+                          style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 12, outline: "none" }}
+                        />
+                      </div>
+                      <button onClick={() => setJobFilter({ type: "", location: "", salaryMin: "", salaryMax: "" })}
+                        style={{ marginTop: 10, fontSize: 11, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                        ล้างตัวกรอง
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
               {activeTab === "resume" && (
                 <button
                   className="uf-filter-btn"
