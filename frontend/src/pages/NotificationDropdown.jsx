@@ -39,15 +39,24 @@ function NotifIcon({ type }) {
   );
 }
 
+// ✅ แก้ timeAgo ให้ใช้ timezone Asia/Bangkok
 function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const utcDate = new Date(dateStr);
+  const diff = Date.now() - utcDate.getTime();
+
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "เมื่อกี้";
   if (mins < 60) return `${mins} นาทีที่แล้ว`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs} ชั่วโมงที่แล้ว`;
-  const days = Math.floor(hrs / 24);
-  return `${days} วันที่แล้ว`;
+
+  // แสดงวันที่จริงในเวลาไทย
+  return utcDate.toLocaleDateString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export default function NotificationDropdown({

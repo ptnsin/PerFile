@@ -580,4 +580,21 @@ router.put("/notifications/read-all", authMiddleware, requireAdmin, async (req, 
   }
 });
 
+export const notifyAdmins = async (type, title, body = null) => {
+  try {
+    const [admins] = await db.query(
+      "SELECT id FROM users WHERE roles_id = 1"
+    );
+    for (const admin of admins) {
+      await db.query(
+        `INSERT INTO admin_notifications (admin_id, type, title, body, is_read) 
+         VALUES (?, ?, ?, ?, 0)`,
+        [admin.id, type, title, body]
+      );
+    }
+  } catch (err) {
+    console.error("notifyAdmins error:", err.message);
+  }
+};
+
 export default router;

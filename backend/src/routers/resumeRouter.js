@@ -5,14 +5,25 @@ import { requireRole } from '../middleware/requireRole.js'
 
 const resumeRouter = Router();
 
-// base path: "/resumes"
+// ✅ Helper: แจ้งเตือน Admin ทุกคนในระบบ
+const notifyAdmins = async (type, title, body = null) => {
+  try {
+    const [admins] = await db.query(
+      "SELECT id FROM users WHERE roles_id = 1"
+    );
+    for (const admin of admins) {
+      await db.query(
+        `INSERT INTO admin_notifications (admin_id, type, title, body, is_read) 
+         VALUES (?, ?, ?, ?, 0)`,
+        [admin.id, type, title, body]
+      );
+    }
+  } catch (err) {
+    console.error("notifyAdmins error:", err.message);
+  }
+};
 
-/**
- * @swagger
- * tags:
- *   name: Resumes
- *   description: API สำหรับจัดการ Resume
- */
+// base path: "/resumes"
 
 resumeRouter.get("/public", async (req, res) => {
   try {
@@ -34,91 +45,13 @@ resumeRouter.get("/public", async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     Resume:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "abc123"
- *         title:
- *           type: string
- *           example: "My Resume"
- *         template:
- *           type: string
- *           example: "modern"
- *         sections:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Section'
- *         visibility:
- *           type: string
- *           enum: [public, private]
- *           example: "private"
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
- *
- *     Section:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "sec001"
- *         type:
- *           type: string
- *           example: "experience"
- *         content:
- *           type: object
- *           example: { "company": "Acme Corp", "role": "Developer" }
- *         order:
- *           type: integer
- *           example: 1
- *
- *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- */
-
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /resumes/my
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * @swagger
- * /resumes/my:
- *   get:
- *     summary: ดู resume ทั้งหมดที่ตัวเองสร้างไว้
- *     tags: [Resumes]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: รายการ resume ทั้งหมดของ user
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 resumes:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Resume'
- *       401:
- *         description: Unauthorized
- */
 resumeRouter.get("/my", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // ดึงข้อมูลจากตาราง resumes ตารางเดียวได้เลย เพราะมีข้อมูลครบแล้ว
     const [resumes] = await db.query(
       "SELECT id, title, template, visibility, summary, experience, education, skills, created_at AS createdAt FROM resumes WHERE user_id = ? ORDER BY created_at DESC",
       [userId]
@@ -132,60 +65,13 @@ resumeRouter.get("/my", authMiddleware, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /resumes/resumes
+// POST /resumes  ✅ เพิ่ม notifyAdmins หลังสร้างสำเร็จ
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * @swagger
- * /resumes/resumes:
- *   post:
- *     summary: สร้าง resume ใหม่พร้อมเลือก template
- *     tags: [Resumes]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - title
- *               - template
- *             properties:
- *               title:
- *                 type: string
- *                 example: "My New Resume"
- *               template:
- *                 type: string
- *                 example: "modern"
- *               sections:
- *                 type: array
- *                 items:
- *                   $ref: '#/components/schemas/Section'
- *     responses:
- *       201:
- *         description: สร้าง resume สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Resume created successfully"
- *                 resume:
- *                   $ref: '#/components/schemas/Resume'
- *       400:
- *         description: Bad Request - ข้อมูลไม่ครบ
- *       401:
- *         description: Unauthorized
- */
 resumeRouter.post("/", authMiddleware, async (req, res) => {
   try {
     const { title, template, visibility, summary, experience, education, skills } = req.body;
     const userId = req.user.id;
 
-    // บันทึกข้อมูลทั้งหมดลงในคอลัมน์ของตาราง resumes
     const [result] = await db.query(
       `INSERT INTO resumes (user_id, title, template, visibility, summary, experience, education, skills) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -195,10 +81,21 @@ resumeRouter.post("/", authMiddleware, async (req, res) => {
         template || "modern", 
         visibility || "private",
         summary || null,
-        JSON.stringify(experience || []), // บันทึกเป็น JSON string
+        JSON.stringify(experience || []),
         JSON.stringify(education || []),
         JSON.stringify(skills || [])
       ]
+    );
+
+    // ✅ ดึงชื่อ user แล้วแจ้งเตือน Admin
+    const [[user]] = await db.query(
+      "SELECT username FROM users WHERE id = ?",
+      [userId]
+    );
+    await notifyAdmins(
+      "new_resume",
+      `📄 Resume ใหม่ถูกสร้าง`,
+      `${user?.username || "ผู้ใช้"} สร้าง Resume: "${title || "Untitled Resume"}"`
     );
 
     res.status(201).json({
@@ -215,39 +112,6 @@ resumeRouter.post("/", authMiddleware, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /resumes/:id
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * @swagger
- * /resumes/{id}:
- *   get:
- *     summary: ดู resume (ตรวจสิทธิ์ ownership + visibility อัตโนมัติ)
- *     tags: [Resumes]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Resume ID
- *     responses:
- *       200:
- *         description: ข้อมูล resume
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 resumes:
- *                   $ref: '#/components/schemas/Resume'
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - ไม่มีสิทธิ์เข้าถึง
- *       404:
- *         description: ไม่พบ resume
- */
-
 resumeRouter.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -264,12 +128,7 @@ resumeRouter.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "ไม่พบเรซูเม่" });
     }
 
-    const resume = rows[0];
-
-    // หมายเหตุ: คอลัมน์ที่เป็น JSON (experience, education, skills) 
-    // จะถูก mysql2 parse กลับเป็น Object/Array ให้อัตโนมัติ
-
-    res.status(200).json({ resume });
+    res.status(200).json({ resume: rows[0] });
   } catch (err) {
     console.error("Get Resume Error:", err.message);
     res.status(500).json({ message: "Internal server error" });
@@ -279,62 +138,12 @@ resumeRouter.get("/:id", async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PUT /resumes/:id
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * @swagger
- * /resumes/{id}:
- *   put:
- *     summary: แก้ไขเนื้อหา resume เจ้าของเท่านั้น
- *     tags: [Resumes]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Resume ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *                 example: "Updated Resume Title"
- *               sections:
- *                 type: array
- *                 items:
- *                   $ref: '#/components/schemas/Section'
- *     responses:
- *       200:
- *         description: อัปเดต resume สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Resume updated successfully"
- *                 resume:
- *                   $ref: '#/components/schemas/Resume'
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - ไม่ใช่เจ้าของ
- *       404:
- *         description: ไม่พบ resume
- */
 resumeRouter.put("/:id", authMiddleware, async (req, res) => {
   try {
     const resumeId = req.params.id;
     const userId = req.user.id;
     const { title, template, visibility, summary, experience, education, skills } = req.body;
 
-    // 1. ตรวจสอบสิทธิ์เจ้าของ
     const [resumeRows] = await db.query(
       "SELECT id FROM resumes WHERE id = ? AND user_id = ?",
       [resumeId, userId]
@@ -344,7 +153,6 @@ resumeRouter.put("/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "ไม่พบ Resume หรือคุณไม่มีสิทธิ์แก้ไข" });
     }
 
-    // 2. อัปเดตข้อมูลลงตารางเดียว
     await db.query(
       `UPDATE resumes 
        SET title = ?, template = ?, visibility = ?, summary = ?, experience = ?, education = ?, skills = ? 
@@ -371,39 +179,6 @@ resumeRouter.put("/:id", authMiddleware, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE /resumes/:id
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * @swagger
- * /resumes/{id}:
- *   delete:
- *     summary: ลบ resume ตัวเอง / Super Admin ลบได้ทุกอัน
- *     tags: [Resumes]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Resume ID
- *     responses:
- *       200:
- *         description: ลบ resume สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Resume deleted successfully"
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - ไม่มีสิทธิ์ลบ
- *       404:
- *         description: ไม่พบ resume
- */
 resumeRouter.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const resumeId = req.params.id;
@@ -428,61 +203,12 @@ resumeRouter.delete("/:id", authMiddleware, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /resumes/:id/visibility
 // ─────────────────────────────────────────────────────────────────────────────
-/**
- * @swagger
- * /resumes/{id}/visibility:
- *   patch:
- *     summary: สลับ resume ระหว่าง public กับ private
- *     tags: [Resumes]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Resume ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - visibility
- *             properties:
- *               visibility:
- *                 type: string
- *                 enum: [public, private]
- *                 example: "public"
- *     responses:
- *       200:
- *         description: เปลี่ยน visibility สำเร็จ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Visibility updated to public"
- *       400:
- *         description: Bad Request - visibility ไม่ถูกต้อง
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       404:
- *         description: ไม่พบ resume
- */
 resumeRouter.patch("/:id/visibility", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { visibility } = req.body; // รับค่า 'public' หรือ 'private'
+    const { visibility } = req.body;
     const userId = req.user.id;
 
-    // ตรวจสอบและอัปเดตเฉพาะคอลัมน์ visibility
     const [result] = await db.query(
       "UPDATE resumes SET visibility = ? WHERE id = ? AND user_id = ?",
       [visibility, id, userId]
@@ -498,14 +224,14 @@ resumeRouter.patch("/:id/visibility", authMiddleware, async (req, res) => {
   }
 });
 
-
-
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /resumes/:id/export
+// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.get("/:id/export", async (req, res) => {
   const { id } = req.params;
   const { format } = req.query;
 
   if (format === "link") {
-    // ส่งลิงก์หน้า ViewResume ของคุณกลับไป
     return res.json({ url: `http://localhost:5173/view-resume/${id}` });
   }
   
