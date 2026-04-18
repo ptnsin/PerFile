@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   LuSearch, LuBell, LuFilter, LuFileText, LuBriefcase,
   LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard,
-  LuBadgeCheck, LuClock, LuMapPin
+  LuBadgeCheck, LuClock, LuMapPin, LuBadgeMinus
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 import JobDetailModal from "./JobDetailModal";
@@ -476,9 +476,6 @@ export default function UsersFeed() {
                 >
                   {t.icon}
                   {t.label}
-                  {t.key === "resume" && (
-                    <span className="uf-tab-badge">{filteredResumes.length}</span>
-                  )}
                 </button>
               ))}
             </div>
@@ -756,37 +753,46 @@ function ResumeCard({ resume, onClick }) {
 }
 
 function JobCard({ job, onClick }) {
-  const companyName = job.company_name || "ทั่วไป";
-  
   return (
     <div
-      className="hrf-job-card" 
+      className="hrf-job-card"
       onClick={onClick}
-      style={{ cursor: "pointer", position: "relative" }}
+      style={{ cursor: "pointer", position: "relative", overflow: "visible" }}
     >
-      <div className="hrf-job-header">
-        <div className="hrf-job-icon">
-          <LuBriefcase />
+      {/* ── Header: icon + job type ── */}
+      <div className="hrf-job-header" style={{ marginBottom: "12px" }}>
+        <div className="hrf-job-icon"><LuBriefcase /></div>
+        <span className="hrf-job-type" style={{ marginTop: 8 }}>
+          {job.job_type || "ไม่ระบุ"}
+        </span>
+      </div>
+
+      {/* ── Title ── */}
+      <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem" }}>
+        {job.title || "ไม่ระบุตำแหน่ง"}
+      </div>
+
+      {/* ── Company (ข้อความรอง) ── */}
+      {(job.company_name || job.users?.hr_profile?.company) && (
+        <div style={{
+          fontSize: 12, color: "#6366f1", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 4, marginTop: 4,
+        }}>
+          <LuBadgeCheck size={12} />
+          {job.company_name || job.users?.hr_profile?.company}
         </div>
-        <span className="hrf-job-type">{job.job_type || "ไม่ระบุ"}</span>
+      )}
+
+      {/* ── Meta: category + location ── */}
+      <div className="hrf-job-meta" style={{ marginTop: "8px" }}>
+        {job.category && <span><LuBadgeCheck /> {job.category}</span>}
+        {job.location  && <span><LuMapPin /> {job.location}</span>}
       </div>
 
-      <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem", marginBottom: "8px" }}>
-        {job.title}
-      </div>
-
-      <div className="hrf-job-meta">
-        <span>
-          <LuBadgeCheck /> {companyName}
-        </span>
-        <span>
-          <LuMapPin /> {job.location || "ไม่ระบุ"}
-        </span>
-      </div>
-
+      {/* ── Salary ── */}
       <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #f1f5f9" }}>
         <span style={{ color: "#059669", fontWeight: 700, fontSize: "14px" }}>
-          ฿ {job.salary}
+          ฿ {job.salary ?? "ไม่ระบุ"}
         </span>
       </div>
     </div>
