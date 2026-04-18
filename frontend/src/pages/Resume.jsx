@@ -36,26 +36,61 @@ function EntryBlock({ type, entries, onChange, onAdd, onRemove }) {
           <div className="field">
             <label>{isEdu ? "วุฒิการศึกษา / สาขา" : "ตำแหน่ง / ชื่อ"}</label>
             <input
+              list={isEdu ? `degree-list-${e.id}` : undefined}
               value={isEdu ? e.degree : e.role}
               onChange={ev => onChange(e.id, isEdu ? "degree" : "role", ev.target.value)}
               placeholder={isEdu ? "เช่น ปริญญาตรี วิทยาการคอมพิวเตอร์" : "ชื่อตำแหน่งงาน"}
             />
+            {isEdu && (
+              <datalist id={`degree-list-${e.id}`}>
+                <option value="ปริญญาตรี วิทยาการคอมพิวเตอร์" /><option value="ปริญญาตรี วิศวกรรมคอมพิวเตอร์" />
+                <option value="ปริญญาตรี วิศวกรรมซอฟต์แวร์" /><option value="ปริญญาตรี เทคโนโลยีสารสนเทศ" />
+                <option value="ปริญญาตรี บริหารธุรกิจ (การตลาด)" /><option value="ปริญญาตรี บริหารธุรกิจ (การจัดการ)" />
+                <option value="ปริญญาตรี บัญชี" /><option value="ปริญญาตรี นิติศาสตร์" />
+                <option value="ปริญญาตรี นิเทศศาสตร์" /><option value="ปริญญาตรี รัฐศาสตร์" />
+                <option value="ปริญญาตรี วิศวกรรมไฟฟ้า" /><option value="ปริญญาตรี สถาปัตยกรรมศาสตร์" />
+                <option value="ปริญญาโท บริหารธุรกิจ (MBA)" /><option value="ปริญญาโท วิทยาการคอมพิวเตอร์" />
+                <option value="ประกาศนียบัตรวิชาชีพชั้นสูง (ปวส.)" /><option value="ประกาศนียบัตรวิชาชีพ (ปวช.)" />
+                <option value="มัธยมศึกษาตอนปลาย" />
+              </datalist>
+            )}
           </div>
           <div className="row">
             <div className="field">
               <label>{isEdu ? "สถานศึกษา" : "องค์กร / บริษัท"}</label>
               <input
+                list={isEdu ? `school-list-${e.id}` : undefined}
                 value={isEdu ? e.school : e.org}
                 onChange={ev => onChange(e.id, isEdu ? "school" : "org", ev.target.value)}
                 placeholder={isEdu ? "ชื่อมหาวิทยาลัย / โรงเรียน" : "ชื่อบริษัท"}
               />
+              {isEdu && (
+                <datalist id={`school-list-${e.id}`}>
+                  <option value="มหาวิทยาลัยศรีปทุม" /><option value="มหาวิทยาลัยธรรมศาสตร์" />
+                  <option value="มหาวิทยาลัยมหิดล" /><option value="มหาวิทยาลัยเกษตรศาสตร์" />
+                  <option value="มหาวิทยาลัยศิลปากร" /><option value="มหาวิทยาลัยขอนแก่น" />
+                  <option value="มหาวิทยาลัยเชียงใหม่" /><option value="มหาวิทยาลัยสงขลานครินทร์" />
+                  <option value="มหาวิทยาลัยบูรพา" /><option value="สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง" />
+                  <option value="มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าธนบุรี" /><option value="จุฬาลงกรณ์มหาวิทยาลัย" />
+                  <option value="มหาวิทยาลัยศรีนครินทรวิโรฒ" /><option value="มหาวิทยาลัยนเรศวร" />
+                  <option value="มหาวิทยาลัยกรุงเทพ" /><option value="มหาวิทยาลัยหอการค้าไทย" />
+                  <option value="มหาวิทยาลัยรังสิต" /><option value="มหาวิทยาลัยอัสสัมชัญ" />
+                </datalist>
+              )}
             </div>
             <div className="field">
               <label>ช่วงเวลา</label>
               <input
                 value={e.period}
                 onChange={ev => {
-                  const v = ev.target.value.replace(/[^0-9\s\-–—/.ปัจจุบัน]/g, "");
+                  const v = ev.target.value.replace(/[^0-9\s\-–/]/g, "");
+                  const blocks = v.match(/\d+/g) || [];
+                  for (const b of blocks) {
+                    if (b.length >= 5 && !["1","2"].includes(b[4])) {
+                      alert("ปีต้องมี 4 หลัก และขึ้นต้นด้วย 1 หรือ 2 เท่านั้น เช่น 1990 หรือ 2024");
+                      return;
+                    }
+                  }
                   onChange(e.id, "period", v);
                 }}
                 placeholder="2020 – 2023"
@@ -719,30 +754,14 @@ function LivePreviewPanel({ data, onOpenA4 }) {
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────── */
-const STORAGE_KEY = "rafresumect_draft";
-
 export default function ResumeBuilder() {
-  const [data, setData] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? { ...defaultData, ...JSON.parse(saved) } : defaultData;
-    } catch {
-      return defaultData;
-    }
-  });
+  const [data, setData] = useState(defaultData);
   const [tab, setTab] = useState("info");
   const [newSkill, setNewSkill] = useState("");
   const [savedToast, setSavedToast] = useState(false);
   const [showA4Preview, setShowA4Preview] = useState(false);
   const navigate = useNavigate();
   const { publish } = useResumes();
-
-  // บันทึกลง localStorage ทุกครั้งที่ data เปลี่ยน
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch { }
-  }, [data]);
 
   const set = (key, val) => setData(d => ({ ...d, [key]: val }));
 
@@ -780,26 +799,24 @@ export default function ResumeBuilder() {
     try {
       setSavedToast(true);
       const payload = {
-        title: data.name ? `${data.name} - Resume` : "Untitled Resume",
-        template: data.template || "modern",
+        title: data.name + " - Resume",
+        template: data.template,
+        image: data.image,
         visibility: "private",
-        summary: data.summary || null,
-
-        // ✅ ส่งตรงๆ ไม่ต้อง wrap ใน sections
-        experience: data.experience.map(exp => ({
-          role: exp.role,
-          company: exp.org,   // ⚠️ backend ใช้ 'company' ใน id 2 แต่ field จริงใน router ไม่ได้ map — ส่ง org ไปก็ได้
-          org: exp.org,
-          period: exp.period,
-          desc: exp.desc,
-        })),
-        education: data.education.map(edu => ({
-          degree: edu.degree,
-          school: edu.school,
-          period: edu.period,
-          desc: edu.desc,
-        })),
-        skills: data.skills,
+        sections: [
+          { type: "summary", content: { text: data.summary }, order: 1 },
+          ...data.experience.map((exp, index) => ({
+            type: "experience",
+            content: { role: exp.role, company: exp.org, period: exp.period, desc: exp.desc },
+            order: index + 2,
+          })),
+          ...data.education.map((edu, index) => ({
+            type: "education",
+            content: { degree: edu.degree, school: edu.school, period: edu.period, desc: edu.desc },
+            order: data.experience.length + index + 2,
+          })),
+          { type: "skills", content: { displayMode: data.skillDisplayMode, list: data.skills }, order: 99 },
+        ],
       };
 
       const response = await axios.post("http://localhost:3000/resumes", payload, {
@@ -815,6 +832,7 @@ export default function ResumeBuilder() {
       alert("บันทึกไม่สำเร็จ");
     }
   };
+
   const tabs = [
     { id: "template", label: "เทมเพลต" },
     { id: "info", label: "ข้อมูล" },
@@ -822,42 +840,6 @@ export default function ResumeBuilder() {
     { id: "edu", label: "การศึกษา" },
     { id: "skills", label: "ทักษะ" },
   ];
-
-  const handlePublish = async () => {
-  try {
-    const payload = {
-      title: data.name ? `${data.name} - Resume` : "Untitled Resume",
-      template: data.template || "modern",
-      visibility: "public",   // ✅ ตรงนี้คือจุดต่าง
-      summary: data.summary || null,
-      experience: data.experience.map(exp => ({
-        role: exp.role,
-        org: exp.org,
-        period: exp.period,
-        desc: exp.desc,
-      })),
-      education: data.education.map(edu => ({
-        degree: edu.degree,
-        school: edu.school,
-        period: edu.period,
-        desc: edu.desc,
-      })),
-      skills: data.skills,
-    };
-
-    const response = await axios.post("http://localhost:3000/resumes", payload, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    });
-
-    if (response.status === 201) {
-      publish(data); // ยังเรียก context ได้ถ้าต้องการ
-      navigate("/feed");
-    }
-  } catch (error) {
-    console.error("Publish Error:", error);
-    alert("โพสต์ไม่สำเร็จ กรุณาลองใหม่");
-  }
-};
 
   return (
     <>
@@ -901,26 +883,43 @@ export default function ResumeBuilder() {
                 </div>
 
                 <div className="section-label">2. เลือกโทนสีที่ต้องการ</div>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
                   {[
-                    { name: "Gold", code: "#d4af37" },
-                    { name: "Blue", code: "#0044cc" },
-                    { name: "Green", code: "#10b981" },
-                    { name: "Dark", code: "#1f2937" },
+                    { name: "Gold",    code: "#d4af37" },
+                    { name: "Navy",    code: "#1e3a8a" },
+                    { name: "Blue",    code: "#0044cc" },
+                    { name: "Sky",     code: "#0ea5e9" },
+                    { name: "Green",   code: "#10b981" },
+                    { name: "Emerald", code: "#059669" },
+                    { name: "Rose",    code: "#e11d48" },
+                    { name: "Violet",  code: "#7c3aed" },
+                    { name: "Orange",  code: "#ea580c" },
+                    { name: "Dark",    code: "#1f2937" },
                   ].map(color => (
                     <button
                       key={color.code}
                       onClick={() => set("themeColor", color.code)}
                       style={{
-                        width: "35px", height: "35px", borderRadius: "50%",
+                        width: "32px", height: "32px", borderRadius: "50%",
                         backgroundColor: color.code,
-                        border: data.themeColor === color.code ? "3px solid #fff" : "none",
+                        border: data.themeColor === color.code ? "3px solid #fff" : "2px solid transparent",
+                        outline: data.themeColor === color.code ? `2px solid ${color.code}` : "none",
                         cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
                         transition: "transform 0.15s",
                       }}
                       title={color.name}
                     />
                   ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ fontSize: "11px", color: "#6b7280", fontWeight: 600 }}>กำหนดเอง:</label>
+                  <input
+                    type="color"
+                    value={data.themeColor || "#d4af37"}
+                    onChange={e => set("themeColor", e.target.value)}
+                    style={{ width: "32px", height: "32px", borderRadius: "50%", border: "none", cursor: "pointer", padding: 0 }}
+                  />
+                  <span style={{ fontSize: "11px", color: "#6b7280", fontFamily: "monospace" }}>{data.themeColor || "#d4af37"}</span>
                 </div>
               </>
             )}
@@ -961,30 +960,46 @@ export default function ResumeBuilder() {
                 <div className="field"><label>ตำแหน่ง / สาขาอาชีพ</label><input value={data.title} onChange={e => set("title", e.target.value)} placeholder="เช่น Software Engineer" /></div>
                 <div className="section-label">ช่องทางติดต่อ</div>
                 <div className="row">
-                  <div className="field"><label>อีเมล</label><input value={data.email} onChange={e => set("email", e.target.value)} /></div>
+                  <div className="field"><label>อีเมล</label><input
+                    value={data.email}
+                    onChange={e => set("email", e.target.value)}
+                    onBlur={e => {
+                      const v = e.target.value.trim();
+                      if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
+                        alert("รูปแบบอีเมลไม่ถูกต้อง เช่น example@email.com");
+                    }}
+                    placeholder="example@email.com"
+                  /></div>
                   <div className="field"><label>เบอร์โทรศัพท์</label><input
                     value={data.phone}
                     onChange={e => {
-                      let v = e.target.value.replace(/\D/g, ""); // เอาเฉพาะตัวเลข
-
-                      // บังคับให้ขึ้นต้นด้วย 0
-                      if (v.length > 0 && v[0] !== "0") {
-                        v = "0" + v.slice(1); // หรือจะ return ไม่อัปเดตก็ได้
-                      }
-
-                      // จำกัดไม่เกิน 10 ตัว
+                      let v = e.target.value.replace(/\D/g, "");
+                      if (v.length > 0 && v[0] !== "0") v = "0" + v.slice(0, 9);
                       if (v.length > 10) v = v.slice(0, 10);
-
                       set("phone", v);
                     }}
                     placeholder="08XXXXXXXX"
                     inputMode="numeric"
                     maxLength={10}
-                  />
-                  </div>
+                  /></div>
                 </div>
                 <div className="row">
-                  <div className="field"><label>ที่อยู่</label><input value={data.location} onChange={e => set("location", e.target.value)} placeholder="กรุงเทพฯ, ประเทศไทย" /></div>
+                  <div className="field"><label>ที่อยู่</label>
+                    <input
+                      list="location-list"
+                      value={data.location}
+                      onChange={e => set("location", e.target.value)}
+                      placeholder="กรุงเทพฯ, ประเทศไทย"
+                    />
+                    <datalist id="location-list">
+                      <option value="กรุงเทพมหานคร" /><option value="กรุงเทพฯ, ประเทศไทย" />
+                      <option value="เชียงใหม่" /><option value="เชียงราย" /><option value="ขอนแก่น" />
+                      <option value="นครราชสีมา" /><option value="อุดรธานี" /><option value="สงขลา" />
+                      <option value="ภูเก็ต" /><option value="ชลบุรี" /><option value="ระยอง" />
+                      <option value="นนทบุรี" /><option value="ปทุมธานี" /><option value="สมุทรปราการ" />
+                      <option value="นครปฐม" /><option value="Bangkok, Thailand" /><option value="Chiang Mai, Thailand" />
+                    </datalist>
+                  </div>
                   <div className="field"><label>LinkedIn</label><input value={data.linkedin} onChange={e => set("linkedin", e.target.value)} /></div>
                 </div>
                 <div className="field"><label>เว็บไซต์</label><input value={data.website} onChange={e => set("website", e.target.value)} /></div>
@@ -1094,26 +1109,9 @@ export default function ResumeBuilder() {
             <button
               className="btn-download"
               style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
-              onClick={handlePublish}
+              onClick={() => { publish(data); navigate("/feed"); }}
             >
               🌐 โพสต์สาธารณะ → Feed
-            </button>
-            <button
-              onClick={() => {
-                if (window.confirm("ล้างข้อมูลทั้งหมดและเริ่มใหม่?")) {
-                  localStorage.removeItem(STORAGE_KEY);
-                  setData(defaultData);
-                }
-              }}
-              style={{
-                padding: "8px", borderRadius: "8px",
-                border: "1px solid #ff0000",
-                background: "transparent", color: "#9ca3af",
-                fontSize: "11px", cursor: "pointer",
-                fontFamily: "'DM Sans',sans-serif",
-              }}
-            >
-              🗑 ล้างข้อมูลทั้งหมด
             </button>
           </div>
         </div>
