@@ -375,7 +375,7 @@ function JobCard({ job, savedJobs, toggleSave, setActivePage, onViewDetail, goTo
   );
 }
 
-function ClosedJobCard({ job, onViewDetail }) {
+function ClosedJobCard({ job, onViewDetail, onReopen }) {
   const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
   return (
     <div className="hr-closed-card" onClick={() => onViewDetail?.(job)} style={{ cursor: onViewDetail ? "pointer" : "default" }}>
@@ -397,14 +397,14 @@ function ClosedJobCard({ job, onViewDetail }) {
       </div>
       <div className="hr-closed-actions" style={{ display: "flex", gap: 6 }}>
         <button className="hr-reopen-btn" onClick={(e) => { e.stopPropagation(); onViewDetail?.(job); }}>📄 รายละเอียด</button>
-        <button className="hr-reopen-btn" onClick={(e) => e.stopPropagation()}>↩ เปิดใหม่</button>
+        <button className="hr-reopen-btn" onClick={(e) => { e.stopPropagation(); onReopen?.(job.id); }}>↩ เปิดใหม่</button>
       </div>
     </div>
   );
 }
 
 // ── Profile View ──────────────────────────────────────────────
-function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, savedJobs, setSavedJobs, setActivePage, initialTab, openPostModal, onViewDetail, goToApplicants }) {
+function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, savedJobs, setSavedJobs, setActivePage, initialTab, openPostModal, onViewDetail, goToApplicants, onReopen }) {
   const [activeTab, setActiveTab] = useState(initialTab === "saved" ? "saved" : "jobs");
   const savedSectionRef = useRef(null);
   const hasScrolled     = useRef(false);
@@ -605,7 +605,7 @@ const updateHr = (key) => (val) => {
             <div className="hr-closed-list">
               {closedJobs.length === 0
                 ? <EmptySlot icon="📁" text="รอข้อมูลตำแหน่งที่ปิดแล้วจาก Backend" />
-                : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} onViewDetail={onViewDetail} />)
+                : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} onViewDetail={onViewDetail} onReopen={onReopen} />)
               }
             </div>
           )}
@@ -1129,7 +1129,7 @@ function OpenJobsView({ openJobs, onViewDetail, goToApplicants }) {
   );
 }
 
-function ClosedJobsView({ closedJobs, onViewDetail }) {
+function ClosedJobsView({ closedJobs, onViewDetail, onReopen }) {
   return (
     <div className="hr-card">
       <div className="hr-card-header"><div className="hr-card-title">⚫ ตำแหน่งที่ปิดแล้ว</div></div>
@@ -1137,7 +1137,7 @@ function ClosedJobsView({ closedJobs, onViewDetail }) {
         <div className="hr-closed-list">
           {closedJobs.length === 0
             ? <EmptySlot icon="📁" text="รอข้อมูลตำแหน่งที่ปิดแล้วจาก Backend" />
-            : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} onViewDetail={onViewDetail} />)
+            : closedJobs.map(job => <ClosedJobCard key={job.id} job={job} onViewDetail={onViewDetail} onReopen={onReopen} />)
           }
         </div>
       </div>
@@ -1206,6 +1206,34 @@ export default function HRProfile() {
     getStats().then(setStats);
   };
 
+  const handleReopenJob = async (jobId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/hr/jobs/${jobId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "เปิดรับสมัคร" }),
+      });
+      if (res.ok) {
+        // ย้ายงานจาก closedJobs กลับไป openJobs
+        const job = closedJobs.find(j => j.id === jobId);
+        if (job) {
+          const reopened = { ...job, status: "เปิดรับสมัคร" };
+          setClosedJobs(prev => prev.filter(j => j.id !== jobId));
+          setOpenJobs(prev => [...prev, reopened]);
+        }
+      } else {
+        const err = await res.json();
+        alert(err.message || "เปิดรับสมัครไม่สำเร็จ");
+      }
+    } catch (err) {
+      console.error("Reopen job error:", err);
+    }
+  };
+
   // ถ้ามา navigate พร้อม state ต่างๆ
   const initialTab    = location.state?.scrollTo === "saved" ? "saved" : null;
   const navToPage     = location.state?.scrollTo === "applicants" ? "applicants" : null;
@@ -1263,12 +1291,12 @@ export default function HRProfile() {
 
   const renderMain = () => {
     switch (activePage) {
-      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} savedJobs={savedJobs} setSavedJobs={setSavedJobs} setActivePage={setActivePage} initialTab={initialTab} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} />;
+      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} savedJobs={savedJobs} setSavedJobs={setSavedJobs} setActivePage={setActivePage} initialTab={initialTab} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} />;
       case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} />;
       case "interviews": return <InterviewView interviews={interviews} />;
       case "report":     return <ReportView reportData={reportData} />;
       case "open":       return <OpenJobsView openJobs={openJobs} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} />;
-      case "closed":     return <ClosedJobsView closedJobs={closedJobs} onViewDetail={setSelectedJob} />;
+      case "closed":     return <ClosedJobsView closedJobs={closedJobs} onViewDetail={setSelectedJob} onReopen={handleReopenJob} />;
       case "company":    return <CompanyView hr={hr} setHr={setHr} />;
       default:           return null;
     }

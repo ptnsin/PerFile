@@ -23,7 +23,7 @@ export default function HrFeed() {
   const navigate   = useNavigate();
 
   const STATS = [
-    { num: jobs.length.toString(), label: "ตำแหน่งเปิดรับ" },
+    { num: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString(), label: "ตำแหน่งเปิดรับ" },
     { num: "340", label: "ผู้สมัครทั้งหมด" },
     { num: "28", label: "สัมภาษณ์เดือนนี้" },
     { num: "94%", label: "อัตราตอบรับ" },
@@ -317,7 +317,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
 
             <div className="hrf-tab-bar">
               {TABS.map((t) => {
-                const count = t.key === "jobs" ? jobs.length : t.count;
+                const count = t.key === "jobs" ? jobs.filter(j => j.status !== "ปิดแล้ว").length : t.count;
                 return (
                   <button
                     key={t.key}
@@ -381,7 +381,9 @@ const handleUpdateStatus = async (jobId, newStatus) => {
                   </div>
                 </div>
               ) : (
-                jobs.map((job) => (
+                jobs
+                  .filter((job) => job.status !== "ปิดแล้ว")
+                  .map((job) => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
