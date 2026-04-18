@@ -184,6 +184,16 @@ export default function JobDetailModal({ open, job, onClose, onEdit, onDelete, o
             <button className="jdm-close" onClick={onClose}><LuX /></button>
             <div className="jdm-hero-icon"><LuBriefcase /></div>
             <div className="jdm-hero-title">{job.title}</div>
+            {job.company && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 600,
+                marginBottom: 4,
+              }}>
+                <LuBadgeCheck size={14} style={{ opacity: 0.8 }} />
+                {job.company}
+              </div>
+            )}
 
             <div className="jdm-hero-tags">
               {job.type     && <span className="jdm-hero-tag"><LuClock size={11}/> {job.type}</span>}

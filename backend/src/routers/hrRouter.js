@@ -693,15 +693,24 @@ hrRouter.post('/jobs', async (req, res) => {
 // ใน hrRouter.js
 hrRouter.get('/jobs', async (req, res) => {
   try {
+    const hrId = Number(req.user.id);
+
+    // ดึง company จาก hr_profile ของ HR คนนี้
+    const hrProfile = await prisma.hr_profiles.findUnique({
+      where: { user_id: hrId },
+      select: { company: true }
+    });
+    const companyName = hrProfile?.company || null;
+
     const jobs = await prisma.job.findMany({
-      where: { hrId: Number(req.user.id) },
+      where: { hrId },
       orderBy: { createdAt: 'desc' }
     });
 
-    // เพิ่ม applicants count จากตาราง applications (ถ้ามี)
-    // ถ้ายังไม่มีตาราง applications ให้ใส่ 0 ไว้ก่อน
+    // เพิ่ม company และ applicants count ให้ทุก job
     const jobsWithCount = jobs.map(job => ({
       ...job,
+      company: companyName,
       _count: { applications: 0 }
     }));
 
