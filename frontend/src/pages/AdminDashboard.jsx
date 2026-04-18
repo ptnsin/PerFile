@@ -9,6 +9,8 @@ import {
 import { FiHome } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
 import JobDetailModal from "./JobDetailModal"; // ✅ เพิ่ม import
+import { useNotifications } from "../styles/useNotifications";
+import NotificationDropdown from "./NotificationDropdown";
 
 export default function AdminDashboard() {
   const [userFeedPosts, setUserFeedPosts] = useState([]);
@@ -42,6 +44,8 @@ export default function AdminDashboard() {
   const [resumes, setResumes] = useState([]);
   const [resumeSearch, setResumeSearch] = useState("");
   const [resumeVisibility, setResumeVisibility] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const { notifications, unreadCount, loading: notifLoading, markAsRead, markAllAsRead } = useNotifications();
 
   // ✅ State สำหรับ JobDetailModal
   const [selectedJob, setSelectedJob] = useState(null);
@@ -359,9 +363,32 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="nav-right">
-          <button className="nav-icon-btn">
-            <LuBell size={18} />
-          </button>
+<div style={{ position: "relative" }}>
+  <button
+    className="nav-icon-btn"
+    onClick={() => setShowNotifications((v) => !v)}
+    style={{ position: "relative" }}
+  >
+    <LuBell size={18} />
+    {unreadCount > 0 && (
+      <span style={{
+        position: "absolute", top: 4, right: 4,
+        width: 8, height: 8, borderRadius: "50%",
+        background: "#ef4444", border: "2px solid #fff",
+      }} />
+    )}
+  </button>
+
+  <NotificationDropdown
+    open={showNotifications}
+    notifications={notifications}
+    unreadCount={unreadCount}
+    loading={notifLoading}
+    onMarkAsRead={markAsRead}
+    onMarkAllAsRead={markAllAsRead}
+    onClose={() => setShowNotifications(false)}
+  />
+</div>
           <div className="nav-admin-wrapper" ref={adminMenuRef}>
             <button className="nav-admin-btn" onClick={() => setShowAdminMenu(v => !v)}>
               <div className="nav-admin-avatar">
@@ -1143,6 +1170,7 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
+      
 
       {/* ✅ JobDetailModal - วางไว้นอก main เพื่อให้ overlay ครอบทั้งหน้า */}
       <JobDetailModal
@@ -1164,5 +1192,7 @@ export default function AdminDashboard() {
         // ไม่ส่ง onEdit และ onViewApplicants เพราะ Admin ไม่จำเป็นต้องแก้ไข
       />
     </div>
+
+
   );
 }

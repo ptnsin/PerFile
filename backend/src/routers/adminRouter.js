@@ -529,4 +529,55 @@ router.delete("/jobs/:id", authMiddleware, requireAdmin, async (req, res) => {
   }
 });
 
+// ─── Notifications ────────────────────────────────────────────────
+
+// GET /admin/notifications — ดึงรายการแจ้งเตือนทั้งหมด
+router.get("/notifications", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const [rows] = await db.query(
+      `SELECT * FROM admin_notifications 
+       WHERE admin_id = ? OR admin_id IS NULL
+       ORDER BY created_at DESC 
+       LIMIT 50`,
+      [adminId]
+    );
+    res.json({ notifications: rows });
+  } catch (err) {
+    console.error("Get notifications error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// PUT /admin/notifications/:id/read — mark อ่านแล้วรายการเดียว
+router.put("/notifications/:id/read", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query(
+      `UPDATE admin_notifications SET is_read = 1 WHERE id = ?`,
+      [id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Mark read error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// PUT /admin/notifications/read-all — mark อ่านทั้งหมด
+router.put("/notifications/read-all", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    await db.query(
+      `UPDATE admin_notifications SET is_read = 1 
+       WHERE (admin_id = ? OR admin_id IS NULL) AND is_read = 0`,
+      [adminId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Mark all read error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;
