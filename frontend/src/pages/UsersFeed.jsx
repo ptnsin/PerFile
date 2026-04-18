@@ -599,27 +599,29 @@ export default function UsersFeed() {
             <div className="uf-cards-grid">
               {activeTab === "resume" ? (
                 filteredResumes.length > 0 ? (
-                  filteredResumes.map((resume) => (
-                    <ResumeCard
-                      key={resume.id}
-                      resume={resume}
-                      isSaved={savedResumes.includes(resume.id)}
-                      onToggleSave={() => toggleSave(resume.id)}
-                      // แก้ไขตรงนี้: ตรวจสอบลำดับของ ID ให้ชัวร์ (ใช้ user_id หรือ users.id)
-                      onOwnerClick={(e) => {
-                        e.stopPropagation();
-                        // เช็คทุก Key ที่อาจจะเป็น ID ของเจ้าของ
-                        const targetId = resume.user_id || resume.userId || (resume.users && resume.users.id);
-                        
-                        if (targetId) {
-                          navigate(`/view-profile/${targetId}`);
-                        } else {
-                          console.error("ไม่พบ ID ใน Object resume:", resume);
-                          alert("ไม่พบข้อมูลโปรไฟล์ของเจ้าของเรซูเม่นี้");
-                        }
-                      }}
-                    />
-                  ))
+                  filteredResumes.map((resume) => {
+                    // parse users ที่อาจเป็น JSON string จาก MySQL
+                    const usersObj = typeof resume.users === 'string'
+                      ? JSON.parse(resume.users)
+                      : (resume.users || {});
+
+                    return (
+                      <ResumeCard
+                        key={resume.id}
+                        resume={{ ...resume, users: usersObj }}
+                        isSaved={savedResumes.includes(resume.id)}
+                        onToggleSave={() => toggleSave(resume.id)}
+                        onClick={() => navigate(`/view-resume/${resume.id}`)}  // ✅ กดรูป → ViewResume
+                        onOwnerClick={(e) => {
+                          e.stopPropagation();
+                          const targetId = resume.user_id || usersObj?.id;
+                          if (targetId) {
+                            navigate(`/view-profile/${targetId}`);             // ✅ กดชื่อ → ViewProfile
+                          }
+                        }}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="uf-empty">
                     <div className="uf-empty-icon">📄</div>
@@ -712,7 +714,6 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
     <div
       ref={cardRef}
       className="uf-resume-card"
-      onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -756,7 +757,9 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
       </button>
 
       {/* ── PREVIEW AREA ── */}
-      <div style={{
+      <div 
+      onClick={onClick}
+      style={{
         position: "relative",
         width: "100%",
         height: previewH,
@@ -824,7 +827,9 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
           title={`ดูโปรไฟล์ ${ownerName}`}
         >
           {/* Avatar */}
-          <div style={{
+          <div 
+          onClick={onOwnerClick}
+          style={{
             width: 28,
             height: 28,
             borderRadius: "50%",

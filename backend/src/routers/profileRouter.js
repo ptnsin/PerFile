@@ -243,10 +243,12 @@ profileRouter.get('/public/:userId', async (req, res) => {
 
     // 1. ดึงข้อมูลพื้นฐานจากตาราง users และ seeker_profiles
     const [userRows] = await db.query(
-      `SELECT u.fullName, u.email, s.bio, s.location, s.portfolio, s.github, s.linkedin, s.avatar, s.cover_image
-       FROM users u
-       LEFT JOIN seeker_profiles s ON u.id = s.user_id
-       WHERE u.id = ?`,
+      `SELECT u.fullName, u.email, 
+              s.bio, s.location, s.portfolio, s.github, s.linkedin, 
+              s.avatar, s.cover_image
+      FROM users u
+      LEFT JOIN seeker_profiles s ON u.id = s.user_id
+      WHERE u.id = ?`,
       [userId]
     );
 

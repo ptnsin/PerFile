@@ -49,9 +49,13 @@ model seeker_profiles {
   education String?  @db.VarChar(255)
   interests String?  @db.VarChar(255)
   views     Int      @default(0)
-  github    String?  @db.VarChar(255)   // เพิ่ม
-  linkedin  String?  @db.VarChar(255)   // เพิ่ม
-  portfolio String?  @db.VarChar(255)   // เพิ่ม
+  github    String?  @db.VarChar(255)
+  linkedin  String?  @db.VarChar(255)
+  portfolio String?  @db.VarChar(255)
+  
+  avatar      String?  @db.VarChar(255)   
+  cover_image String?  @db.VarChar(255)  
+
   user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
