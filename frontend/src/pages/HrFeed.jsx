@@ -24,14 +24,14 @@ export default function HrFeed() {
 
   const STATS = [
     { num: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString(), label: "ตำแหน่งเปิดรับ" },
-    { num: "340", label: "ผู้สมัครทั้งหมด" },
+    { num: "100", label: "ผู้สมัครทั้งหมด" },
     { num: "28", label: "สัมภาษณ์เดือนนี้" },
     { num: "94%", label: "อัตราตอบรับ" },
   ];
 
   const TABS = [
-    { key: "candidates", label: "Candidates", icon: <LuUsers />, count: 340 },
-    { key: "jobs",       label: "My Job Posts", icon: <LuBriefcase /> },   // count is dynamic
+    { key: "candidates", label: " Public Resume", icon: <LuUsers />, count: 100 },
+    { key: "jobs",       label: "JobPost", icon: <LuBriefcase /> },   // count is dynamic
   ];
 
   /* ── Resizable sidebar ── */
@@ -480,14 +480,6 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
             </button>
             <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onViewApplicants?.(job.id); }} style={dropdownItemStyle}>
               <LuUsers size={14} /> ดูผู้สมัคร
-            </button>
-            <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSave?.(job.id); }}
-              style={{ ...dropdownItemStyle, color: isSaved ? "#1d4ed8" : "#334155", background: isSaved ? "#eff6ff" : "none" }}
-            >
-              {isSaved ? <LuBookmarkCheck size={14} /> : <LuBookmark size={14} />}
-              {isSaved ? "Saved แล้ว" : "Save งานนี้"}
             </button>
             <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
             <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onUpdateStatus(job.id, job.status === "เปิดรับสมัคร" ? "ปิดแล้ว" : "เปิดรับสมัคร"); }} style={dropdownItemStyle}>

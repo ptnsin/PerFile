@@ -336,9 +336,8 @@ function EmptySlot({ icon, text }) {
 }
 
 // ── Reusable Job Cards ────────────────────────────────────────
-function JobCard({ job, savedJobs, toggleSave, setActivePage, onViewDetail, goToApplicants }) {
-  const dept    = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
-  const isSaved = savedJobs.includes(job.id);
+function JobCard({ job, setActivePage, onViewDetail, goToApplicants }) {
+  const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
   return (
     <div className="hr-job-card" onClick={() => onViewDetail?.(job)} style={{ cursor: onViewDetail ? "pointer" : "default" }}>
       <div className="hr-job-top">
@@ -348,9 +347,6 @@ function JobCard({ job, savedJobs, toggleSave, setActivePage, onViewDetail, goTo
         </div>
         <div className="hr-job-actions">
           {job.urgent && <span className="hr-urgent-badge">⚡ ด่วน</span>}
-          <button className={`hr-save-btn${isSaved ? " saved" : ""}`} onClick={(e) => { e.stopPropagation(); toggleSave(job.id); }} title={isSaved ? "ยกเลิก save" : "บันทึกงาน"}>
-            {isSaved ? "🔖" : "🏷️"}
-          </button>
         </div>
       </div>
       <div className="hr-job-meta">
@@ -404,21 +400,8 @@ function ClosedJobCard({ job, onViewDetail, onReopen }) {
 }
 
 // ── Profile View ──────────────────────────────────────────────
-function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, savedJobs, setSavedJobs, setActivePage, initialTab, openPostModal, onViewDetail, goToApplicants, onReopen }) {
-  const [activeTab, setActiveTab] = useState(initialTab === "saved" ? "saved" : "jobs");
-  const savedSectionRef = useRef(null);
-  const hasScrolled     = useRef(false);
-
-  // scroll ครั้งเดียวตอน mount เท่านั้น — ใช้ [] dependency
-  useEffect(() => {
-    if (initialTab === "saved" && !hasScrolled.current) {
-      hasScrolled.current = true;
-      window.history.replaceState({}, document.title); // ลบ state ออกทันที
-      setTimeout(() => {
-        savedSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    }
-  }, []); // eslint-disable-line
+function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen }) {
+  const [activeTab, setActiveTab] = useState("jobs");
 
   // ใน ProfileView
 const updateHr = (key) => (val) => {
@@ -440,30 +423,13 @@ const updateHr = (key) => (val) => {
     setAboutItems(updated);
     saveAboutItems(updated);
   };
-  const toggleSave = async (id) => {
-    const isSaved = savedJobs.includes(id);
-    // optimistic UI
-    setSavedJobs(prev => isSaved ? prev.filter(x => x !== id) : [...prev, id]);
-    try {
-      const token = localStorage.getItem("token");
-      await fetch(`http://localhost:3000/hr/saved-jobs/${id}`, {
-        method: isSaved ? "DELETE" : "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch (err) {
-      console.error(err);
-      // rollback ถ้า API fail
-      setSavedJobs(prev => isSaved ? [...prev, id] : prev.filter(x => x !== id));
-    }
-  };
   const removePerk = (p) => { const u = { ...(hr||{}), perks: (hr?.perks||[]).filter(x => x !== p) }; setHr(u); saveHrProfile({ perks: u.perks }); };
   const addPerk    = () => { if (newPerk.trim()) { const u = { ...(hr||{}), perks: [...(hr?.perks||[]), newPerk.trim()] }; setHr(u); saveHrProfile({ perks: u.perks }); setNewPerk(""); } };
 
-  const savedJobsList = openJobs.filter(j => savedJobs.includes(j.id));
   const TABS = [
     { key: "jobs",   label: "ตำแหน่งงาน", count: openJobs.length },
     { key: "closed", label: "ปิดแล้ว",     count: closedJobs.length },
-    { key: "saved",  label: "Saved",        count: savedJobsList.length },
+    { key: "saved",  label: "Saved",        count: 0 },
   ];
 
   return (
@@ -583,7 +549,7 @@ const updateHr = (key) => (val) => {
       </div>
 
       {/* Job Postings */}
-      <div className="hr-card" ref={savedSectionRef}>
+      <div className="hr-card">
         <div className="hr-card-header">
           <div className="hr-tab-bar">
             {TABS.map(t => (
@@ -599,7 +565,7 @@ const updateHr = (key) => (val) => {
           {activeTab === "jobs" && (
             openJobs.length === 0
               ? <EmptySlot icon="💼" text="รอข้อมูลตำแหน่งงานจาก Backend" />
-              : openJobs.map(job => <JobCard key={job.id} job={job} savedJobs={savedJobs} toggleSave={toggleSave} setActivePage={setActivePage} onViewDetail={onViewDetail} goToApplicants={goToApplicants} />)
+              : openJobs.map(job => <JobCard key={job.id} job={job} setActivePage={setActivePage} onViewDetail={onViewDetail} goToApplicants={goToApplicants} />)
           )}
           {activeTab === "closed" && (
             <div className="hr-closed-list">
@@ -610,42 +576,11 @@ const updateHr = (key) => (val) => {
             </div>
           )}
           {activeTab === "saved" && (
-            savedJobsList.length === 0 ? (
-              <div className="hr-empty-tab">
-                <div className="hr-empty-icon">🏷️</div>
-                <div className="hr-empty-title">ยังไม่มีงานที่ save</div>
-                <div className="hr-empty-desc">กด 🏷️ ที่ตำแหน่งงานไหนก็ได้เพื่อบันทึก</div>
-              </div>
-            ) : savedJobsList.map(job => {
-              const dept = DEPT_COLORS[job.dept] || { bg: "#f4f4f5", text: "#52525b" };
-              return (
-                <div key={job.id} className="hr-saved-card">
-                  <div className="hr-saved-ribbon">🔖 Saved</div>
-                  <div className="hr-job-top">
-                    <div className="hr-job-title-wrap">
-                      <div className="hr-job-title">{job.title}</div>
-                      <span className="hr-job-dept" style={{ background: dept.bg, color: dept.text }}>{job.dept}</span>
-                    </div>
-                    <button className="hr-save-btn saved" onClick={() => toggleSave(job.id)} title="ยกเลิก save">🔖</button>
-                  </div>
-                  <div className="hr-job-meta">
-                    <span className="hr-job-meta-item">📍 {job.location}</span>
-                    <span className="hr-job-meta-item">⏱ {job.type}</span>
-                    <span className="hr-job-meta-item">💰 {job.salary}</span>
-                  </div>
-                  <div className="hr-job-footer">
-                    <div className="hr-job-applicants">👥 {job.applicants} ผู้สมัคร</div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button className="hr-apply-btn" style={{ background: "#f4f4f5", color: "#52525b" }}
-                        onClick={() => goToApplicants ? goToApplicants(job) : setActivePage("applicants")}>
-                        👥 ผู้สมัคร
-                      </button>
-                      <button className="hr-apply-btn" onClick={() => onViewDetail?.(job)}>ดูรายละเอียด →</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            <div className="hr-empty-tab">
+              <div className="hr-empty-icon">🔖</div>
+              <div className="hr-empty-title">Saved Resumes</div>
+              <div className="hr-empty-desc">ฟีเจอร์บันทึก Resume ของผู้สมัครกำลังจะมาเร็วๆ นี้</div>
+            </div>
           )}
         </div>
       </div>
@@ -1178,7 +1113,7 @@ function CompanyView({ hr, setHr }) {
 // ── Main Component ────────────────────────────────────────────
 export default function HRProfile() {
   const [activePage, setActivePage]     = useState("profile");
-  const [savedJobs, setSavedJobs]       = useState([]);
+
   const [newPerk, setNewPerk]           = useState("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [modalOpen, setModalOpen]       = useState(false);
@@ -1234,10 +1169,9 @@ export default function HRProfile() {
     }
   };
 
-  // ถ้ามา navigate พร้อม state ต่างๆ
-  const initialTab    = location.state?.scrollTo === "saved" ? "saved" : null;
-  const navToPage     = location.state?.scrollTo === "applicants" ? "applicants" : null;
-  const navFilterJob  = location.state?.filterJobId ?? null;
+  // ถ้า navigate มาพร้อม scrollTo: "applicants" ให้เปิดหน้าผู้สมัครทันที
+  const navToPage    = location.state?.scrollTo === "applicants" ? "applicants" : null;
+  const navFilterJob = location.state?.filterJobId ?? null;
   
   // ถ้า navigate มาพร้อม scrollTo: "applicants" ให้เปิดหน้าผู้สมัครทันที
   useEffect(() => {
@@ -1273,25 +1207,11 @@ export default function HRProfile() {
     getReportData().then(setReportData);
     getActivities().then(setActivities);
     getQuickActions().then(setQuickActions);
-
-    // โหลด saved jobs จาก backend
-    const token = localStorage.getItem("token");
-    if (token) {
-      fetch("http://localhost:3000/hr/saved-jobs", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : { savedJobs: [] })
-        .then(data => {
-          const ids = (data.savedJobs || []).map(j => j.id ?? j);
-          setSavedJobs(ids);
-        })
-        .catch(console.error);
-    }
   }, []);
 
   const renderMain = () => {
     switch (activePage) {
-      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} savedJobs={savedJobs} setSavedJobs={setSavedJobs} setActivePage={setActivePage} initialTab={initialTab} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} />;
+      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} />;
       case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} />;
       case "interviews": return <InterviewView interviews={interviews} />;
       case "report":     return <ReportView reportData={reportData} />;
