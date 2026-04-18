@@ -43,6 +43,7 @@ export default function UserProfile() {
   const [actionMenuId, setActionMenuId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [myResumes, setMyResumes] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
   const [stats, setStats] = useState({
     views: "0",
     score: "0%",
@@ -278,6 +279,17 @@ export default function UserProfile() {
   const privateList = myResumes.filter(r => r.visibility === "private");
   const publicList = myResumes.filter(r => r.visibility === "public");
 
+  // ── fetch applied jobs ───────────────────────────────────────
+  useEffect(() => {
+    const go = async () => {
+      try {
+        const res = await fetch(`${API}/applications/my`, { headers: authHeader() });
+        if (res.ok) { const d = await res.json(); setAppliedJobs(d.applications ?? []); }
+      } catch { }
+    };
+    go();
+  }, []);
+
   // ── fetch user ───────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -449,6 +461,33 @@ export default function UserProfile() {
           <Link to="/feed" className="uf-menu-item"><LuLayoutDashboard /> Feed</Link>
           <button className="uf-menu-item active"><FiHome /> Profile</button>
           <button className="uf-menu-item" onClick={() => handleTabClick("saved")}><LuBookmark /> Saved</button>
+
+          {/* Jobs Applied */}
+          <div className="uf-section-label">
+            Jobs Applied
+            {appliedJobs.length > 0 && (
+              <span style={{ marginLeft: 6, background: "#1e3a8a", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>
+                {appliedJobs.length}
+              </span>
+            )}
+          </div>
+          {appliedJobs.length > 0 ? (
+            appliedJobs.slice(0, 5).map(a => (
+              <div key={a.id} className="uf-sub-item" style={{ cursor: "default" }}>
+                <span style={{
+                  display: "inline-block", marginRight: 5,
+                  fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
+                  background: a.status === "accepted" ? "#dcfce7" : a.status === "rejected" ? "#fee2e2" : "#fef9c3",
+                  color:      a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
+                }}>
+                  {a.status === "accepted" ? "✓" : a.status === "rejected" ? "✕" : "⏳"}
+                </span>
+                {a.jobTitle}
+              </div>
+            ))
+          ) : (
+            <div className="uf-sub-item" style={{ color: "#9ca3af", fontSize: 11 }}>ยังไม่ได้สมัครงาน</div>
+          )}
           {privateList.length > 0 && (
             <>
               <div className="uf-section-label">Private Resumes</div>

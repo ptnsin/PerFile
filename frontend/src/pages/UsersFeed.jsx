@@ -25,6 +25,8 @@ export default function UsersFeed() {
   const [menuOpen, setMenuOpen]         = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [myResumes, setMyResumes] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null); 
   const [isModalOpen, setIsModalOpen] = useState(false); 
@@ -127,6 +129,35 @@ export default function UsersFeed() {
     })();
   }, []);
 
+  // Fetch Applied Jobs (for sidebar)
+  useEffect(() => {
+    const fetchApplied = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("http://localhost:3000/applications/my", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAppliedJobs(data.applications ?? []);
+        }
+      } catch (err) {
+        console.error("Fetch applied jobs error:", err);
+      }
+    };
+    fetchApplied();
+  }, []);
+
+  const JOB_CATEGORIES = [
+    { key: "IT",        label: "💻 IT & Software" },
+    { key: "Design",    label: "🎨 Design" },
+    { key: "Marketing", label: "📣 Marketing" },
+    { key: "Finance",   label: "💰 Finance" },
+    { key: "Engineer",  label: "⚙️ Engineer" },
+    { key: "Other",     label: "📋 Other" },
+  ];
+
   // Fetch My Resumes (for sidebar)
   useEffect(() => {
     const fetchMyResumes = async () => {
@@ -149,6 +180,10 @@ export default function UsersFeed() {
 
   const privateList = myResumes.filter(r => r.visibility === "private");
   const publicList  = myResumes.filter(r => r.visibility === "public");
+
+  const filteredJobs = selectedCategory
+    ? jobs.filter(j => (j.job_type || "Other").toLowerCase().includes(selectedCategory.toLowerCase()))
+    : jobs;
 
   useEffect(() => {
     const close = (e) => {
@@ -226,6 +261,58 @@ export default function UsersFeed() {
           <button className="uf-menu-item" onClick={() => navigate("/profile", { state: { scrollTo: "saved" } })}>
             <LuBookmark /> Saved
           </button>
+          {/* Jobs Applied */}
+          <div className="uf-section-label">Jobs Applied
+            {appliedJobs.length > 0 && (
+              <span style={{ marginLeft: 6, background: "#1e3a8a", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>
+                {appliedJobs.length}
+              </span>
+            )}
+          </div>
+          {appliedJobs.length > 0 ? (
+            appliedJobs.slice(0, 5).map(a => (
+              <div
+                key={a.id}
+                className="uf-sub-item"
+                style={{ cursor: "pointer" }}
+                onClick={() => { setActiveTab("job"); setSelectedCategory(null); }}
+              >
+                <span style={{
+                  display: "inline-block", marginRight: 5,
+                  fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
+                  background: a.status === "accepted" ? "#dcfce7" : a.status === "rejected" ? "#fee2e2" : "#fef9c3",
+                  color:      a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
+                }}>
+                  {a.status === "accepted" ? "✓" : a.status === "rejected" ? "✕" : "⏳"}
+                </span>
+                {a.jobTitle}
+              </div>
+            ))
+          ) : (
+            <div className="uf-sub-item" style={{ color: "#9ca3af", fontSize: 11 }}>ยังไม่ได้สมัครงาน</div>
+          )}
+
+          {/* Job Categories */}
+          <div className="uf-section-label">Job Categories</div>
+          {JOB_CATEGORIES.map(cat => (
+            <div
+              key={cat.key}
+              className="uf-sub-item"
+              style={{
+                cursor: "pointer",
+                fontWeight: selectedCategory === cat.key ? 700 : 400,
+                color: selectedCategory === cat.key ? "#1e3a8a" : undefined,
+                background: selectedCategory === cat.key ? "#eff6ff" : undefined,
+                borderRadius: 6,
+              }}
+              onClick={() => {
+                setSelectedCategory(prev => prev === cat.key ? null : cat.key);
+                setActiveTab("job");
+              }}
+            >
+              {cat.label}
+            </div>
+          ))}
           {privateList.length > 0 && (
             <>
               <div className="uf-section-label">Private Resumes</div>
@@ -315,16 +402,31 @@ export default function UsersFeed() {
                 )
               ) : (
                 jobs.length > 0 ? (
-                  jobs.map((job) => (
-                    <JobCard 
-                      key={job.id} 
-                      job={{
-                        ...job,
-                        company_name: job.users?.hr_profile?.company 
-                      }} 
-                      onClick={() => handleOpenJobDetail(job)} 
-                    />
-                  ))
+                  filteredJobs.length > 0 ? (
+                    <>
+                      {selectedCategory && (
+                        <div style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: "#6b7280" }}>กรองตาม:</span>
+                          <span style={{ background: "#eff6ff", color: "#1e3a8a", borderRadius: 12, padding: "2px 10px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                            {JOB_CATEGORIES.find(c => c.key === selectedCategory)?.label}
+                            <button onClick={() => setSelectedCategory(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#1e3a8a", padding: 0, lineHeight: 1 }}>✕</button>
+                          </span>
+                        </div>
+                      )}
+                      {filteredJobs.map((job) => (
+                        <JobCard
+                          key={job.id}
+                          job={{ ...job, company_name: job.users?.hr_profile?.company }}
+                          onClick={() => handleOpenJobDetail(job)}
+                        />
+                      ))}
+                    </>
+                  ) : (
+                    <div className="uf-empty">
+                      <div className="uf-empty-icon">🔍</div>
+                      <div className="uf-empty-title">ไม่มีงานในหมวด "{selectedCategory}"</div>
+                    </div>
+                  )
                 ) : (
                   <div className="uf-empty">
                     <div className="uf-empty-icon">💼</div>
