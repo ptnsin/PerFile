@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 import swaggerJsdoc from 'swagger-jsdoc'
 import swaggerUi from 'swagger-ui-express'
 
@@ -20,6 +22,9 @@ import savedRouter from './routers/savedRouter.js'
 const HOST = process.env.DB_HOST || 'localhost' 
 const PORT = process.env.PORT || 3000
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
 const app = express()
 
 app.use(cors({
@@ -27,7 +32,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' })) // เพิ่มขนาด payload limit เป็น 10MB;
+app.use(express.json({ limit: '10mb' }))
+
+// ── Serve ไฟล์รูปภาพที่อัพโหลด ──────────────────
+app.use('/uploads', express.static('uploads'))
 
 // ── Swagger setup ──────────────────────────────
 const swaggerSpec = swaggerJsdoc({

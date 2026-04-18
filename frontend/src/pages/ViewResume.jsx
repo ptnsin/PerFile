@@ -60,7 +60,7 @@ function normalizeResumeData(r) {
     title: r.jobTitle || r.job_title || "",
     template: ["classic","modern","professional"].includes(template) ? template : "classic",
     themeColor: r.themeColor || r.theme_color || "#c9a84c",
-    image: r.image || null,
+    image: r.image_url || r.image || null,
     email: r.email || "", phone: r.phone || "",
     location: r.location || "", linkedin: r.linkedin || "", website: r.website || "",
     summary: r.summary || "",
