@@ -1031,7 +1031,7 @@ export default function ResumeBuilder() {
         title: data.name + " - Resume",
         template: data.template,
         themeColor: data.themeColor || "#d4af37",
-        image: data.image,
+        image_url: data.image,  // ส่งเป็น image_url ให้ backend บันทึกลง DB
         visibility: "private",
         // ข้อมูลส่วนตัว
         name: data.name,
@@ -1181,12 +1181,25 @@ export default function ResumeBuilder() {
                     )}
                   </div>
                   <input type="file" accept="image/*" id="profile-upload" style={{ display: "none" }}
-                    onChange={e => {
+                    onChange={async e => {
                       const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => set("image", reader.result);
-                        reader.readAsDataURL(file);
+                      if (!file) return;
+                      try {
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        const res = await fetch("http://localhost:3000/files/upload", {
+                          method: "POST",
+                          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+                          body: formData,
+                        });
+                        const result = await res.json();
+                        if (res.ok) {
+                          set("image", result.url);
+                        } else {
+                          alert("อัพโหลดรูปไม่สำเร็จ: " + result.message);
+                        }
+                      } catch (err) {
+                        alert("เกิดข้อผิดพลาดในการอัพโหลดรูป");
                       }
                     }}
                   />

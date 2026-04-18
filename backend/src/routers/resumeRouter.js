@@ -5,40 +5,24 @@ import { requireRole } from '../middleware/requireRole.js'
 
 const resumeRouter = Router();
 
-// ✅ Helper: แจ้งเตือน Admin ทุกคนในระบบ
-const notifyAdmins = async (type, title, body = null) => {
-  try {
-    const [admins] = await db.query(
-      "SELECT id FROM users WHERE roles_id = 1"
-    );
-    for (const admin of admins) {
-      await db.query(
-        `INSERT INTO admin_notifications (admin_id, type, title, body, is_read) 
-         VALUES (?, ?, ?, ?, 0)`,
-        [admin.id, type, title, body]
-      );
-    }
-  } catch (err) {
-    console.error("notifyAdmins error:", err.message);
-  }
-};
-
 // base path: "/resumes"
+
+/**
+ * @swagger
+ * tags:
+ *   name: Resumes
+ *   description: API สำหรับจัดการ Resume
+ */
 
 resumeRouter.get("/public", async (req, res) => {
   try {
     const [resumes] = await db.query(
       `SELECT 
         r.id, 
-        r.user_id,
         r.title, 
         r.visibility, 
         r.created_at AS published_at,
-        JSON_OBJECT(
-          'id',       u.id,
-          'fullName', u.fullName,
-          'avatar',   u.avatar
-        ) AS users
+        JSON_OBJECT('fullName', u.fullName) AS users
       FROM resumes r 
       JOIN users u ON r.user_id = u.id 
       WHERE r.visibility = 'public' 
@@ -56,12 +40,10 @@ resumeRouter.get("/public", async (req, res) => {
 resumeRouter.get("/my", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-
     const [resumes] = await db.query(
-      "SELECT id, title, template, visibility, summary, experience, education, skills, created_at AS createdAt FROM resumes WHERE user_id = ? ORDER BY created_at DESC",
+      "SELECT id, title, template, visibility, summary, experience, education, skills, image_url, created_at AS createdAt FROM resumes WHERE user_id = ? ORDER BY created_at DESC",
       [userId]
     );
-
     res.status(200).json({ resumes });
   } catch (err) {
     console.error("Get My Resumes Error:", err.message);
@@ -70,44 +52,43 @@ resumeRouter.get("/my", authMiddleware, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /resumes  ✅ เพิ่ม notifyAdmins หลังสร้างสำเร็จ
+// POST /resumes — สร้าง resume ใหม่
 // ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.post("/", authMiddleware, async (req, res) => {
   try {
-    const { title, template, visibility, summary, experience, education, skills } = req.body;
+    const { 
+      title, template, themeColor, visibility,
+      name, jobTitle, email, phone, location, linkedin, website,
+      summary, experience, education, skills,
+      image_url  // ← รับ URL รูปภาพที่ได้จาก /files/upload
+    } = req.body;
     const userId = req.user.id;
 
     const [result] = await db.query(
-      `INSERT INTO resumes (user_id, title, template, visibility, summary, experience, education, skills) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO resumes (user_id, title, template, theme_color, visibility, name, job_title, email, phone, location, linkedin, website, summary, experience, education, skills, image_url) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        userId, 
-        title || "Untitled Resume", 
-        template || "modern", 
+        userId,
+        title || "Untitled Resume",
+        template || "modern",
+        themeColor || "#c9a84c",
         visibility || "private",
+        name || null,
+        jobTitle || null,
+        email || null,
+        phone || null,
+        location || null,
+        linkedin || null,
+        website || null,
         summary || null,
         JSON.stringify(experience || []),
         JSON.stringify(education || []),
-        JSON.stringify(skills || [])
+        JSON.stringify(skills || []),
+        image_url || null  // ← บันทึก URL รูปภาพ
       ]
     );
 
-    // ✅ ดึงชื่อ user แล้วแจ้งเตือน Admin
-    const [[user]] = await db.query(
-      "SELECT username FROM users WHERE id = ?",
-      [userId]
-    );
-    await notifyAdmins(
-      "new_resume",
-      `📄 Resume ใหม่ถูกสร้าง`,
-      `${user?.username || "ผู้ใช้"} สร้าง Resume: "${title || "Untitled Resume"}"`
-    );
-
-    res.status(201).json({
-      message: "สร้าง Resume สำเร็จแล้ว!",
-      resumeId: result.insertId
-    });
-
+    res.status(201).json({ message: "สร้าง Resume สำเร็จแล้ว!", resumeId: result.insertId });
   } catch (err) {
     console.error("Post Resume Error:", err.message);
     res.status(500).json({ message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
@@ -122,7 +103,11 @@ resumeRouter.get("/:id", async (req, res) => {
     const { id } = req.params;
 
     const [rows] = await db.query(
-      `SELECT r.*, u.fullName AS ownerName 
+      `SELECT r.*, 
+              r.job_title AS jobTitle,
+              r.theme_color AS themeColor,
+              r.image_url AS image_url,
+              u.fullName AS ownerName 
        FROM resumes r 
        JOIN users u ON r.user_id = u.id 
        WHERE r.id = ?`,
@@ -141,13 +126,17 @@ resumeRouter.get("/:id", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PUT /resumes/:id
+// PUT /resumes/:id — แก้ไข resume
 // ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.put("/:id", authMiddleware, async (req, res) => {
   try {
     const resumeId = req.params.id;
     const userId = req.user.id;
-    const { title, template, visibility, summary, experience, education, skills } = req.body;
+    const { 
+      title, template, themeColor, visibility, 
+      summary, experience, education, skills,
+      image_url  // ← รับ URL รูปภาพที่อัปเดต
+    } = req.body;
 
     const [resumeRows] = await db.query(
       "SELECT id FROM resumes WHERE id = ? AND user_id = ?",
@@ -160,16 +149,12 @@ resumeRouter.put("/:id", authMiddleware, async (req, res) => {
 
     await db.query(
       `UPDATE resumes 
-       SET title = ?, template = ?, visibility = ?, summary = ?, experience = ?, education = ?, skills = ? 
+       SET title = ?, template = ?, theme_color = ?, visibility = ?, summary = ?, experience = ?, education = ?, skills = ?, image_url = ?
        WHERE id = ?`,
       [
-        title, 
-        template, 
-        visibility, 
-        summary, 
-        JSON.stringify(experience), 
-        JSON.stringify(education), 
-        JSON.stringify(skills), 
+        title, template, themeColor, visibility, summary, 
+        JSON.stringify(experience), JSON.stringify(education), JSON.stringify(skills),
+        image_url || null,  // ← อัปเดต URL รูปภาพ
         resumeId
       ]
     );
