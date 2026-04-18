@@ -30,6 +30,7 @@ export default function UsersFeed() {
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [profilePopup, setProfilePopup] = useState(null);
 
   // Saved resumes (stored in localStorage for persistence)
   const [savedResumes, setSavedResumes] = useState(() => {
@@ -614,9 +615,11 @@ export default function UsersFeed() {
                         onClick={() => navigate(`/view-resume/${resume.id}`)}  // ✅ กดรูป → ViewResume
                         onOwnerClick={(e) => {
                           e.stopPropagation();
+                          const usersObj = typeof resume.users === 'string'
+                            ? JSON.parse(resume.users) : (resume.users || {});
                           const targetId = resume.user_id || usersObj?.id;
                           if (targetId) {
-                            navigate(`/view-profile/${targetId}`);             // ✅ กดชื่อ → ViewProfile
+                            setProfilePopup({ userId: targetId });
                           }
                         }}
                       />
@@ -666,6 +669,14 @@ export default function UsersFeed() {
           </div>
         </main>
       </div>
+
+      {profilePopup && (
+        <ProfilePopupModal
+          userId={profilePopup.userId}
+          onClose={() => setProfilePopup(null)}
+          navigate={navigate}
+        />
+      )}
 
       <JobDetailModal
         open={isModalOpen}
@@ -935,3 +946,267 @@ function JobCard({ job, onClick }) {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────
+// ProfilePopupModal
+// ─────────────────────────────────────────────
+function ProfilePopupModal({ userId, onClose, navigate }) {
+  const [profile, setProfile] = useState(null);
+  const [resumes, setResumes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`http://localhost:3000/profile/public/${userId}`);
+        if (!res.ok) throw new Error("ไม่พบโปรไฟล์");
+        const data = await res.json();
+        setProfile(data.user);
+        setResumes(data.resumes || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+    fetch(`http://localhost:3000/profile/view/${userId}`, { method: "POST" });
+  }, [userId]);
+
+  const handleBackdrop = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  const displayName = profile?.fullName || "ผู้ใช้";
+  const initial = displayName?.[0]?.toUpperCase() ?? "?";
+
+  return (
+    <div
+      onClick={handleBackdrop}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div style={{
+        background: "#f8fafc",
+        borderRadius: 20,
+        width: "100%", maxWidth: 520,
+        maxHeight: "88vh",
+        overflowY: "auto",   
+        overflowX: "visible", 
+        boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
+        position: "relative",
+        
+      }}>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#9ca3af" }}>
+            <div style={{
+              width: 32, height: 32, border: "3px solid #e5e7eb",
+              borderTop: "3px solid #1e3a8a", borderRadius: "50%",
+              animation: "uf-spin 0.8s linear infinite",
+              margin: "0 auto 12px",
+            }} />
+            กำลังโหลด...
+          </div>
+        ) : (
+          <>
+            {/* ── Hero Card ── */}
+            <div style={{
+              background: "#fff",
+              borderRadius: "20px 20px 0 0",
+            }}>
+              {/* Banner */}
+              <div style={{
+                height: 130,
+                background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%)",
+                borderRadius: "20px 20px 0 0",
+                position: "relative",
+              }}>
+                {/* ปุ่ม X มุมขวาบน */}
+                <button
+                  onClick={onClose}
+                  style={{
+                    position: "absolute", top: 12, right: 12,
+                    background: "rgba(255,255,255,0.2)",
+                    border: "1.5px solid rgba(255,255,255,0.4)",
+                    borderRadius: "50%", width: 30, height: 30,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", color: "#fff", fontSize: 14,
+                    backdropFilter: "blur(4px)",
+                  }}
+                >✕</button>
+              </div>
+
+              {/* Avatar + Info */}
+              <div style={{ padding: "0 24px 24px" }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 80, height: 80, borderRadius: "50%",
+                  border: "4px solid #fff",
+                  background: "linear-gradient(135deg, #1e3a8a, #3b82f6)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  overflow: "hidden", flexShrink: 0, fontSize: 28, fontWeight: 800, color: "#fff",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                  marginTop: -45, marginBottom: 12,position: "relative",zIndex: 10,
+                }}>
+                  {profile?.avatar
+                    ? <img src={profile.avatar} alt={displayName}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        crossOrigin="anonymous" />
+                    : initial}
+                </div>
+
+                {/* ชื่อ */}
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 2 }}>
+                  {displayName}
+                </div>
+
+                {/* bio */}
+                {profile?.bio && (
+                  <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
+                    {profile.bio}
+                  </div>
+                )}
+
+                {/* chips: location, email, portfolio */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                  {profile?.location && (
+                    <span style={ppChip}>
+                      <LuMapPin size={11} /> {profile.location}
+                    </span>
+                  )}
+                  {profile?.email && (
+                    <span style={ppChip}>
+                      <LuUser size={11} /> {profile.email}
+                    </span>
+                  )}
+                  {profile?.portfolio && (
+                    <a href={profile.portfolio} target="_blank" rel="noreferrer"
+                      style={{ ...ppChip, color: "#7c3aed", textDecoration: "none" }}>
+                      🔗 {profile.portfolio}
+                    </a>
+                  )}
+                </div>
+
+                {/* GitHub / LinkedIn */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {profile?.github && (
+                    <a href={profile.github} target="_blank" rel="noreferrer" style={ppLinkBtn}>
+                      GitHub ↗
+                    </a>
+                  )}
+                  {profile?.linkedin && (
+                    <a href={profile.linkedin} target="_blank" rel="noreferrer"
+                      style={{ ...ppLinkBtn, borderColor: "#0077b5", color: "#0077b5" }}>
+                      LinkedIn ↗
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Public Resumes ── */}
+            <div style={{ background: "#fff", margin: "8px 0 0", padding: "20px 24px 24px" }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
+              }}>
+                <LuFileText size={15} style={{ color: "#1e3a8a" }} />
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+                  เรซูเม่สาธารณะ
+                </span>
+                <span style={{
+                  background: "#eff6ff", color: "#1e3a8a",
+                  borderRadius: 10, padding: "1px 8px",
+                  fontSize: 11, fontWeight: 700,
+                }}>
+                  {resumes.length}
+                </span>
+              </div>
+
+              {resumes.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "24px 0", color: "#9ca3af", fontSize: 14 }}>
+                  📄 ยังไม่มีเรซูเม่สาธารณะ
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {resumes.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => { onClose(); navigate(`/view-resume/${r.id}`); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "12px 14px", borderRadius: 12,
+                        border: "1.5px solid #e5e7eb", background: "#f8fafc",
+                        cursor: "pointer", transition: "border-color 0.15s",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = "#3b82f6"}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = "#e5e7eb"}
+                    >
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: "#eff6ff", display: "flex",
+                        alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <LuFileText size={16} style={{ color: "#1e3a8a" }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 14, fontWeight: 700, color: "#111827",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {r.title}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                          <LuClock size={10} style={{ verticalAlign: "middle", marginRight: 3 }} />
+                          {r.created_at
+                            ? new Date(r.created_at).toLocaleDateString("th-TH")
+                            : "—"}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 12, color: "#3b82f6", fontWeight: 600 }}>ดู ↗</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── ปุ่มดูโปรไฟล์เต็ม ── */}
+            <div style={{ padding: "12px 24px 24px", background: "#fff", borderRadius: "0 0 20px 20px" }}>
+              <button
+                onClick={() => { onClose(); navigate(`/view-profile/${userId}`); }}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: 12,
+                  border: "none", background: "#1e3a8a",
+                  color: "#fff", fontWeight: 700, fontSize: 15,
+                  cursor: "pointer", display: "flex",
+                  alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+              >
+                <LuUser size={15} /> ดูโปรไฟล์เต็ม
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// styles สำหรับ popup
+const ppChip = {
+  display: "inline-flex", alignItems: "center", gap: 4,
+  fontSize: 12, color: "#6b7280", background: "#f3f4f6",
+  borderRadius: 20, padding: "3px 10px", fontWeight: 500,
+};
+
+const ppLinkBtn = {
+  display: "inline-flex", alignItems: "center", gap: 4,
+  fontSize: 12, color: "#374151", background: "#fff",
+  border: "1.5px solid #d1d5db", borderRadius: 8,
+  padding: "5px 12px", fontWeight: 600, textDecoration: "none",
+  cursor: "pointer",
+};

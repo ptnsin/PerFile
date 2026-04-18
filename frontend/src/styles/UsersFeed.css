@@ -647,3 +647,5 @@ background: #1d4ed8;
   50%  { opacity: 0.45; }
   100% { opacity: 1; }
 }
+
+@keyframes uf-spin { to { transform: rotate(360deg); } }

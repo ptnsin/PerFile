@@ -10,25 +10,21 @@ const profileRouter = Router()
 // PROFILE STATS & VIEWS
 // ─────────────────────────────────────────────────────────────
 
-// GET /profile/stats — ดึงข้อมูลสถิติ (Views, Resumes, etc.) ของตัวเอง
+// GET /profile/stats
 profileRouter.get('/stats', authMiddleware, async (req, res) => {
   try {
-    // ดึงยอดวิวจาก seeker_profiles
     const [profileRows] = await db.query(
       'SELECT views FROM seeker_profiles WHERE user_id = ?',
       [req.user.id]
     );
-
-    // ดึงจำนวน Resumes ของ user
     const [resumeRows] = await db.query(
       'SELECT COUNT(*) as count FROM resumes WHERE user_id = ?',
       [req.user.id]
     );
-
     res.json({
       views: profileRows[0]?.views || 0,
       resumes: resumeRows[0]?.count || 0,
-      saved: 0, // ปรับแต่งตามตาราง saved_jobs ของคุณ
+      saved: 0,
       jobs_posted: 0
     });
   } catch (err) {
@@ -37,21 +33,14 @@ profileRouter.get('/stats', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /profile/:id/view — เพิ่มยอดวิว (เรียกใช้เมื่อคนอื่นกดดูโปรไฟล์นี้)
-profileRouter.post('/:id/view', async (req, res) => {
+// POST /profile/:id/view
+profileRouter.post('/view/:id', async (req, res) => {
   try {
     const targetUserId = req.params.id;
-    
-    // อัปเดตยอดวิวโดยใช้คำสั่ง increment
-    const [result] = await db.query(
-      'UPDATE seeker_profiles SET views = views + 1 WHERE user_id = ?',
+    await db.query(
+      'INSERT INTO seeker_profiles (user_id, views) VALUES (?, 1) ON DUPLICATE KEY UPDATE views = views + 1',
       [targetUserId]
     );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'ไม่พบโปรไฟล์' });
-    }
-
     res.json({ message: 'บันทึกการเข้าชมสำเร็จ' });
   } catch (err) {
     console.error('Increment view error:', err.message);
@@ -63,7 +52,6 @@ profileRouter.post('/:id/view', async (req, res) => {
 // SKILLS
 // ─────────────────────────────────────────────────────────────
 
-// GET /profile/skills — ดึง skills ของตัวเอง
 profileRouter.get('/skills', authMiddleware, async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -77,19 +65,15 @@ profileRouter.get('/skills', authMiddleware, async (req, res) => {
   }
 })
 
-// POST /profile/skills — เพิ่ม skill
 profileRouter.post('/skills', authMiddleware, async (req, res) => {
   try {
     const { name } = req.body
     if (!name?.trim()) return res.status(400).json({ message: 'กรุณาระบุชื่อทักษะ' })
-
-    // เช็คซ้ำ
     const [existing] = await db.query(
       'SELECT id FROM user_skills WHERE user_id = ? AND name = ?',
       [req.user.id, name.trim()]
     )
     if (existing.length > 0) return res.status(409).json({ message: 'มีทักษะนี้อยู่แล้ว' })
-
     const [result] = await db.query(
       'INSERT INTO user_skills (user_id, name) VALUES (?, ?)',
       [req.user.id, name.trim()]
@@ -101,7 +85,6 @@ profileRouter.post('/skills', authMiddleware, async (req, res) => {
   }
 })
 
-// DELETE /profile/skills/:id — ลบ skill
 profileRouter.delete('/skills/:id', authMiddleware, async (req, res) => {
   try {
     const [result] = await db.query(
@@ -120,7 +103,6 @@ profileRouter.delete('/skills/:id', authMiddleware, async (req, res) => {
 // EXPERIENCES
 // ─────────────────────────────────────────────────────────────
 
-// GET /profile/experiences — ดึง experiences ของตัวเอง
 profileRouter.get('/experiences', authMiddleware, async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -134,12 +116,10 @@ profileRouter.get('/experiences', authMiddleware, async (req, res) => {
   }
 })
 
-// POST /profile/experiences — เพิ่ม experience
 profileRouter.post('/experiences', authMiddleware, async (req, res) => {
   try {
     const { icon, title, company, date } = req.body
     if (!title?.trim()) return res.status(400).json({ message: 'กรุณาระบุตำแหน่งงาน' })
-
     const [result] = await db.query(
       'INSERT INTO user_experiences (user_id, icon, title, company, date) VALUES (?, ?, ?, ?, ?)',
       [req.user.id, icon || '💼', title.trim(), company || '', date || '']
@@ -153,12 +133,10 @@ profileRouter.post('/experiences', authMiddleware, async (req, res) => {
   }
 })
 
-// PUT /profile/experiences/:id — แก้ไข experience
 profileRouter.put('/experiences/:id', authMiddleware, async (req, res) => {
   try {
     const { icon, title, company, date } = req.body
     if (!title?.trim()) return res.status(400).json({ message: 'กรุณาระบุตำแหน่งงาน' })
-
     const [result] = await db.query(
       'UPDATE user_experiences SET icon = ?, title = ?, company = ?, date = ? WHERE id = ? AND user_id = ?',
       [icon || '💼', title.trim(), company || '', date || '', req.params.id, req.user.id]
@@ -171,7 +149,6 @@ profileRouter.put('/experiences/:id', authMiddleware, async (req, res) => {
   }
 })
 
-// DELETE /profile/experiences/:id — ลบ experience
 profileRouter.delete('/experiences/:id', authMiddleware, async (req, res) => {
   try {
     const [result] = await db.query(
@@ -186,12 +163,10 @@ profileRouter.delete('/experiences/:id', authMiddleware, async (req, res) => {
   }
 })
 
-export default profileRouter
 // ─────────────────────────────────────────────────────────────
 // PROFILE INFO (github, linkedin, portfolio, bio, location)
 // ─────────────────────────────────────────────────────────────
 
-// GET /profile/info — ดึงข้อมูลโปรไฟล์ของตัวเอง
 profileRouter.get('/info', authMiddleware, async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -208,16 +183,13 @@ profileRouter.get('/info', authMiddleware, async (req, res) => {
   }
 })
 
-// PUT /profile/info — บันทึกข้อมูลโปรไฟล์
 profileRouter.put('/info', authMiddleware, async (req, res) => {
   try {
     const { bio, location, portfolio, github, linkedin } = req.body
-
     const [existing] = await db.query(
       'SELECT user_id FROM seeker_profiles WHERE user_id = ?',
       [req.user.id]
     )
-
     if (existing.length === 0) {
       await db.query(
         'INSERT INTO seeker_profiles (user_id, bio, location, portfolio, github, linkedin) VALUES (?, ?, ?, ?, ?, ?)',
@@ -229,7 +201,6 @@ profileRouter.put('/info', authMiddleware, async (req, res) => {
         [bio || '', location || '', portfolio || '', github || '', linkedin || '', req.user.id]
       )
     }
-
     res.json({ message: 'บันทึกโปรไฟล์สำเร็จ' })
   } catch (err) {
     console.error('PUT info error:', err.message)
@@ -237,18 +208,20 @@ profileRouter.put('/info', authMiddleware, async (req, res) => {
   }
 })
 
+// ─────────────────────────────────────────────────────────────
+// PUBLIC PROFILE
+// ─────────────────────────────────────────────────────────────
+
 profileRouter.get('/public/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // 1. ดึงข้อมูลพื้นฐานจากตาราง users และ seeker_profiles
     const [userRows] = await db.query(
-      `SELECT u.fullName, u.email, 
-              s.bio, s.location, s.portfolio, s.github, s.linkedin, 
-              s.avatar, s.cover_image
-      FROM users u
-      LEFT JOIN seeker_profiles s ON u.id = s.user_id
-      WHERE u.id = ?`,
+      `SELECT u.fullName, u.email, u.avatar,
+              s.bio, s.location, s.portfolio, s.github, s.linkedin
+       FROM users u
+       LEFT JOIN seeker_profiles s ON u.id = s.user_id
+       WHERE u.id = ?`,
       [userId]
     );
 
@@ -256,11 +229,11 @@ profileRouter.get('/public/:userId', async (req, res) => {
       return res.status(404).json({ message: "ไม่พบผู้ใช้" });
     }
 
-    // 2. ดึงรายการเรซูเม่ที่เป็น Public ของคนนั้น
     const [resumes] = await db.query(
       'SELECT id, title, visibility, created_at FROM resumes WHERE user_id = ? AND visibility = "public"',
       [userId]
     );
+
     res.json({
       user: userRows[0],
       resumes: resumes
@@ -269,3 +242,6 @@ profileRouter.get('/public/:userId', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// ✅ export default อยู่ท้ายสุด
+export default profileRouter

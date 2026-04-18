@@ -59,6 +59,7 @@ useEffect(() => {
   };
 
   fetchFullProfile();
+  fetch(`http://localhost:3000/profile/view/${userId}`, { method: "POST" });
 }, [userId]);
   // ── Loading ──
   if (loading) return (
