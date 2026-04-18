@@ -33,7 +33,8 @@ model User {
   audit_logs        audit_logs[]
   Job               Job[]
   applications      JobApplication[]
-  saved_jobs        saved_jobs[]
+  saved_jobs        saved_jobs[]        @relation("SavedJobsBySeeker")
+  saved_resumes     saved_resumes[]     @relation("SavedResumesBySeeker")
   interviews        interviews[]
   roles             roles               @relation(fields: [roles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -48,9 +49,10 @@ model seeker_profiles {
   education String?  @db.VarChar(255)
   interests String?  @db.VarChar(255)
   views     Int      @default(0)
+  github    String?  @db.VarChar(255)   // เพิ่ม
+  linkedin  String?  @db.VarChar(255)   // เพิ่ม
+  portfolio String?  @db.VarChar(255)   // เพิ่ม
   user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@map("seeker_profiles")
 }
 
 model seeker_activities {
@@ -119,7 +121,8 @@ model resumes {
   created_at  DateTime?           @default(now()) @db.Timestamp(0)
   updated_at  DateTime?           @default(now()) @updatedAt @db.Timestamp(0) 
 
-  users       User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  users         User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  saved_resumes saved_resumes[]     @relation("SavedResumesForResume")
 
   @@index([user_id], map: "user_id")
   @@map("resumes")
@@ -167,7 +170,7 @@ model Job {
   createdAt    DateTime @default(now()) @db.Timestamp(0)
   status       String   @default("เปิดรับสมัคร") @db.VarChar(50)
   applications JobApplication[]
-  saved_jobs   saved_jobs[]
+  saved_jobs   saved_jobs[]     @relation("SavedJobsForJob")
   
   hrId         Int
   users        User     @relation(fields: [hrId], references: [id], onDelete: Cascade)
@@ -176,31 +179,43 @@ model Job {
 }
 
 model JobApplication {
-  id           Int      @id @default(autoincrement())
-  jobId        Int
-  seekerId     Int
-  appliedAt    DateTime @default(now()) @db.Timestamp(0)
-  status       String   @default("pending") @db.VarChar(50) // เช่น pending, interviewing, rejected
+  id         Int      @id @default(autoincrement())
+  job_id     Int
+  user_id    Int
+  applied_at DateTime @default(now()) @db.Timestamp(0)
+  status     String   @default("pending") @db.VarChar(50)
 
-  // Relation
-  job    Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  seeker User @relation(fields: [seekerId], references: [id], onDelete: Cascade)
+  job    Job  @relation(fields: [job_id],  references: [id], onDelete: Cascade)
+  seeker User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([jobId])
-  @@index([seekerId])
-  @@map("job_applications")
+  @@index([job_id])
+  @@index([user_id])
+  @@map("applications")
 }
 model saved_jobs {
   id         Int      @id @default(autoincrement())
-  hr_id      Int
+  seeker_id  Int
   job_id     Int
   created_at DateTime @default(now()) @db.Timestamp(0)
 
-  user       User     @relation(fields: [hr_id],  references: [id], onDelete: Cascade)
-  job        Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  seeker     User     @relation("SavedJobsBySeeker", fields: [seeker_id], references: [id], onDelete: Cascade)
+  job        Job      @relation("SavedJobsForJob",   fields: [job_id],   references: [id], onDelete: Cascade)
 
-  @@unique([hr_id, job_id])
+  @@unique([seeker_id, job_id])
   @@map("saved_jobs")
+}
+
+model saved_resumes {
+  id         Int      @id @default(autoincrement())
+  seeker_id  Int
+  resume_id  Int
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  seeker     User     @relation("SavedResumesBySeeker", fields: [seeker_id], references: [id], onDelete: Cascade)
+  resume     resumes  @relation("SavedResumesForResume", fields: [resume_id], references: [id], onDelete: Cascade)
+
+  @@unique([seeker_id, resume_id])
+  @@map("saved_resumes")
 }
 
 model interviews {

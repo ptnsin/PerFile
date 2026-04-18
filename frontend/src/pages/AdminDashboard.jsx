@@ -427,10 +427,7 @@ export default function AdminDashboard() {
               setCurrentTab("user-management");
               scrollToUserManagement();
             }} ><LuUsers /> <span>User Management</span></button>
-            <button className={`menu-item ${currentTab === "resume-controls" ? "active" : ""}`} onClick={() => {
-              setCurrentTab("resume-controls");
-              document.getElementById('resume-management')?.scrollIntoView({ behavior: 'smooth' });
-            }}><LuFileText /> <span>Resume Controls</span></button>
+
 
             <div className="section-title">System</div>
             <button className={`menu-item ${currentTab === "audit-logs" ? "active" : ""}`} onClick={() => { setCurrentTab("audit-logs"); scrollToAuditLogs(); }}><LuActivity /> <span>Audit Logs</span></button>
@@ -445,7 +442,6 @@ export default function AdminDashboard() {
         <main className="admin-main">
           {(currentTab === "overview" ||
             currentTab === "user-management" ||
-            currentTab === "resume-controls" ||
             currentTab === "audit-logs" ||
             currentTab === "settings") && (
             <>
@@ -673,95 +669,6 @@ export default function AdminDashboard() {
                   ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="data-section" id="resume-management">
-            <div className="table-header">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Resume Controls</h2>
-                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
-                  Total {resumes.length} resumes
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
-                  <LuSearch color="#9ca3af" size={15} />
-                  <input
-                    placeholder="ค้นหาชื่อ Resume หรือเจ้าของ..."
-                    value={resumeSearch}
-                    onChange={(e) => setResumeSearch(e.target.value)}
-                    style={{ outline: 'none', color: '#111827' }}
-                  />
-                </div>
-                <select
-                  className="action-btn"
-                  value={resumeVisibility}
-                  onChange={(e) => setResumeVisibility(e.target.value)}
-                  style={{ fontSize: '12px' }}
-                >
-                  <option value="">All Visibility</option>
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
-                </select>
-                <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => { setResumeSearch(""); setResumeVisibility(""); }}>Reset</button>
-              </div>
-            </div>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Resume Title</th>
-                  <th>Owner</th>
-                  <th>Template</th>
-                  <th>Visibility</th>
-                  <th>Created Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumes
-                  .filter(r => {
-                    const matchesSearch =
-                      r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) ||
-                      r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase());
-                    const matchesVisibility = resumeVisibility === "" || r.visibility === resumeVisibility;
-                    return matchesSearch && matchesVisibility;
-                  })
-                  .map((resume) => (
-                    <tr key={resume.id}>
-                      <td style={{ fontWeight: 600 }}>{resume.title}</td>
-                      <td>
-                        <div>{resume.owner_name}</div>
-                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>{resume.owner_email}</div>
-                      </td>
-                      <td>
-                        <span className="action-tag" style={{ background: '#f3f4f6', color: '#374151' }}>
-                          {resume.template}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-select-box status-${resume.visibility}`}>
-                          {resume.visibility}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {new Date(resume.created_at).toLocaleDateString('th-TH')}
-                      </td>
-                      <td>
-                        <button
-                          className="action-btn"
-                          onClick={() => handleDeleteResume(resume.id)}
-                          style={{ color: '#ffffff', backgroundColor: '#ef4444', border: 'none' }}
-                        >
-                          <LuTrash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-            {resumes.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>ไม่พบข้อมูล Resume</div>
-            )}
           </div>
 
           <div className="audit-section" ref={auditLogsRef}>
@@ -1007,24 +914,98 @@ export default function AdminDashboard() {
           {currentTab === "user-feed" && (
             <div className="feed-view-section">
               <header className="dashboard-header">
-                <h1 className="dashboard-title">User Social Feed</h1>
-                <p style={{ color: '#6b7280', fontSize: '14px' }}>มุมมองแอดมิน: ตรวจสอบโพสต์และกิจกรรมของผู้ใช้งานทั่วไป</p>
+                <h1 className="dashboard-title">Resume Control</h1>
+                <p style={{ color: '#6b7280', fontSize: '14px' }}>จัดการและตรวจสอบ Resume ของผู้ใช้งานทั้งหมดในระบบ</p>
               </header>
-              {feedLoading ? <p>Loading Feed...</p> : (
-                <div className="feed-grid">
-                  {userFeedPosts.map(post => (
-                    <div key={post.id} className="feed-card">
-                      <div className="feed-card-header">
-                        <strong>{post.username}</strong>
-                        <span>{new Date(post.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <p>{post.content}</p>
-                      {post.image && <img src={post.image} alt="post" />}
-                      <button className="delete-min-btn" onClick={() => {}}>ลบโพสต์</button>
+
+              <div className="data-section" id="resume-management">
+                <div className="table-header">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Resume Controls</h2>
+                    <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                      Total {resumes.length} resumes
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <div className="nav-search" style={{ width: '250px', marginBottom: 0 }}>
+                      <LuSearch color="#9ca3af" size={15} />
+                      <input
+                        placeholder="ค้นหาชื่อ Resume หรือเจ้าของ..."
+                        value={resumeSearch}
+                        onChange={(e) => setResumeSearch(e.target.value)}
+                        style={{ outline: 'none', color: '#111827' }}
+                      />
                     </div>
-                  ))}
+                    <select
+                      className="action-btn"
+                      value={resumeVisibility}
+                      onChange={(e) => setResumeVisibility(e.target.value)}
+                      style={{ fontSize: '12px' }}
+                    >
+                      <option value="">All Visibility</option>
+                      <option value="public">Public</option>
+                      <option value="private">Private</option>
+                    </select>
+                    <button className="action-btn" style={{ padding: '6px 12px' }} onClick={() => { setResumeSearch(""); setResumeVisibility(""); }}>Reset</button>
+                  </div>
                 </div>
-              )}
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Resume Title</th>
+                      <th>Owner</th>
+                      <th>Template</th>
+                      <th>Visibility</th>
+                      <th>Created Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resumes
+                      .filter(r => {
+                        const matchesSearch =
+                          r.title?.toLowerCase().includes(resumeSearch.toLowerCase()) ||
+                          r.owner_name?.toLowerCase().includes(resumeSearch.toLowerCase());
+                        const matchesVisibility = resumeVisibility === "" || r.visibility === resumeVisibility;
+                        return matchesSearch && matchesVisibility;
+                      })
+                      .map((resume) => (
+                        <tr key={resume.id}>
+                          <td style={{ fontWeight: 600 }}>{resume.title}</td>
+                          <td>
+                            <div>{resume.owner_name}</div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af' }}>{resume.owner_email}</div>
+                          </td>
+                          <td>
+                            <span className="action-tag" style={{ background: '#f3f4f6', color: '#374151' }}>
+                              {resume.template}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-select-box status-${resume.visibility}`}>
+                              {resume.visibility}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '12px', color: '#6b7280' }}>
+                            {new Date(resume.created_at).toLocaleDateString('th-TH')}
+                          </td>
+                          <td>
+                            <button
+                              className="action-btn"
+                              onClick={() => handleDeleteResume(resume.id)}
+                              style={{ color: '#ffffff', backgroundColor: '#ef4444', border: 'none' }}
+                            >
+                              <LuTrash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+                {resumes.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>ไม่พบข้อมูล Resume</div>
+                )}
+              </div>
             </div>
           )}
 
