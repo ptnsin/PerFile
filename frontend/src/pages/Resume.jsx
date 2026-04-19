@@ -141,84 +141,110 @@ function ResumeContent({ data, highlightField }) {
           fontFamily: "'DM Sans', 'Segoe UI', Arial, sans-serif",
           boxSizing: "border-box",
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
           position: "relative",
           overflow: "hidden",
         }}
       >
-        {/* ── HEADER ── */}
+        {/* ── LEFT SIDEBAR ── */}
         <div style={{
+          width: "220px",
+          flexShrink: 0,
           backgroundColor: tc,
-          padding: "36px 44px 30px",
           display: "flex",
-          alignItems: "center",
-          gap: "26px",
-          position: "relative",
+          flexDirection: "column",
+          minHeight: "297mm",
         }}>
-          {data.image ? (
-            <div style={{
-              width: "96px", height: "96px", borderRadius: "50%",
-              border: "3px solid rgba(255,255,255,0.85)",
-              overflow: "hidden", flexShrink: 0,
-            }}>
-              <img src={data.image} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </div>
-          ) : (
-            <div style={{
-              width: "96px", height: "96px", borderRadius: "50%",
-              border: "3px solid rgba(255,255,255,0.4)",
-              backgroundColor: "rgba(0,0,0,0.15)",
-              flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-                <circle cx="21" cy="16" r="9" fill="rgba(255,255,255,0.45)" />
-                <path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="rgba(255,255,255,0.45)" />
-              </svg>
-            </div>
-          )}
-
-          <div style={{ flex: 1 }}>
+          {/* Profile photo */}
+          <div style={{ padding: "36px 24px 24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+            {data.image ? (
+              <div style={{
+                width: "90px", height: "90px", borderRadius: "50%",
+                border: "3px solid rgba(255,255,255,0.85)",
+                overflow: "hidden", marginBottom: "14px", flexShrink: 0,
+              }}>
+                <img src={data.image} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            ) : (
+              <div style={{
+                width: "90px", height: "90px", borderRadius: "50%",
+                border: "3px solid rgba(255,255,255,0.4)",
+                backgroundColor: "rgba(0,0,0,0.15)",
+                marginBottom: "14px", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width="40" height="40" viewBox="0 0 42 42" fill="none">
+                  <circle cx="21" cy="16" r="9" fill="rgba(255,255,255,0.45)" />
+                  <path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="rgba(255,255,255,0.45)" />
+                </svg>
+              </div>
+            )}
             <h1 style={{
-              margin: "0 0 5px", fontSize: "30px", fontWeight: "800",
-              color: "#fff", letterSpacing: "-0.3px", lineHeight: 1.1,
-              ...highlight("name"),
+              margin: "0 0 5px", fontSize: "16px", fontWeight: "800",
+              color: "#fff", lineHeight: 1.2, ...highlight("name"),
             }}>
               {data.name || "ชื่อ-นามสกุล"}
             </h1>
             <p style={{
-              margin: "0 0 16px", fontSize: "13px",
-              color: "rgba(255,255,255,0.82)", fontWeight: "500",
-              letterSpacing: "1.5px", textTransform: "uppercase",
+              margin: 0, fontSize: "10px", color: "rgba(255,255,255,0.82)",
+              fontWeight: "500", letterSpacing: "1.2px", textTransform: "uppercase",
               ...highlight("title"),
             }}>
               {data.title || "ตำแหน่งงาน"}
             </p>
-            <div style={{
-              display: "flex", flexWrap: "wrap", gap: "10px 22px",
-              paddingTop: "12px",
-              borderTop: "1px solid rgba(255,255,255,0.22)",
-            }}>
-              {data.email    && <ChipRow icon={ICON_MAIL}   text={data.email}    hl={highlight("email")} />}
-              {data.phone    && <ChipRow icon={ICON_PHONE}  text={data.phone}    hl={highlight("phone")} />}
-              {data.location && <ChipRow icon={ICON_PIN}    text={data.location} hl={highlight("location")} />}
-              {data.linkedin && <ChipRow icon={ICON_LI}     text={data.linkedin} />}
-              {data.website  && <ChipRow icon={ICON_WEB}    text={data.website} />}
+          </div>
+
+          {/* Divider */}
+          <div style={{ margin: "0 24px", height: "1px", backgroundColor: "rgba(255,255,255,0.2)" }} />
+
+          {/* Contact */}
+          <div style={{ padding: "18px 24px" }}>
+            <p style={{ margin: "0 0 10px", fontSize: "9px", fontWeight: "800", color: "rgba(255,255,255,0.55)", letterSpacing: "1.5px", textTransform: "uppercase" }}>ช่องทางติดต่อ</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+              {data.phone    && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: "7px", ...highlight("phone") }}>{ICON_PHONE_DARK}{data.phone}</span>}
+              {data.email    && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all", ...highlight("email") }}>{ICON_MAIL_DARK}{data.email}</span>}
+              {data.location && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", gap: "7px", ...highlight("location") }}>{ICON_PIN_DARK}{data.location}</span>}
+              {data.linkedin && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all" }}>{ICON_LI_DARK}{data.linkedin}</span>}
+              {data.website  && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all" }}>{ICON_WEB_DARK}{data.website}</span>}
             </div>
           </div>
 
-          <div style={{
-            position: "absolute", right: 0, top: 0,
-            width: "90px", height: "100%",
-            background: "rgba(0,0,0,0.08)",
-            clipPath: "polygon(100% 0, 100% 100%, 0 100%)",
-          }} />
+          {/* Divider */}
+          {data.skills.length > 0 && <div style={{ margin: "0 24px", height: "1px", backgroundColor: "rgba(255,255,255,0.2)" }} />}
+
+          {/* Skills */}
+          {data.skills.length > 0 && (
+            <div style={{ padding: "18px 24px" }}>
+              <p style={{ margin: "0 0 12px", fontSize: "9px", fontWeight: "800", color: "rgba(255,255,255,0.55)", letterSpacing: "1.5px", textTransform: "uppercase" }}>ทักษะ</p>
+              <SkillsDisplay data={data} themeColor={tc} sidebar={true} />
+            </div>
+          )}
+
+          {/* Education in sidebar */}
+          {data.education.length > 0 && (
+            <>
+              <div style={{ margin: "0 24px", height: "1px", backgroundColor: "rgba(255,255,255,0.2)" }} />
+              <div style={{ padding: "18px 24px" }}>
+                <p style={{ margin: "0 0 12px", fontSize: "9px", fontWeight: "800", color: "rgba(255,255,255,0.55)", letterSpacing: "1.5px", textTransform: "uppercase" }}>การศึกษา</p>
+                {data.education.map((edu, i) => (
+                  <div key={edu.id} style={{ marginBottom: i === data.education.length - 1 ? 0 : "14px" }}>
+                    {edu.degree && <p style={{ margin: "0 0 2px", fontWeight: "700", fontSize: "10.5px", color: "#fff", lineHeight: 1.3 }}>{edu.degree}</p>}
+                    {edu.school && <p style={{ margin: "0 0 2px", fontSize: "10px", color: "rgba(255,255,255,0.75)" }}>{edu.school}</p>}
+                    {edu.period && <p style={{ margin: "0 0 2px", fontSize: "9.5px", color: "rgba(255,255,255,0.55)", fontWeight: "600" }}>{edu.period}</p>}
+                    {edu.desc   && <p style={{ margin: 0, fontSize: "9.5px", color: "rgba(255,255,255,0.6)", lineHeight: "1.6" }}>{edu.desc}</p>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* ── BODY ── */}
-        <div style={{ display: "flex", flex: 1 }}>
-          {/* LEFT MAIN */}
-          <div style={{ flex: "1 1 0", padding: "30px 32px 36px 44px", borderRight: "1px solid #eee", minWidth: 0 }}>
+        {/* ── RIGHT MAIN CONTENT ── */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          {/* Top accent bar */}
+          <div style={{ height: "6px", backgroundColor: tc, opacity: 0.15 }} />
+
+          <div style={{ padding: "32px 36px 36px 32px", flex: 1 }}>
             {data.summary && (
               <ClassicSection title="เกี่ยวกับฉัน" tc={tc}>
                 <p style={{ margin: 0, fontSize: "12px", lineHeight: "1.85", color: "#444", ...highlight("summary") }}>
@@ -236,27 +262,6 @@ function ResumeContent({ data, highlightField }) {
                     tc={tc} isLast={i === data.experience.length - 1}
                   />
                 ))}
-              </ClassicSection>
-            )}
-            {data.education.length > 0 && (
-              <ClassicSection title="ประวัติการศึกษา" tc={tc}>
-                {data.education.map((edu, i) => (
-                  <ClassicItem
-                    key={edu.id}
-                    title={edu.degree} subtitle={edu.school}
-                    period={edu.period} desc={edu.desc}
-                    tc={tc} isLast={i === data.education.length - 1}
-                  />
-                ))}
-              </ClassicSection>
-            )}
-          </div>
-
-          {/* RIGHT SIDEBAR */}
-          <div style={{ width: "210px", flexShrink: 0, padding: "30px 28px 36px 28px", backgroundColor: "#f7f7f7" }}>
-            {data.skills.length > 0 && (
-              <ClassicSection title="ทักษะ" tc={tc}>
-                <SkillsDisplay data={data} themeColor={tc} sidebar={false} />
               </ClassicSection>
             )}
           </div>
@@ -281,104 +286,113 @@ function ResumeContent({ data, highlightField }) {
           fontFamily: "'DM Sans', 'Segoe UI', Arial, sans-serif",
           boxSizing: "border-box",
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
           position: "relative",
           fontSize: "12px",
         }}
       >
-        {/* ── HEADER ── */}
+        {/* ── LEFT SIDEBAR ── */}
         <div style={{
+          width: "210px",
+          flexShrink: 0,
+          backgroundColor: "#1a1a2e",
           display: "flex",
-          alignItems: "center",
-          gap: "28px",
-          padding: "36px 44px 28px",
-          borderBottom: `3px solid ${tc}`,
+          flexDirection: "column",
+          minHeight: "297mm",
         }}>
-          {data.image ? (
-            <div style={{
-              width: "110px", height: "110px", borderRadius: "50%",
-              border: `3px solid ${tc}`,
-              overflow: "hidden", flexShrink: 0,
-            }}>
-              <img src={data.image} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </div>
-          ) : (
-            <div style={{
-              width: "110px", height: "110px", borderRadius: "50%",
-              border: `3px solid ${tc}`,
-              backgroundColor: "#f5f5f5",
-              flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <svg width="46" height="46" viewBox="0 0 42 42" fill="none">
-                <circle cx="21" cy="16" r="9" fill="#ccc" />
-                <path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="#ccc" />
-              </svg>
-            </div>
-          )}
-
-          <div style={{ flex: 1 }}>
+          {/* Profile */}
+          <div style={{ padding: "36px 20px 24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+            {data.image ? (
+              <div style={{
+                width: "90px", height: "90px", borderRadius: "50%",
+                border: `3px solid ${tc}`,
+                overflow: "hidden", marginBottom: "14px",
+              }}>
+                <img src={data.image} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            ) : (
+              <div style={{
+                width: "90px", height: "90px", borderRadius: "50%",
+                border: `3px solid ${tc}`,
+                backgroundColor: "rgba(255,255,255,0.06)",
+                marginBottom: "14px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width="40" height="40" viewBox="0 0 42 42" fill="none">
+                  <circle cx="21" cy="16" r="9" fill="rgba(255,255,255,0.3)" />
+                  <path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="rgba(255,255,255,0.3)" />
+                </svg>
+              </div>
+            )}
             <h1 style={{
-              margin: "0 0 5px", fontSize: "32px", fontWeight: "800",
-              color: "#111", letterSpacing: "-0.3px", lineHeight: 1.1,
-              ...highlight("name"),
+              margin: "0 0 5px", fontSize: "15px", fontWeight: "800",
+              color: "#fff", lineHeight: 1.25, ...highlight("name"),
             }}>
               {data.name || "ชื่อ-นามสกุล"}
             </h1>
             <p style={{
-              margin: "0 0 6px", fontSize: "16px", fontWeight: "600",
-              color: tc,
+              margin: 0, fontSize: "9.5px", color: tc,
+              fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase",
               ...highlight("title"),
             }}>
               {data.title || "ตำแหน่งงาน"}
             </p>
-            {data.location && (
-              <p style={{ margin: 0, fontSize: "12px", color: "#777", ...highlight("location") }}>
-                {data.location}
-              </p>
-            )}
           </div>
-        </div>
 
-        {/* ── BODY ── */}
-        <div style={{ display: "flex", flex: 1 }}>
-          {/* LEFT SIDEBAR */}
-          <div style={{
-            width: "205px", flexShrink: 0,
-            padding: "28px 22px 28px 44px",
-            borderRight: "1px solid #e8e8e8",
-          }}>
-            {data.education.length > 0 && (
-              <ModernSection title="การศึกษา" tc={tc}>
+          {/* Accent line */}
+          <div style={{ margin: "0 20px", height: "2px", backgroundColor: tc, borderRadius: "1px", opacity: 0.6 }} />
+
+          {/* Contact */}
+          <div style={{ padding: "18px 20px" }}>
+            <p style={{ margin: "0 0 10px", fontSize: "8.5px", fontWeight: "800", color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>ติดต่อ</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+              {data.phone    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", display: "flex", alignItems: "center", gap: "7px", ...highlight("phone") }}>{ICON_PHONE_DARK}{data.phone}</span>}
+              {data.email    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all", ...highlight("email") }}>{ICON_MAIL_DARK}{data.email}</span>}
+              {data.location && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", display: "flex", alignItems: "center", gap: "7px", ...highlight("location") }}>{ICON_PIN_DARK}{data.location}</span>}
+              {data.linkedin && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all" }}>{ICON_LI_DARK}{data.linkedin}</span>}
+              {data.website  && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all" }}>{ICON_WEB_DARK}{data.website}</span>}
+            </div>
+          </div>
+
+          {/* Skills */}
+          {data.skills.length > 0 && (
+            <>
+              <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+              <div style={{ padding: "18px 20px" }}>
+                <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: "800", color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>ทักษะ</p>
+                <SkillsDisplay data={data} themeColor={tc} sidebar={true} />
+              </div>
+            </>
+          )}
+
+          {/* Education */}
+          {data.education.length > 0 && (
+            <>
+              <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+              <div style={{ padding: "18px 20px" }}>
+                <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: "800", color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>การศึกษา</p>
                 {data.education.map((edu, i) => (
-                  <div key={edu.id} style={{ marginBottom: i === data.education.length - 1 ? 0 : "13px" }}>
-                    {edu.degree && <p style={{ margin: "0 0 2px", fontWeight: "700", fontSize: "11.5px", color: "#111" }}>{edu.degree}</p>}
-                    {edu.school && <p style={{ margin: "0 0 2px", fontSize: "11px", color: "#555" }}>{edu.school}</p>}
-                    {edu.period && <p style={{ margin: "0 0 2px", fontSize: "10.5px", color: tc, fontWeight: "600" }}>{edu.period}</p>}
-                    {edu.desc   && <p style={{ margin: 0, fontSize: "10.5px", color: "#777", lineHeight: "1.6" }}>{edu.desc}</p>}
+                  <div key={edu.id} style={{ marginBottom: i === data.education.length - 1 ? 0 : "14px" }}>
+                    {edu.degree && <p style={{ margin: "0 0 2px", fontWeight: "700", fontSize: "10.5px", color: "#fff", lineHeight: 1.3 }}>{edu.degree}</p>}
+                    {edu.school && <p style={{ margin: "0 0 2px", fontSize: "10px", color: "rgba(255,255,255,0.65)" }}>{edu.school}</p>}
+                    {edu.period && <p style={{ margin: "0 0 2px", fontSize: "9.5px", color: tc, fontWeight: "600" }}>{edu.period}</p>}
+                    {edu.desc   && <p style={{ margin: 0, fontSize: "9.5px", color: "rgba(255,255,255,0.5)", lineHeight: "1.6" }}>{edu.desc}</p>}
                   </div>
                 ))}
-              </ModernSection>
-            )}
-            {data.skills.length > 0 && (
-              <ModernSection title="ทักษะ" tc={tc}>
-                <SkillsDisplay data={data} themeColor={tc} sidebar={false} />
-              </ModernSection>
-            )}
-            {(data.email || data.phone || data.linkedin || data.website) && (
-              <ModernSection title="ช่องทางติดต่อ" tc={tc}>
-                {data.phone    && <p style={{ margin: "0 0 4px", fontSize: "11px", color: "#444" }}>{data.phone}</p>}
-                {data.email    && <p style={{ margin: "0 0 4px", fontSize: "11px", color: "#444" }}>{data.email}</p>}
-                {data.linkedin && <p style={{ margin: "0 0 4px", fontSize: "11px", color: "#444" }}>{data.linkedin}</p>}
-                {data.website  && <p style={{ margin: 0,         fontSize: "11px", color: "#444" }}>{data.website}</p>}
-              </ModernSection>
-            )}
-          </div>
+              </div>
+            </>
+          )}
+        </div>
 
-          {/* RIGHT MAIN */}
-          <div style={{ flex: 1, padding: "28px 44px 28px 28px", minWidth: 0 }}>
+        {/* ── RIGHT MAIN CONTENT ── */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          {/* Top accent bar */}
+          <div style={{ height: "5px", backgroundColor: tc }} />
+
+          <div style={{ padding: "28px 36px 36px 30px", flex: 1 }}>
             {data.summary && (
               <ModernSection title="ข้อมูลโดยย่อ" tc={tc}>
-                <p style={{ margin: 0, fontSize: "12px", lineHeight: "1.85", color: "#444", ...highlight("summary") }}>
+                <p style={{ margin: 0, fontSize: "11.5px", lineHeight: "1.85", color: "#444", ...highlight("summary") }}>
                   {data.summary}
                 </p>
               </ModernSection>
@@ -386,31 +400,18 @@ function ResumeContent({ data, highlightField }) {
             {data.experience.length > 0 && (
               <ModernSection title="ประสบการณ์การทำงาน" tc={tc}>
                 {data.experience.map((exp, i) => (
-                  <div key={exp.id} style={{ marginBottom: i === data.experience.length - 1 ? 0 : "18px" }}>
-                    <p style={{ margin: "0 0 1px", fontWeight: "700", fontSize: "12.5px", color: "#111" }}>{exp.role || "—"}</p>
-                    {exp.period && <p style={{ margin: "0 0 1px", fontWeight: "700", fontSize: "11.5px", color: tc }}>{exp.period}</p>}
-                    {exp.org    && <p style={{ margin: "0 0 5px", fontWeight: "700", fontSize: "11.5px", color: "#333" }}>{exp.org}</p>}
-                    {exp.desc   && <p style={{ margin: 0, fontSize: "11.5px", color: "#555", lineHeight: "1.75" }}>{exp.desc}</p>}
+                  <div key={exp.id} style={{ marginBottom: i === data.experience.length - 1 ? 0 : "18px", paddingBottom: i === data.experience.length - 1 ? 0 : "18px", borderBottom: i === data.experience.length - 1 ? "none" : "1px solid #f0f0f0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "3px" }}>
+                      <p style={{ margin: 0, fontWeight: "700", fontSize: "12.5px", color: "#111" }}>{exp.role || "—"}</p>
+                      {exp.period && <span style={{ fontSize: "10px", color: tc, fontWeight: "700", backgroundColor: `${tc}15`, padding: "2px 8px", borderRadius: "10px", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "8px" }}>{exp.period}</span>}
+                    </div>
+                    {exp.org  && <p style={{ margin: "0 0 5px", fontSize: "11px", color: "#666", fontStyle: "italic" }}>{exp.org}</p>}
+                    {exp.desc && <p style={{ margin: 0, fontSize: "11px", color: "#555", lineHeight: "1.75" }}>{exp.desc}</p>}
                   </div>
                 ))}
               </ModernSection>
             )}
           </div>
-        </div>
-
-        {/* ── FOOTER BAR ── */}
-        <div style={{
-          backgroundColor: tc,
-          padding: "14px 44px",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "8px 28px",
-          alignItems: "center",
-        }}>
-          <ModernBadge label="ข้อมูลการติดต่อ" />
-          {data.phone    && <span style={{ fontSize: "11px", color: "#fff" }}>{data.phone}</span>}
-          {data.email    && <span style={{ fontSize: "11px", color: "#fff" }}>{data.email}</span>}
-          {data.location && <span style={{ fontSize: "11px", color: "#fff" }}>{data.location}</span>}
         </div>
       </div>
     );
@@ -428,59 +429,105 @@ function ResumeContent({ data, highlightField }) {
         color: "#1a1a1a",
         fontFamily: "'Georgia', serif",
         boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "row",
         position: "relative",
         overflow: "hidden",
       }}
     >
+      {/* ── LEFT SIDEBAR ── */}
       <div style={{
-        backgroundColor: themeColor,
-        padding: "36px 40px 28px",
+        width: "215px",
+        flexShrink: 0,
+        backgroundColor: "#2c2c3e",
         display: "flex",
-        alignItems: "center",
-        gap: "28px",
-        transition: "background-color 0.3s",
+        flexDirection: "column",
+        minHeight: "297mm",
       }}>
-        {data.image && (
-          <div style={{
-            width: "110px", height: "110px", borderRadius: "50%",
-            border: "4px solid rgba(255,255,255,0.9)",
-            overflow: "hidden", flexShrink: 0,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-          }}>
-            <img src={data.image} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          </div>
-        )}
-        <div style={{ flex: 1 }}>
+        {/* Profile */}
+        <div style={{
+          backgroundColor: themeColor,
+          padding: "36px 20px 28px",
+          display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+        }}>
+          {data.image && (
+            <div style={{
+              width: "90px", height: "90px", borderRadius: "50%",
+              border: "4px solid rgba(255,255,255,0.9)",
+              overflow: "hidden", marginBottom: "14px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+            }}>
+              <img src={data.image} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+          )}
           <h1 style={{
-            margin: "0 0 6px", fontSize: "28px", fontWeight: "700",
-            color: "#fff", letterSpacing: "0.5px",
+            margin: "0 0 6px", fontSize: "16px", fontWeight: "700",
+            color: "#fff", letterSpacing: "0.3px",
             textShadow: "0 1px 3px rgba(0,0,0,0.2)",
             ...highlight("name"),
           }}>
             {data.name || "ชื่อ-นามสกุล"}
           </h1>
           <p style={{
-            margin: "0 0 14px", fontSize: "15px",
+            margin: 0, fontSize: "10px",
             color: "rgba(255,255,255,0.88)", fontStyle: "italic",
             ...highlight("title"),
           }}>
             {data.title || "ตำแหน่งงาน"}
           </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
-            {data.email    && <ContactChip icon="✉"  text={data.email}    hl={highlight("email")} />}
-            {data.phone    && <ContactChip icon="📞" text={data.phone}    hl={highlight("phone")} />}
-            {data.location && <ContactChip icon="📍" text={data.location} hl={highlight("location")} />}
-            {data.linkedin && <ContactChip icon="in" text={data.linkedin} />}
-            {data.website  && <ContactChip icon="🌐" text={data.website} />}
+        </div>
+
+        {/* Contact */}
+        <div style={{ padding: "20px 20px 16px" }}>
+          <p style={{ margin: "0 0 10px", fontSize: "8.5px", fontWeight: "700", color: themeColor, letterSpacing: "1.5px", textTransform: "uppercase" }}>ข้อมูลติดต่อ</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+            {data.email    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all", ...highlight("email") }}>{ICON_MAIL_DARK}{data.email}</span>}
+            {data.phone    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", display: "flex", alignItems: "center", gap: "7px", ...highlight("phone") }}>{ICON_PHONE_DARK}{data.phone}</span>}
+            {data.location && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", display: "flex", alignItems: "center", gap: "7px", ...highlight("location") }}>{ICON_PIN_DARK}{data.location}</span>}
+            {data.linkedin && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all" }}>{ICON_LI_DARK}{data.linkedin}</span>}
+            {data.website  && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: "7px", wordBreak: "break-all" }}>{ICON_WEB_DARK}{data.website}</span>}
           </div>
         </div>
+
+        {/* Skills */}
+        {data.skills.length > 0 && (
+          <>
+            <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+            <div style={{ padding: "16px 20px" }}>
+              <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: "700", color: themeColor, letterSpacing: "1.5px", textTransform: "uppercase" }}>ทักษะความชำนาญ</p>
+              <SkillsDisplay data={data} themeColor={themeColor} sidebar={true} />
+            </div>
+          </>
+        )}
+
+        {/* Education */}
+        {data.education.length > 0 && (
+          <>
+            <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+            <div style={{ padding: "16px 20px" }}>
+              <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: "700", color: themeColor, letterSpacing: "1.5px", textTransform: "uppercase" }}>การศึกษา</p>
+              {data.education.map((edu, i) => (
+                <div key={edu.id} style={{ marginBottom: i === data.education.length - 1 ? 0 : "14px" }}>
+                  {edu.degree && <p style={{ margin: "0 0 2px", fontWeight: "700", fontSize: "10.5px", color: "#fff", lineHeight: 1.3 }}>{edu.degree}</p>}
+                  {edu.school && <p style={{ margin: "0 0 2px", fontSize: "10px", color: "rgba(255,255,255,0.65)", fontStyle: "italic" }}>{edu.school}</p>}
+                  {edu.period && <p style={{ margin: "0 0 2px", fontSize: "9.5px", color: themeColor, fontWeight: "600" }}>{edu.period}</p>}
+                  {edu.desc   && <p style={{ margin: 0, fontSize: "9.5px", color: "rgba(255,255,255,0.5)", lineHeight: "1.6" }}>{edu.desc}</p>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
-      <div style={{ display: "flex", minHeight: "calc(297mm - 175px)" }}>
-        <div style={{ flex: "1 1 60%", padding: "32px 36px 36px 40px", borderRight: "1px solid #eee" }}>
+      {/* ── RIGHT MAIN CONTENT ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* Accent top bar */}
+        <div style={{ height: "5px", backgroundColor: themeColor, transition: "background-color 0.3s" }} />
+
+        <div style={{ padding: "30px 36px 36px 30px", flex: 1 }}>
           {data.summary && (
             <Section title="เกี่ยวกับฉัน" color={themeColor}>
-              <p style={{ margin: 0, fontSize: "13px", lineHeight: "1.75", color: "#444", ...highlight("summary") }}>{data.summary}</p>
+              <p style={{ margin: 0, fontSize: "12px", lineHeight: "1.75", color: "#444", ...highlight("summary") }}>{data.summary}</p>
             </Section>
           )}
           {data.experience.length > 0 && (
@@ -488,20 +535,6 @@ function ResumeContent({ data, highlightField }) {
               {data.experience.map((exp, i) => (
                 <TimelineItem key={exp.id} title={exp.role} subtitle={exp.org} period={exp.period} desc={exp.desc} color={themeColor} isLast={i === data.experience.length - 1} />
               ))}
-            </Section>
-          )}
-          {data.education.length > 0 && (
-            <Section title="การศึกษา" color={themeColor}>
-              {data.education.map((edu, i) => (
-                <TimelineItem key={edu.id} title={edu.degree} subtitle={edu.school} period={edu.period} desc={edu.desc} color={themeColor} isLast={i === data.education.length - 1} />
-              ))}
-            </Section>
-          )}
-        </div>
-        <div style={{ flex: "0 0 38%", padding: "32px 28px 36px 28px", backgroundColor: "#fafafa" }}>
-          {data.skills.length > 0 && (
-            <Section title="ทักษะความชำนาญ" color={themeColor}>
-              <SkillsDisplay data={data} themeColor={themeColor} />
             </Section>
           )}
         </div>
@@ -549,6 +582,13 @@ const ICON_PHONE = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(25
 const ICON_PIN   = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.8)"><path d="M8 16s6-5.686 6-10A6 6 0 002 6c0 4.314 6 10 6 10zm0-7a3 3 0 110-6 3 3 0 010 6z"/></svg>;
 const ICON_LI    = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.8)"><path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zm4.943 12.248V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248-.822 0-1.359.54-1.359 1.248 0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016l.016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225h2.4z"/></svg>;
 const ICON_WEB   = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.8)"><path d="M0 8a8 8 0 1116 0A8 8 0 010 8zm7.5-6.923c-.67.204-1.335.82-1.887 1.855A7.97 7.97 0 005.145 4H7.5V1.077zM4.09 4a9.267 9.267 0 01.64-1.539 6.7 6.7 0 01.597-.933A7.025 7.025 0 001.97 4h2.12zm-.24 1.5a12.97 12.97 0 00-.087 1.5c0 .527.033 1.023.087 1.5h2.763a14.37 14.37 0 01-.085-1.5c0-.528.033-1.025.085-1.5H3.85zm1.166 4H3.054a7.025 7.025 0 003.86 2.472 6.676 6.676 0 01-.597-.933A9.267 9.267 0 015.016 10zm.133 1.539c.552 1.035 1.218 1.65 1.887 1.855V11.5H5.145a7.97 7.97 0 01-.996-1.461zM8.5 1.077V4h2.354a7.97 7.97 0 00-.367-1.068C9.835 1.897 9.17 1.28 8.5 1.077zM10.91 4a9.267 9.267 0 00-.64-1.539 6.676 6.676 0 00-.597-.933A7.025 7.025 0 0114.03 4h-3.12zm.24 1.5h-2.763a14.37 14.37 0 01.085 1.5c0 .528-.033 1.025-.085 1.5H14.15a12.97 12.97 0 00.087-1.5c0-.527-.033-1.023-.087-1.5zm-1.166 4H12a7.025 7.025 0 01-3.86 2.472 6.7 6.7 0 00.597-.933A9.267 9.267 0 0110.984 10zm-.133 1.539A7.97 7.97 0 0110.855 11H8.5v2.923c.67-.204 1.335-.82 1.887-1.855a7.97 7.97 0 00.464-.529z"/></svg>;
+
+// Icons for dark sidebar backgrounds (same fill, kept separate for clarity)
+const ICON_MAIL_DARK  = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.7)"><path d="M0 4a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H2a2 2 0 01-2-2V4zm2-1a1 1 0 00-1 1v.217l7 4.2 7-4.2V4a1 1 0 00-1-1H2zm13 2.383l-4.758 2.855L15 11.114V5.383zm-.034 6.876l-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 002 13h12a1 1 0 00.966-.741zM1 11.114l4.758-2.876L1 5.383v5.731z"/></svg>;
+const ICON_PHONE_DARK = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.7)"><path d="M3.654 1.328a.678.678 0 00-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 004.168 6.608 17.6 17.6 0 006.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 00-.063-1.015l-2.307-1.794a.678.678 0 00-.58-.122l-2.19.547a1.745 1.745 0 01-1.657-.459L5.482 9.5a1.745 1.745 0 01-.46-1.657l.548-2.19a.678.678 0 00-.122-.58L3.654 1.328z"/></svg>;
+const ICON_PIN_DARK   = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.7)"><path d="M8 16s6-5.686 6-10A6 6 0 002 6c0 4.314 6 10 6 10zm0-7a3 3 0 110-6 3 3 0 010 6z"/></svg>;
+const ICON_LI_DARK    = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.7)"><path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zm4.943 12.248V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248-.822 0-1.359.54-1.359 1.248 0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016l.016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225h2.4z"/></svg>;
+const ICON_WEB_DARK   = <svg width="11" height="11" viewBox="0 0 16 16" fill="rgba(255,255,255,0.7)"><path d="M0 8a8 8 0 1116 0A8 8 0 010 8zm7.5-6.923c-.67.204-1.335.82-1.887 1.855A7.97 7.97 0 005.145 4H7.5V1.077zM4.09 4a9.267 9.267 0 01.64-1.539 6.7 6.7 0 01.597-.933A7.025 7.025 0 001.97 4h2.12zm-.24 1.5a12.97 12.97 0 00-.087 1.5c0 .527.033 1.023.087 1.5h2.763a14.37 14.37 0 01-.085-1.5c0-.528.033-1.025.085-1.5H3.85zm1.166 4H3.054a7.025 7.025 0 003.86 2.472 6.676 6.676 0 01-.597-.933A9.267 9.267 0 015.016 10zm.133 1.539c.552 1.035 1.218 1.65 1.887 1.855V11.5H5.145a7.97 7.97 0 01-.996-1.461zM8.5 1.077V4h2.354a7.97 7.97 0 00-.367-1.068C9.835 1.897 9.17 1.28 8.5 1.077zM10.91 4a9.267 9.267 0 00-.64-1.539 6.676 6.676 0 00-.597-.933A7.025 7.025 0 0114.03 4h-3.12zm.24 1.5h-2.763a14.37 14.37 0 01.085 1.5c0 .528-.033 1.025-.085 1.5H14.15a12.97 12.97 0 00.087-1.5c0-.527-.033-1.023-.087-1.5zm-1.166 4H12a7.025 7.025 0 01-3.86 2.472 6.7 6.7 0 00.597-.933A9.267 9.267 0 0110.984 10zm-.133 1.539A7.97 7.97 0 0110.855 11H8.5v2.923c.67-.204 1.335-.82 1.887-1.855a7.97 7.97 0 00.464-.529z"/></svg>;
 
 function ChipRow({ icon, text, hl = {} }) {
   return (

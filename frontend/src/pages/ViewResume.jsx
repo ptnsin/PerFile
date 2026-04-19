@@ -127,39 +127,66 @@ function SkillsDisplay({ skills, skillDisplayMode, tc, dark = false }) {
 function ClassicTemplate({ data }) {
   const tc = data.themeColor;
   return (
-    <div className="resume-sheet" style={{ backgroundColor: "#fff", display: "flex", flexDirection: "column" }}>
-      <div style={{ backgroundColor: tc, padding: "40px 52px 32px", display: "flex", alignItems: "center", gap: "28px", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", right: -50, top: -50, width: "200px", height: "200px", borderRadius: "50%", background: "rgba(0,0,0,0.08)" }} />
-        <div style={{ width: "96px", height: "96px", borderRadius: "50%", border: "3px solid rgba(255,255,255,0.85)", overflow: "hidden", backgroundColor: "rgba(0,0,0,0.15)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {data.image ? <img src={data.image} alt="p" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <svg width="40" height="40" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="16" r="9" fill="rgba(255,255,255,0.4)" /><path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="rgba(255,255,255,0.4)" /></svg>}
+    <div className="resume-sheet" style={{ backgroundColor: "#fff", display: "flex", flexDirection: "row" }}>
+      {/* LEFT SIDEBAR */}
+      <div style={{ width: "220px", flexShrink: 0, backgroundColor: tc, display: "flex", flexDirection: "column", minHeight: "1123px" }}>
+        {/* Profile */}
+        <div style={{ padding: "36px 20px 24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+          <div style={{ width: "90px", height: "90px", borderRadius: "50%", border: "3px solid rgba(255,255,255,0.85)", overflow: "hidden", backgroundColor: "rgba(0,0,0,0.15)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
+            {data.image ? <img src={data.image} alt="p" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <svg width="40" height="40" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="16" r="9" fill="rgba(255,255,255,0.45)" /><path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="rgba(255,255,255,0.45)" /></svg>}
+          </div>
+          <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#fff", marginBottom: "5px", lineHeight: 1.2 }}>{data.name}</h1>
+          {data.title && <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.82)", fontWeight: 500, letterSpacing: "1.2px", textTransform: "uppercase" }}>{data.title}</p>}
         </div>
-        <div style={{ flex: 1, zIndex: 1 }}>
-          <h1 style={{ fontSize: "30px", fontWeight: 800, color: "#fff", marginBottom: "5px" }}>{data.name}</h1>
-          {data.title && <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)", fontWeight: 500, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "14px" }}>{data.title}</p>}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.25)" }}>
-            {data.email && <ContactChip icon="✉" text={data.email} />}
-            {data.phone && <ContactChip icon="📞" text={data.phone} />}
-            {data.location && <ContactChip icon="📍" text={data.location} />}
-            {data.linkedin && <ContactChip icon="in" text={data.linkedin} />}
-            {data.website && <ContactChip icon="🌐" text={data.website} />}
+        <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.2)" }} />
+        {/* Contact */}
+        <div style={{ padding: "18px 20px" }}>
+          <p style={{ margin: "0 0 10px", fontSize: "9px", fontWeight: 800, color: "rgba(255,255,255,0.55)", letterSpacing: "1.5px", textTransform: "uppercase" }}>ช่องทางติดต่อ</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+            {data.phone    && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.9)" }}>📞 {data.phone}</span>}
+            {data.email    && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.9)", wordBreak: "break-all" }}>✉ {data.email}</span>}
+            {data.location && <span style={{ fontSize: "10.5px", color: "rgba(255,255,255,0.9)" }}>📍 {data.location}</span>}
+            {data.linkedin && <span style={{ fontSize: "10px",   color: "rgba(255,255,255,0.75)", wordBreak: "break-all" }}>in {data.linkedin}</span>}
+            {data.website  && <span style={{ fontSize: "10px",   color: "rgba(255,255,255,0.75)", wordBreak: "break-all" }}>🌐 {data.website}</span>}
           </div>
         </div>
+        {/* Skills */}
+        {data.skills.length > 0 && <>
+          <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.2)" }} />
+          <div style={{ padding: "18px 20px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: "9px", fontWeight: 800, color: "rgba(255,255,255,0.55)", letterSpacing: "1.5px", textTransform: "uppercase" }}>ทักษะ</p>
+            <SkillsDisplay skills={data.skills} skillDisplayMode={data.skillDisplayMode} tc={tc} dark={true} />
+          </div>
+        </>}
+        {/* Education */}
+        {data.education.length > 0 && <>
+          <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.2)" }} />
+          <div style={{ padding: "18px 20px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: "9px", fontWeight: 800, color: "rgba(255,255,255,0.55)", letterSpacing: "1.5px", textTransform: "uppercase" }}>การศึกษา</p>
+            {data.education.map((e, i) => (
+              <div key={i} style={{ marginBottom: i < data.education.length - 1 ? "14px" : 0 }}>
+                {e.degree && <p style={{ fontWeight: 700, fontSize: "10.5px", color: "#fff", marginBottom: "2px", lineHeight: 1.3 }}>{e.degree}</p>}
+                {e.school && <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.75)", marginBottom: "2px" }}>{e.school}</p>}
+                {e.period && <p style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.55)", fontWeight: 600, marginBottom: "2px" }}>{e.period}</p>}
+                {e.desc   && <p style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.6)", lineHeight: "1.6" }}>{e.desc}</p>}
+              </div>
+            ))}
+          </div>
+        </>}
       </div>
-      <div style={{ display: "flex", flex: 1 }}>
-        <div style={{ flex: 1, padding: "30px 36px 36px 52px", borderRight: "1px solid #eee" }}>
+      {/* RIGHT MAIN */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ height: "6px", backgroundColor: tc, opacity: 0.15 }} />
+        <div style={{ padding: "32px 36px 36px 30px", flex: 1 }}>
           {data.summary && <CSection title="เกี่ยวกับฉัน" tc={tc}><p style={{ fontSize: "12px", color: "#444", lineHeight: "1.85" }}>{data.summary}</p></CSection>}
-          {data.experience.length > 0 && <CSection title="ประสบการณ์ทำงาน" tc={tc}>{data.experience.map((e, i) => <CItem key={i} title={e.role} sub={e.org} period={e.period} desc={e.desc} tc={tc} isLast={i === data.experience.length-1} />)}</CSection>}
-          {data.education.length > 0 && <CSection title="การศึกษา" tc={tc}>{data.education.map((e, i) => <CItem key={i} title={e.degree} sub={e.school} period={e.period} desc={e.desc} tc={tc} isLast={i === data.education.length-1} />)}</CSection>}
-        </div>
-        <div style={{ width: "220px", flexShrink: 0, padding: "30px 28px 36px", backgroundColor: "#f8f8f8" }}>
-          {data.skills.length > 0 && <CSection title="ทักษะ" tc={tc}><SkillsDisplay skills={data.skills} skillDisplayMode={data.skillDisplayMode} tc={tc} /></CSection>}
+          {data.experience.length > 0 && <CSection title="ประสบการณ์ทำงาน" tc={tc}>{data.experience.map((e, i) => <CItem key={i} title={e.role} sub={e.org} period={e.period} desc={e.desc} tc={tc} isLast={i === data.experience.length - 1} />)}</CSection>}
         </div>
       </div>
     </div>
   );
 }
 function CSection({ title, tc, children }) {
-  return <div style={{ marginBottom: "24px" }}><div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "13px" }}><div style={{ width: "3px", height: "15px", backgroundColor: tc, borderRadius: "2px" }} /><h2 style={{ fontSize: "10.5px", fontWeight: 700, color: "#1a1a1a", letterSpacing: "1.4px", textTransform: "uppercase" }}>{title}</h2><div style={{ flex: 1, height: "1px", backgroundColor: "#e4e4e4" }} /></div>{children}</div>;
+  return <div style={{ marginBottom: "24px" }}><div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "13px" }}><div style={{ width: "3px", height: "15px", backgroundColor: tc, borderRadius: "2px", flexShrink: 0 }} /><h2 style={{ fontSize: "10.5px", fontWeight: 700, color: "#1a1a1a", letterSpacing: "1.4px", textTransform: "uppercase" }}>{title}</h2><div style={{ flex: 1, height: "1px", backgroundColor: "#e4e4e4" }} /></div>{children}</div>;
 }
 function CItem({ title, sub, period, desc, tc, isLast }) {
   return (
@@ -171,7 +198,7 @@ function CItem({ title, sub, period, desc, tc, isLast }) {
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
           <span style={{ fontSize: "13px", fontWeight: 700, color: "#111" }}>{title || "—"}</span>
-          {period && <span style={{ fontSize: "11px", color: "#888" }}>{period}</span>}
+          {period && <span style={{ fontSize: "11px", color: "#888", flexShrink: 0, marginLeft: "8px" }}>{period}</span>}
         </div>
         {sub && <p style={{ fontSize: "12px", color: "#555", marginBottom: "4px" }}>{sub}</p>}
         {desc && <p style={{ fontSize: "11.5px", color: "#666", lineHeight: "1.7" }}>{desc}</p>}
@@ -184,38 +211,71 @@ function CItem({ title, sub, period, desc, tc, isLast }) {
 function ModernTemplate({ data }) {
   const tc = data.themeColor;
   return (
-    <div className="resume-sheet" style={{ backgroundColor: "#fff", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "28px", padding: "36px 52px 28px", borderBottom: `3px solid ${tc}` }}>
-        <div style={{ width: "110px", height: "110px", borderRadius: "50%", border: `3px solid ${tc}`, overflow: "hidden", backgroundColor: "#f5f5f5", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {data.image ? <img src={data.image} alt="p" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <svg width="46" height="46" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="16" r="9" fill="#ccc" /><path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="#ccc" /></svg>}
+    <div className="resume-sheet" style={{ backgroundColor: "#fff", display: "flex", flexDirection: "row" }}>
+      {/* LEFT SIDEBAR */}
+      <div style={{ width: "210px", flexShrink: 0, backgroundColor: "#1a1a2e", display: "flex", flexDirection: "column", minHeight: "1123px" }}>
+        {/* Profile */}
+        <div style={{ padding: "36px 20px 24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+          <div style={{ width: "90px", height: "90px", borderRadius: "50%", border: `3px solid ${tc}`, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.06)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
+            {data.image ? <img src={data.image} alt="p" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <svg width="40" height="40" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="16" r="9" fill="rgba(255,255,255,0.3)" /><path d="M4 38c0-9.39 7.61-17 17-17s17 7.61 17 17" fill="rgba(255,255,255,0.3)" /></svg>}
+          </div>
+          <h1 style={{ fontSize: "15px", fontWeight: 800, color: "#fff", marginBottom: "5px", lineHeight: 1.25 }}>{data.name}</h1>
+          {data.title && <p style={{ fontSize: "9.5px", color: tc, fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase" }}>{data.title}</p>}
         </div>
-        <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#111", marginBottom: "5px" }}>{data.name}</h1>
-          {data.title && <p style={{ fontSize: "16px", fontWeight: 600, color: tc, marginBottom: "6px" }}>{data.title}</p>}
-          {data.location && <p style={{ fontSize: "12px", color: "#777" }}>📍 {data.location}</p>}
+        <div style={{ margin: "0 20px", height: "2px", backgroundColor: tc, borderRadius: "1px", opacity: 0.6 }} />
+        {/* Contact */}
+        <div style={{ padding: "18px 20px" }}>
+          <p style={{ margin: "0 0 10px", fontSize: "8.5px", fontWeight: 800, color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>ติดต่อ</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+            {data.phone    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)" }}>📞 {data.phone}</span>}
+            {data.email    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", wordBreak: "break-all" }}>✉ {data.email}</span>}
+            {data.location && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)" }}>📍 {data.location}</span>}
+            {data.linkedin && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", wordBreak: "break-all" }}>in {data.linkedin}</span>}
+            {data.website  && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", wordBreak: "break-all" }}>🌐 {data.website}</span>}
+          </div>
         </div>
+        {/* Skills */}
+        {data.skills.length > 0 && <>
+          <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+          <div style={{ padding: "18px 20px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: 800, color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>ทักษะ</p>
+            <SkillsDisplay skills={data.skills} skillDisplayMode={data.skillDisplayMode} tc={tc} dark={true} />
+          </div>
+        </>}
+        {/* Education */}
+        {data.education.length > 0 && <>
+          <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+          <div style={{ padding: "18px 20px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: 800, color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>การศึกษา</p>
+            {data.education.map((e, i) => (
+              <div key={i} style={{ marginBottom: i < data.education.length - 1 ? "14px" : 0 }}>
+                {e.degree && <p style={{ fontWeight: 700, fontSize: "10.5px", color: "#fff", marginBottom: "2px", lineHeight: 1.3 }}>{e.degree}</p>}
+                {e.school && <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.65)", marginBottom: "2px" }}>{e.school}</p>}
+                {e.period && <p style={{ fontSize: "9.5px", color: tc, fontWeight: 600, marginBottom: "2px" }}>{e.period}</p>}
+                {e.desc   && <p style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.5)", lineHeight: "1.6" }}>{e.desc}</p>}
+              </div>
+            ))}
+          </div>
+        </>}
       </div>
-      <div style={{ display: "flex", flex: 1 }}>
-        <div style={{ width: "220px", flexShrink: 0, padding: "28px 24px 28px 52px", borderRight: "1px solid #e8e8e8" }}>
-          {data.education.length > 0 && <MSection title="การศึกษา" tc={tc}>{data.education.map((e, i) => <div key={i} style={{ marginBottom: i < data.education.length-1 ? "14px" : 0 }}>{e.degree && <p style={{ fontWeight: 700, fontSize: "11.5px", color: "#111", marginBottom: "2px" }}>{e.degree}</p>}{e.school && <p style={{ fontSize: "11px", color: "#555", marginBottom: "2px" }}>{e.school}</p>}{e.period && <p style={{ fontSize: "10.5px", color: tc, fontWeight: 600 }}>{e.period}</p>}{e.desc && <p style={{ fontSize: "10.5px", color: "#777", marginTop: "4px", lineHeight: "1.6" }}>{e.desc}</p>}</div>)}</MSection>}
-          {data.skills.length > 0 && <MSection title="ทักษะ" tc={tc}><SkillsDisplay skills={data.skills} skillDisplayMode={data.skillDisplayMode} tc={tc} /></MSection>}
-          {(data.email || data.phone || data.linkedin || data.website) && <MSection title="ช่องทางติดต่อ" tc={tc}>
-            {data.phone && <p style={{ fontSize: "11px", color: "#444", marginBottom: "4px" }}>📞 {data.phone}</p>}
-            {data.email && <p style={{ fontSize: "11px", color: "#444", marginBottom: "4px" }}>✉ {data.email}</p>}
-            {data.linkedin && <p style={{ fontSize: "11px", color: "#444", marginBottom: "4px" }}>in {data.linkedin}</p>}
-            {data.website && <p style={{ fontSize: "11px", color: "#444" }}>🌐 {data.website}</p>}
+      {/* RIGHT MAIN */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ height: "5px", backgroundColor: tc }} />
+        <div style={{ padding: "28px 36px 36px 28px", flex: 1 }}>
+          {data.summary && <MSection title="ข้อมูลโดยย่อ" tc={tc}><p style={{ fontSize: "11.5px", color: "#444", lineHeight: "1.85" }}>{data.summary}</p></MSection>}
+          {data.experience.length > 0 && <MSection title="ประสบการณ์การทำงาน" tc={tc}>
+            {data.experience.map((e, i) => (
+              <div key={i} style={{ marginBottom: i < data.experience.length - 1 ? "18px" : 0, paddingBottom: i < data.experience.length - 1 ? "18px" : 0, borderBottom: i < data.experience.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "3px" }}>
+                  <p style={{ fontWeight: 700, fontSize: "12.5px", color: "#111", margin: 0 }}>{e.role || "—"}</p>
+                  {e.period && <span style={{ fontSize: "10px", color: tc, fontWeight: 700, backgroundColor: `${tc}15`, padding: "2px 8px", borderRadius: "10px", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "8px" }}>{e.period}</span>}
+                </div>
+                {e.org  && <p style={{ fontSize: "11px", color: "#666", fontStyle: "italic", marginBottom: "5px" }}>{e.org}</p>}
+                {e.desc && <p style={{ fontSize: "11px", color: "#555", lineHeight: "1.75" }}>{e.desc}</p>}
+              </div>
+            ))}
           </MSection>}
         </div>
-        <div style={{ flex: 1, padding: "28px 52px 28px 28px" }}>
-          {data.summary && <MSection title="ข้อมูลโดยย่อ" tc={tc}><p style={{ fontSize: "12px", color: "#444", lineHeight: "1.85" }}>{data.summary}</p></MSection>}
-          {data.experience.length > 0 && <MSection title="ประสบการณ์การทำงาน" tc={tc}>{data.experience.map((e, i) => <div key={i} style={{ marginBottom: i < data.experience.length-1 ? "18px" : 0 }}><p style={{ fontWeight: 700, fontSize: "12.5px", color: "#111", marginBottom: "1px" }}>{e.role || "—"}</p>{e.period && <p style={{ fontWeight: 700, fontSize: "11.5px", color: tc, marginBottom: "1px" }}>{e.period}</p>}{e.org && <p style={{ fontWeight: 600, fontSize: "11.5px", color: "#333", marginBottom: "5px" }}>{e.org}</p>}{e.desc && <p style={{ fontSize: "11.5px", color: "#555", lineHeight: "1.75" }}>{e.desc}</p>}</div>)}</MSection>}
-        </div>
-      </div>
-      <div style={{ backgroundColor: tc, padding: "12px 52px", display: "flex", flexWrap: "wrap", gap: "8px 24px", alignItems: "center" }}>
-        <span style={{ fontSize: "11px", color: "#fff", fontWeight: 700, border: "1px solid rgba(255,255,255,0.6)", borderRadius: "20px", padding: "2px 12px" }}>ติดต่อ</span>
-        {data.phone && <span style={{ fontSize: "11px", color: "#fff" }}>{data.phone}</span>}
-        {data.email && <span style={{ fontSize: "11px", color: "#fff" }}>{data.email}</span>}
-        {data.location && <span style={{ fontSize: "11px", color: "#fff" }}>{data.location}</span>}
       </div>
     </div>
   );
@@ -228,29 +288,56 @@ function MSection({ title, tc, children }) {
 function ProfessionalTemplate({ data }) {
   const tc = data.themeColor;
   return (
-    <div className="resume-sheet" style={{ backgroundColor: "#fff" }}>
-      <div style={{ backgroundColor: tc, padding: "36px 52px 28px", display: "flex", alignItems: "center", gap: "28px" }}>
-        {data.image && <div style={{ width: "110px", height: "110px", borderRadius: "50%", border: "4px solid rgba(255,255,255,0.9)", overflow: "hidden", flexShrink: 0 }}><img src={data.image} alt="p" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
-        <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#fff", marginBottom: "6px" }}>{data.name}</h1>
-          {data.title && <p style={{ fontSize: "15px", color: "rgba(255,255,255,0.88)", fontStyle: "italic", marginBottom: "14px" }}>{data.title}</p>}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
-            {data.email && <ContactChip icon="✉" text={data.email} />}
-            {data.phone && <ContactChip icon="📞" text={data.phone} />}
-            {data.location && <ContactChip icon="📍" text={data.location} />}
-            {data.linkedin && <ContactChip icon="in" text={data.linkedin} />}
-            {data.website && <ContactChip icon="🌐" text={data.website} />}
+    <div className="resume-sheet" style={{ backgroundColor: "#fff", display: "flex", flexDirection: "row" }}>
+      {/* LEFT SIDEBAR */}
+      <div style={{ width: "215px", flexShrink: 0, backgroundColor: "#2c2c3e", display: "flex", flexDirection: "column", minHeight: "1123px" }}>
+        {/* Profile header with theme color */}
+        <div style={{ backgroundColor: tc, padding: "36px 20px 28px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+          {data.image && <div style={{ width: "90px", height: "90px", borderRadius: "50%", border: "4px solid rgba(255,255,255,0.9)", overflow: "hidden", marginBottom: "14px", boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}><img src={data.image} alt="p" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
+          <h1 style={{ fontSize: "16px", fontWeight: 700, color: "#fff", marginBottom: "6px", letterSpacing: "0.3px" }}>{data.name}</h1>
+          {data.title && <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.88)", fontStyle: "italic" }}>{data.title}</p>}
+        </div>
+        {/* Contact */}
+        <div style={{ padding: "20px 20px 16px" }}>
+          <p style={{ margin: "0 0 10px", fontSize: "8.5px", fontWeight: 700, color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>ข้อมูลติดต่อ</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+            {data.email    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", wordBreak: "break-all" }}>✉ {data.email}</span>}
+            {data.phone    && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)" }}>📞 {data.phone}</span>}
+            {data.location && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)" }}>📍 {data.location}</span>}
+            {data.linkedin && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", wordBreak: "break-all" }}>in {data.linkedin}</span>}
+            {data.website  && <span style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.65)", wordBreak: "break-all" }}>🌐 {data.website}</span>}
           </div>
         </div>
+        {/* Skills */}
+        {data.skills.length > 0 && <>
+          <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+          <div style={{ padding: "16px 20px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: 700, color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>ทักษะความชำนาญ</p>
+            <SkillsDisplay skills={data.skills} skillDisplayMode={data.skillDisplayMode} tc={tc} dark={true} />
+          </div>
+        </>}
+        {/* Education */}
+        {data.education.length > 0 && <>
+          <div style={{ margin: "0 20px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+          <div style={{ padding: "16px 20px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: "8.5px", fontWeight: 700, color: tc, letterSpacing: "1.5px", textTransform: "uppercase" }}>การศึกษา</p>
+            {data.education.map((e, i) => (
+              <div key={i} style={{ marginBottom: i < data.education.length - 1 ? "14px" : 0 }}>
+                {e.degree && <p style={{ fontWeight: 700, fontSize: "10.5px", color: "#fff", marginBottom: "2px", lineHeight: 1.3 }}>{e.degree}</p>}
+                {e.school && <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.65)", fontStyle: "italic", marginBottom: "2px" }}>{e.school}</p>}
+                {e.period && <p style={{ fontSize: "9.5px", color: tc, fontWeight: 600, marginBottom: "2px" }}>{e.period}</p>}
+                {e.desc   && <p style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.5)", lineHeight: "1.6" }}>{e.desc}</p>}
+              </div>
+            ))}
+          </div>
+        </>}
       </div>
-      <div style={{ display: "flex" }}>
-        <div style={{ flex: "1 1 60%", padding: "32px 36px 36px 52px", borderRight: "1px solid #eee" }}>
-          {data.summary && <PSection title="เกี่ยวกับฉัน" color={tc}><p style={{ fontSize: "13px", color: "#444", lineHeight: "1.75" }}>{data.summary}</p></PSection>}
-          {data.experience.length > 0 && <PSection title="ประสบการณ์ทำงาน" color={tc}>{data.experience.map((e, i) => <PItem key={i} title={e.role} sub={e.org} period={e.period} desc={e.desc} tc={tc} isLast={i === data.experience.length-1} />)}</PSection>}
-          {data.education.length > 0 && <PSection title="การศึกษา" color={tc}>{data.education.map((e, i) => <PItem key={i} title={e.degree} sub={e.school} period={e.period} desc={e.desc} tc={tc} isLast={i === data.education.length-1} />)}</PSection>}
-        </div>
-        <div style={{ flex: "0 0 38%", padding: "32px 28px 36px", backgroundColor: "#fafafa" }}>
-          {data.skills.length > 0 && <PSection title="ทักษะความชำนาญ" color={tc}><SkillsDisplay skills={data.skills} skillDisplayMode={data.skillDisplayMode} tc={tc} /></PSection>}
+      {/* RIGHT MAIN */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ height: "5px", backgroundColor: tc }} />
+        <div style={{ padding: "30px 36px 36px 30px", flex: 1 }}>
+          {data.summary && <PSection title="เกี่ยวกับฉัน" color={tc}><p style={{ fontSize: "12px", color: "#444", lineHeight: "1.75" }}>{data.summary}</p></PSection>}
+          {data.experience.length > 0 && <PSection title="ประสบการณ์ทำงาน" color={tc}>{data.experience.map((e, i) => <PItem key={i} title={e.role} sub={e.org} period={e.period} desc={e.desc} tc={tc} isLast={i === data.experience.length - 1} />)}</PSection>}
         </div>
       </div>
     </div>
