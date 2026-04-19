@@ -2,17 +2,9 @@ import { Router } from "express";
 import db from "../config/db.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { requireRole } from '../middleware/requireRole.js'
+import { notifyAdmins } from "./adminRouter.js"; // ✅ เพิ่มบรรทัดนี้ (ปรับ path ให้ตรงกับโปรเจกต์)
 
 const resumeRouter = Router();
-
-// base path: "/resumes"
-
-/**
- * @swagger
- * tags:
- *   name: Resumes
- *   description: API สำหรับจัดการ Resume
- */
 
 resumeRouter.get("/public", async (req, res) => {
   try {
@@ -39,9 +31,6 @@ resumeRouter.get("/public", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /resumes/my
-// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.get("/my", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -56,16 +45,13 @@ resumeRouter.get("/my", authMiddleware, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /resumes — สร้าง resume ใหม่
-// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.post("/", authMiddleware, async (req, res) => {
   try {
     const { 
       title, template, themeColor, visibility,
       name, jobTitle, email, phone, location, linkedin, website,
       summary, experience, education, skills,
-      image_url  // ← รับ URL รูปภาพที่ได้จาก /files/upload
+      image_url
     } = req.body;
     const userId = req.user.id;
 
@@ -89,8 +75,15 @@ resumeRouter.post("/", authMiddleware, async (req, res) => {
         JSON.stringify(experience || []),
         JSON.stringify(education || []),
         JSON.stringify(skills || []),
-        image_url || null  // ← บันทึก URL รูปภาพ
+        image_url || null
       ]
+    );
+
+    // ✅ แจ้งเตือน Admin ทุกคนเมื่อมีการสร้าง Resume ใหม่
+    await notifyAdmins(
+      "NEW_RESUME",
+      "มีการสร้าง Resume ใหม่",
+      `ผู้ใช้ ${req.user.username || req.user.email} ได้สร้าง Resume: "${title || "Untitled Resume"}"`
     );
 
     res.status(201).json({ message: "สร้าง Resume สำเร็จแล้ว!", resumeId: result.insertId });
@@ -100,13 +93,9 @@ resumeRouter.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /resumes/:id
-// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-
     const [rows] = await db.query(
       `SELECT r.*, 
               r.job_title AS jobTitle,
@@ -118,11 +107,9 @@ resumeRouter.get("/:id", async (req, res) => {
        WHERE r.id = ?`,
       [id]
     );
-
     if (rows.length === 0) {
       return res.status(404).json({ message: "ไม่พบเรซูเม่" });
     }
-
     res.status(200).json({ resume: rows[0] });
   } catch (err) {
     console.error("Get Resume Error:", err.message);
@@ -130,9 +117,6 @@ resumeRouter.get("/:id", async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PUT /resumes/:id — แก้ไข resume
-// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.put("/:id", authMiddleware, async (req, res) => {
   try {
     const resumeId = req.params.id;
@@ -140,14 +124,13 @@ resumeRouter.put("/:id", authMiddleware, async (req, res) => {
     const { 
       title, template, themeColor, visibility, 
       summary, experience, education, skills,
-      image_url  // ← รับ URL รูปภาพที่อัปเดต
+      image_url
     } = req.body;
 
     const [resumeRows] = await db.query(
       "SELECT id FROM resumes WHERE id = ? AND user_id = ?",
       [resumeId, userId]
     );
-
     if (resumeRows.length === 0) {
       return res.status(404).json({ message: "ไม่พบ Resume หรือคุณไม่มีสิทธิ์แก้ไข" });
     }
@@ -159,11 +142,10 @@ resumeRouter.put("/:id", authMiddleware, async (req, res) => {
       [
         title, template, themeColor, visibility, summary, 
         JSON.stringify(experience), JSON.stringify(education), JSON.stringify(skills),
-        image_url || null,  // ← อัปเดต URL รูปภาพ
+        image_url || null,
         resumeId
       ]
     );
-
     res.status(200).json({ message: "Resume updated successfully" });
   } catch (err) {
     console.error("Update Resume Error:", err.message);
@@ -171,23 +153,17 @@ resumeRouter.put("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DELETE /resumes/:id
-// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const resumeId = req.params.id;
     const userId = req.user.id;
-
     const [resumeRows] = await db.query(
       "SELECT id FROM resumes WHERE id = ? AND user_id = ?",
       [resumeId, userId]
     );
-
     if (resumeRows.length === 0) {
       return res.status(404).json({ message: "ไม่พบ Resume ที่ต้องการลบ" });
     }
-
     await db.query("DELETE FROM resumes WHERE id = ?", [resumeId]);
     res.status(200).json({ message: "Resume deleted successfully" });
   } catch (err) {
@@ -195,41 +171,30 @@ resumeRouter.delete("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /resumes/:id/visibility
-// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.patch("/:id/visibility", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { visibility } = req.body;
     const userId = req.user.id;
-
     const [result] = await db.query(
       "UPDATE resumes SET visibility = ? WHERE id = ? AND user_id = ?",
       [visibility, id, userId]
     );
-
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "ไม่พบเรซูเม่หรือไม่มีสิทธิ์แก้ไข" });
     }
-
     res.json({ message: `เปลี่ยนสถานะเป็น ${visibility} สำเร็จ` });
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /resumes/:id/export
-// ─────────────────────────────────────────────────────────────────────────────
 resumeRouter.get("/:id/export", async (req, res) => {
   const { id } = req.params;
   const { format } = req.query;
-
   if (format === "link") {
     return res.json({ url: `http://localhost:5173/view-resume/${id}` });
   }
-  
   res.json({ message: "การดาวน์โหลด PDF ให้ใช้ฟังก์ชัน window.print() ที่หน้าบ้านครับ" });
 });
 
