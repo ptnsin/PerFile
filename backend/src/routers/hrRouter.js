@@ -993,12 +993,30 @@ hrRouter.get('/interviews', async (req, res) => {
 // POST /hr/interviews — สร้างนัดสัมภาษณ์ใหม่
 hrRouter.post('/interviews', async (req, res) => {
   try {
-    const { candidate_name, job_id, job_title, interview_date, interview_time, interview_type, interviewer } = req.body;
+    const {
+      candidate_name, job_id, job_title,
+      interview_date, interview_time, interview_type,
+      interviewer, applicant_id, location, note
+    } = req.body;
+
     await prisma.$executeRaw`
-      INSERT INTO interviews (hr_id, job_id, candidate_name, job_title, interview_date, interview_time, interview_type, interviewer)
-      VALUES (${Number(req.user.id)}, ${job_id || null}, ${candidate_name}, ${job_title || ''}, ${interview_date}, ${interview_time}, ${interview_type || 'Online'}, ${interviewer || ''})
+      INSERT INTO interviews (hr_id, job_id, candidate_name, job_title, interview_date, interview_time, interview_type, interviewer, applicant_id, location, note)
+      VALUES (
+        ${Number(req.user.id)},
+        ${job_id || null},
+        ${candidate_name},
+        ${job_title || ''},
+        ${interview_date},
+        ${interview_time},
+        ${interview_type || 'Online'},
+        ${interviewer || ''},
+        ${applicant_id ? Number(applicant_id) : null},
+        ${location || ''},
+        ${note || ''}
+      )
     `;
 
+    // บันทึก activity
     await prisma.hr_activities.create({
       data: {
         hr_id: Number(req.user.id),
@@ -1006,10 +1024,90 @@ hrRouter.post('/interviews', async (req, res) => {
       }
     });
 
+    // ส่ง notification ให้ผู้สมัคร (ถ้ามี applicant_id)
+    if (applicant_id) {
+      try {
+        await prisma.notifications.create({
+          data: {
+            user_id: Number(applicant_id),
+            type: 'interview',
+            message: `คุณได้รับการนัดสัมภาษณ์ในวันที่ ${interview_date} เวลา ${interview_time} (${interview_type || 'Online'})`,
+            is_read: false,
+          }
+        });
+      } catch (notifErr) {
+        console.error('Notification error (non-fatal):', notifErr.message);
+      }
+    }
+
     res.status(201).json({ message: "สร้างนัดสัมภาษณ์สำเร็จ" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error creating interview" });
+  }
+});
+
+// PUT /hr/interviews/:id — แก้ไขนัดสัมภาษณ์
+hrRouter.put('/interviews/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const {
+      candidate_name, job_title,
+      interview_date, interview_time,
+      interview_type, interviewer,
+      location, note
+    } = req.body;
+
+    const [existing] = await db.query(
+      'SELECT id FROM interviews WHERE id = ? AND hr_id = ?',
+      [id, Number(req.user.id)]
+    );
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "ไม่พบนัดสัมภาษณ์นี้" });
+    }
+
+    await db.query(
+      `UPDATE interviews SET
+        candidate_name = ?, job_title = ?,
+        interview_date = ?, interview_time = ?,
+        interview_type = ?, interviewer = ?,
+        location = ?, note = ?
+       WHERE id = ? AND hr_id = ?`,
+      [
+        candidate_name, job_title || '',
+        interview_date, interview_time,
+        interview_type || 'Online', interviewer || '',
+        location || '', note || '',
+        id, Number(req.user.id)
+      ]
+    );
+
+    res.json({ message: "แก้ไขนัดสัมภาษณ์สำเร็จ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error updating interview" });
+  }
+});
+
+// DELETE /hr/interviews/:id — ลบนัดสัมภาษณ์
+hrRouter.delete('/interviews/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const [existing] = await db.query(
+      'SELECT id FROM interviews WHERE id = ? AND hr_id = ?',
+      [id, Number(req.user.id)]
+    );
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "ไม่พบนัดสัมภาษณ์นี้" });
+    }
+
+    await db.query('DELETE FROM interviews WHERE id = ? AND hr_id = ?', [id, Number(req.user.id)]);
+
+    res.json({ message: "ลบนัดสัมภาษณ์สำเร็จ" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error deleting interview" });
   }
 });
 

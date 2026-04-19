@@ -884,7 +884,7 @@ const STATUS_CONFIG = {
   "ไม่ผ่าน":       { bg: "#fef2f2",  text: "#be123c",  active: "#be123c" },
 };
 
-function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs }) {
+function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onInterviewScheduled }) {
   // กรองตาม job ถ้ามี filterJobId
   const baseData = filterJobId
     ? applicants.filter(a => String(a.jobId ?? a.job_id) === String(filterJobId))
@@ -897,6 +897,18 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs }) {
   const [search, setSearch]             = useState("");
   const [activeStatus, setActiveStatus] = useState("ทั้งหมด");
   const [sortBy, setSortBy]             = useState("latest");
+  const [ivModal, setIvModal]           = useState(false);
+  const [ivPrefill, setIvPrefill]       = useState(null);
+
+  const openSchedule = (a) => {
+    setIvPrefill({
+      name:         a.name,
+      role:         a.role,
+      userId:       a.userId || a.user_id || a.id,
+      applicant_id: a.userId || a.user_id || a.id,
+    });
+    setIvModal(true);
+  };
 
   const statuses = ["ทั้งหมด", ...Object.keys(STATUS_CONFIG).filter(k => k !== "ทั้งหมด")];
   const statusCounts = statuses.reduce((acc, s) => {
@@ -918,6 +930,13 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs }) {
 
   return (
     <div className="hr-card">
+      <InterviewModal
+        open={ivModal}
+        onClose={() => { setIvModal(false); setIvPrefill(null); }}
+        onSaved={() => { onInterviewScheduled?.(); }}
+        prefill={ivPrefill}
+        applicants={applicants}
+      />
       {/* Header */}
       <div className="hr-card-header">
         <div className="hr-card-title">📋 ผู้สมัครทั้งหมด</div>
@@ -1036,6 +1055,11 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs }) {
               <span className="hr-job-dept" style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{a.status}</span>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 <button className="hr-reopen-btn">📄 Resume</button>
+                <button
+                  className="hr-reopen-btn"
+                  onClick={() => openSchedule(a)}
+                  style={{ background:"#eff6ff", color:"#1d4ed8", borderColor:"#bfdbfe", fontWeight:700 }}
+                >📅 นัด</button>
                 <button className="hr-apply-btn">ดูโปรไฟล์ →</button>
               </div>
             </div>
@@ -1046,42 +1070,440 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs }) {
   );
 }
 
-// ── Interview View ────────────────────────────────────────────
-function InterviewView({ interviews }) {
+// ── Interview Modal ───────────────────────────────────────────
+function InterviewModal({ open, onClose, onSaved, prefill = null, editData = null, applicants = [] }) {
+  const isEdit = !!editData;
+  const [form, setForm] = useState({
+    candidate_name: "",
+    job_title:      "",
+    interview_date: "",
+    interview_time: "",
+    interview_type: "Online",
+    interviewer:    "",
+    location:       "",
+    note:           "",
+    applicant_id:   "",
+  });
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState("");
+  const [search,  setSearch]  = useState("");
+  const [showDrop, setShowDrop] = useState(false);
+
+  // รายชื่อผู้สมัครที่กรองตาม search
+  const filteredApplicants = applicants.filter(a => {
+    const q = search.toLowerCase();
+    return !q || a.name.toLowerCase().includes(q) || (a.role || "").toLowerCase().includes(q);
+  });
+
+  const selectApplicant = (a) => {
+    setForm(f => ({
+      ...f,
+      candidate_name: a.name,
+      job_title:      a.role || f.job_title,
+      applicant_id:   a.userId || a.user_id || a.id || "",
+    }));
+    setSearch(a.name);
+    setShowDrop(false);
+  };
+
+  useEffect(() => {
+    if (open) {
+      if (isEdit && editData) {
+        setForm({
+          candidate_name: editData.candidate    || editData.candidate_name || "",
+          job_title:      editData.role         || editData.job_title      || "",
+          interview_date: editData.interview_date
+            ? new Date(editData.interview_date).toISOString().split("T")[0]
+            : "",
+          interview_time: editData.interview_time || editData.time || "",
+          interview_type: editData.interview_type || editData.type || "Online",
+          interviewer:    editData.interviewer   || "",
+          location:       editData.location      || "",
+          note:           editData.note          || "",
+          applicant_id:   editData.applicant_id  || "",
+        });
+        setSearch(editData.candidate || editData.candidate_name || "");
+      } else if (prefill) {
+        setForm(f => ({
+          ...f,
+          candidate_name: prefill.name || "",
+          job_title:      prefill.role || "",
+          applicant_id:   prefill.userId || prefill.applicant_id || "",
+        }));
+        setSearch(prefill.name || "");
+      } else {
+        setForm({ candidate_name:"", job_title:"", interview_date:"", interview_time:"", interview_type:"Online", interviewer:"", location:"", note:"", applicant_id:"" });
+        setSearch("");
+      }
+      setError("");
+      setShowDrop(false);
+    }
+  }, [open, editData, prefill]);
+
+  if (!open) return null;
+
+  const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async () => {
+    if (!form.candidate_name.trim()) return setError("กรุณาเลือกผู้สมัคร");
+    if (!form.interview_date)        return setError("กรุณาเลือกวันที่สัมภาษณ์");
+    if (!form.interview_time)        return setError("กรุณาเลือกเวลาสัมภาษณ์");
+
+    setSaving(true);
+    setError("");
+    try {
+      const token  = localStorage.getItem("token");
+      const url    = isEdit
+        ? `http://localhost:3000/hr/interviews/${editData.id}`
+        : `http://localhost:3000/hr/interviews`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        return setError(d.message || "เกิดข้อผิดพลาด");
+      }
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const Field = ({ label, name, type = "text", children }) => (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 5 }}>{label}</label>
+      {children || (
+        <input
+          name={name} type={type} value={form[name]}
+          onChange={handleChange}
+          style={{
+            width: "100%", padding: "9px 12px", borderRadius: 10,
+            border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none",
+            fontFamily: "inherit", boxSizing: "border-box",
+            transition: "border-color 0.15s",
+          }}
+          onFocus={e => e.target.style.borderColor = "#3b82f6"}
+          onBlur={e  => e.target.style.borderColor = "#e5e7eb"}
+        />
+      )}
+    </div>
+  );
+
   return (
-    <div className="hr-card">
-      <div className="hr-card-header">
-        <div className="hr-card-title">📅 ตารางสัมภาษณ์</div>
-        <button className="hr-card-action">+ นัดสัมภาษณ์</button>
-      </div>
-      <div className="hr-jobs-list">
-        {interviews.length === 0
-          ? <EmptySlot icon="📅" text="รอข้อมูลตารางสัมภาษณ์จาก Backend" />
-          : interviews.map(iv => (
-            <div key={iv.id} className="hr-job-card">
-              <div className="hr-job-top">
-                <div className="hr-job-title-wrap">
-                  <div className="hr-job-title">{iv.candidate}</div>
-                  <span className="hr-job-dept" style={{ background: "#eff6ff", color: "#1d4ed8" }}>{iv.type}</span>
-                </div>
-                <span className="hr-urgent-badge" style={{ background: "#f0fdf4", color: "#15803d" }}>📅 {iv.date} · {iv.time}</span>
+    <>
+      <style>{`@keyframes iv-modal-up { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }`}</style>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:800, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(3px)" }} />
+      {/* Modal */}
+      <div style={{ position:"fixed", inset:0, zIndex:801, display:"flex", alignItems:"center", justifyContent:"center", padding:16, pointerEvents:"none" }}>
+        <div onClick={e => e.stopPropagation()} style={{
+          background:"#fff", borderRadius:20, width:"100%", maxWidth:500,
+          maxHeight:"90vh", overflowY:"auto", pointerEvents:"all",
+          boxShadow:"0 24px 60px rgba(0,0,0,0.2)",
+          animation:"iv-modal-up 0.22s cubic-bezier(.4,0,.2,1)",
+        }}>
+          {/* Header */}
+          <div style={{
+            background:"linear-gradient(135deg,#1e3a8a,#3b82f6)",
+            borderRadius:"20px 20px 0 0", padding:"20px 24px",
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+          }}>
+            <div>
+              <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>
+                {isEdit ? "✏️ แก้ไขนัดสัมภาษณ์" : "📅 นัดสัมภาษณ์ใหม่"}
               </div>
-              <div className="hr-job-meta">
-                <span className="hr-job-meta-item">💼 {iv.role}</span>
-                <span className="hr-job-meta-item">👤 {iv.interviewer}</span>
-              </div>
-              <div className="hr-job-footer">
-                <div />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="hr-reopen-btn">✏️ แก้ไข</button>
-                  <button className="hr-apply-btn">เข้าร่วม →</button>
+              {form.candidate_name && !isEdit && (
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.75)", marginTop:2 }}>
+                  สำหรับ: {form.candidate_name}
                 </div>
+              )}
+            </div>
+            <button onClick={onClose} style={{
+              background:"rgba(255,255,255,0.2)", border:"1.5px solid rgba(255,255,255,0.3)",
+              borderRadius:"50%", width:30, height:30, cursor:"pointer",
+              display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:14,
+            }}>✕</button>
+          </div>
+
+          {/* Body */}
+          <div style={{ padding:"22px 24px 24px" }}>
+
+            {/* ── Applicant Dropdown Search ── */}
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:5 }}>
+                เลือกผู้สมัคร *
+              </label>
+              <div style={{ position:"relative" }}>
+                <div style={{ position:"relative" }}>
+                  <span style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", fontSize:14, pointerEvents:"none" }}>🔍</span>
+                  <input
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setShowDrop(true); setForm(f => ({ ...f, candidate_name: e.target.value, applicant_id: "" })); }}
+                    onFocus={() => setShowDrop(true)}
+                    placeholder="ค้นหาชื่อผู้สมัคร..."
+                    style={{
+                      width:"100%", padding:"9px 12px 9px 34px", borderRadius:10,
+                      border: form.applicant_id ? "1.5px solid #3b82f6" : "1.5px solid #e5e7eb",
+                      fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box",
+                      background: form.applicant_id ? "#eff6ff" : "#fff",
+                    }}
+                  />
+                  {form.applicant_id && (
+                    <span style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>✅</span>
+                  )}
+                </div>
+
+                {/* Dropdown list */}
+                {showDrop && (
+                  <>
+                    <div onClick={() => setShowDrop(false)} style={{ position:"fixed", inset:0, zIndex:1 }} />
+                    <div style={{
+                      position:"absolute", top:"calc(100% + 4px)", left:0, right:0, zIndex:2,
+                      background:"#fff", borderRadius:12, border:"1.5px solid #e5e7eb",
+                      boxShadow:"0 8px 24px rgba(0,0,0,0.12)", maxHeight:200, overflowY:"auto",
+                    }}>
+                      {filteredApplicants.length === 0 ? (
+                        <div style={{ padding:"14px 16px", fontSize:13, color:"#9ca3af", textAlign:"center" }}>
+                          {applicants.length === 0 ? "ยังไม่มีผู้สมัคร" : "ไม่พบผู้สมัครที่ค้นหา"}
+                        </div>
+                      ) : filteredApplicants.map(a => (
+                        <div
+                          key={a.id}
+                          onMouseDown={() => selectApplicant(a)}
+                          style={{
+                            display:"flex", alignItems:"center", gap:10,
+                            padding:"10px 14px", cursor:"pointer",
+                            borderBottom:"1px solid #f4f4f5",
+                            transition:"background 0.1s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background="#f8fafc"}
+                          onMouseLeave={e => e.currentTarget.style.background="transparent"}
+                        >
+                          <div style={{
+                            width:32, height:32, borderRadius:8, flexShrink:0,
+                            background:"linear-gradient(135deg,#3b82f6,#6366f1)",
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            color:"#fff", fontSize:13, fontWeight:700,
+                          }}>{a.avatar || a.name?.[0]?.toUpperCase()}</div>
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:"#111827" }}>{a.name}</div>
+                            <div style={{ fontSize:11, color:"#9ca3af" }}>💼 {a.role}</div>
+                          </div>
+                          <span style={{
+                            marginLeft:"auto", fontSize:10, fontWeight:600,
+                            padding:"2px 8px", borderRadius:6,
+                            background:"#f0fdf4", color:"#15803d",
+                          }}>เลือก</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          ))
-        }
+
+            <Field label="ตำแหน่งงาน" name="job_title" />
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+              <div>
+                <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:5 }}>วันที่สัมภาษณ์ *</label>
+                <input name="interview_date" type="date" value={form.interview_date} onChange={handleChange}
+                  style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:"1.5px solid #e5e7eb", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+                  onFocus={e => e.target.style.borderColor="#3b82f6"}
+                  onBlur={e  => e.target.style.borderColor="#e5e7eb"}
+                />
+              </div>
+              <div>
+                <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:5 }}>เวลา *</label>
+                <input name="interview_time" type="time" value={form.interview_time} onChange={handleChange}
+                  style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:"1.5px solid #e5e7eb", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
+                  onFocus={e => e.target.style.borderColor="#3b82f6"}
+                  onBlur={e  => e.target.style.borderColor="#e5e7eb"}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:5 }}>รูปแบบการสัมภาษณ์</label>
+              <div style={{ display:"flex", gap:8 }}>
+                {["Online","Onsite","Phone"].map(t => (
+                  <button key={t} onClick={() => setForm(f => ({ ...f, interview_type:t }))} style={{
+                    flex:1, padding:"8px 0", borderRadius:10, fontSize:12, fontWeight:600, cursor:"pointer",
+                    border: form.interview_type===t ? "2px solid #3b82f6" : "1.5px solid #e5e7eb",
+                    background: form.interview_type===t ? "#eff6ff" : "#fff",
+                    color: form.interview_type===t ? "#1d4ed8" : "#6b7280",
+                    transition:"all 0.15s",
+                  }}>{t==="Online"?"🌐 Online":t==="Onsite"?"🏢 Onsite":"📞 Phone"}</button>
+                ))}
+              </div>
+            </div>
+
+            <Field label="ผู้สัมภาษณ์" name="interviewer" />
+            <Field label={form.interview_type === "Online" ? "ลิงก์ประชุม (Zoom/Meet)" : "สถานที่"} name="location" />
+            <Field label="หมายเหตุ" name="note">
+              <textarea name="note" value={form.note} onChange={handleChange} rows={2}
+                style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:"1.5px solid #e5e7eb", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", resize:"vertical" }}
+                onFocus={e => e.target.style.borderColor="#3b82f6"}
+                onBlur={e  => e.target.style.borderColor="#e5e7eb"}
+              />
+            </Field>
+
+            {error && (
+              <div style={{ background:"#fef2f2", border:"1.5px solid #fca5a5", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#dc2626", marginBottom:14 }}>
+                ⚠️ {error}
+              </div>
+            )}
+
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={onClose} style={{
+                flex:1, padding:"11px 0", borderRadius:12, border:"1.5px solid #e5e7eb",
+                background:"#fff", color:"#374151", fontWeight:600, fontSize:14, cursor:"pointer",
+              }}>ยกเลิก</button>
+              <button onClick={handleSubmit} disabled={saving} style={{
+                flex:2, padding:"11px 0", borderRadius:12, border:"none",
+                background: saving ? "#93c5fd" : "linear-gradient(135deg,#1e3a8a,#3b82f6)",
+                color:"#fff", fontWeight:700, fontSize:14, cursor: saving ? "not-allowed" : "pointer",
+                transition:"opacity 0.15s",
+              }}>
+                {saving ? "⏳ กำลังบันทึก..." : isEdit ? "✅ บันทึกการแก้ไข" : "📅 ยืนยันนัดสัมภาษณ์"}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+// ── Interview View ────────────────────────────────────────────
+function InterviewView({ interviews, onRefresh, applicants = [] }) {
+  const [showModal, setShowModal]   = useState(false);
+  const [editData,  setEditData]    = useState(null);
+  const [deleting,  setDeleting]    = useState(null);
+  const [filter,    setFilter]      = useState("all"); // all | upcoming | past
+
+  const now = new Date();
+  const filtered = interviews.filter(iv => {
+    if (filter === "all") return true;
+    const d = new Date(iv.interview_date || iv.date || "");
+    if (filter === "upcoming") return d >= now;
+    if (filter === "past")     return d < now;
+    return true;
+  });
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("ต้องการลบนัดสัมภาษณ์นี้?")) return;
+    setDeleting(id);
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`http://localhost:3000/hr/interviews/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      onRefresh?.();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const TYPE_COLORS = {
+    Online:  { bg:"#eff6ff", color:"#1d4ed8" },
+    Onsite:  { bg:"#f0fdf4", color:"#15803d" },
+    Phone:   { bg:"#fdf4ff", color:"#7e22ce" },
+  };
+
+  return (
+    <>
+      <InterviewModal
+        open={showModal}
+        onClose={() => { setShowModal(false); setEditData(null); }}
+        onSaved={() => { onRefresh?.(); }}
+        editData={editData}
+        applicants={applicants}
+      />
+
+      <div className="hr-card">
+        <div className="hr-card-header">
+          <div className="hr-card-title">📅 ตารางสัมภาษณ์</div>
+          <button className="hr-card-action" onClick={() => { setEditData(null); setShowModal(true); }}>
+            + นัดสัมภาษณ์
+          </button>
+        </div>
+
+        {/* Filter pills */}
+        <div style={{ display:"flex", gap:8, padding:"0 20px 14px", flexWrap:"wrap" }}>
+          {[
+            { key:"all",      label:`ทั้งหมด (${interviews.length})` },
+            { key:"upcoming", label:"📌 ที่จะมาถึง" },
+            { key:"past",     label:"✅ ผ่านไปแล้ว" },
+          ].map(f => (
+            <button key={f.key} onClick={() => setFilter(f.key)} style={{
+              padding:"5px 14px", borderRadius:99, fontSize:12, fontWeight:600, cursor:"pointer",
+              background: filter===f.key ? "#1e3a8a" : "#f4f4f5",
+              color:      filter===f.key ? "#fff"    : "#6b7280",
+              border:     filter===f.key ? "1.5px solid #1e3a8a" : "1.5px solid transparent",
+              transition: "all 0.15s",
+            }}>{f.label}</button>
+          ))}
+        </div>
+
+        <div className="hr-jobs-list">
+          {filtered.length === 0
+            ? <EmptySlot icon="📅" text={interviews.length === 0 ? "ยังไม่มีนัดสัมภาษณ์ กด + เพื่อเพิ่ม" : "ไม่มีรายการในช่วงเวลานี้"} />
+            : filtered.map(iv => {
+              const tc = TYPE_COLORS[iv.type] || TYPE_COLORS.Online;
+              const isPast = new Date(iv.interview_date || iv.date || "") < now;
+              return (
+                <div key={iv.id} className="hr-job-card" style={{ opacity: isPast ? 0.7 : 1 }}>
+                  <div className="hr-job-top">
+                    <div className="hr-job-title-wrap">
+                      <div className="hr-job-title">{iv.candidate}</div>
+                      <span className="hr-job-dept" style={{ background:tc.bg, color:tc.color }}>{iv.type}</span>
+                      {isPast && <span style={{ fontSize:11, background:"#f4f4f5", color:"#9ca3af", borderRadius:6, padding:"2px 8px", fontWeight:600 }}>เสร็จสิ้น</span>}
+                    </div>
+                    <span className="hr-urgent-badge" style={{ background:"#f0fdf4", color:"#15803d" }}>
+                      📅 {iv.date} · {iv.time}
+                    </span>
+                  </div>
+                  <div className="hr-job-meta">
+                    <span className="hr-job-meta-item">💼 {iv.role}</span>
+                    {iv.interviewer && <span className="hr-job-meta-item">👤 {iv.interviewer}</span>}
+                    {iv.location    && <span className="hr-job-meta-item">📍 {iv.location}</span>}
+                  </div>
+                  {iv.note && (
+                    <div style={{ padding:"6px 0 2px", fontSize:12, color:"#6b7280" }}>📝 {iv.note}</div>
+                  )}
+                  <div className="hr-job-footer">
+                    <div />
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button
+                        className="hr-reopen-btn"
+                        onClick={() => { setEditData(iv); setShowModal(true); }}
+                      >✏️ แก้ไข</button>
+                      <button
+                        className="hr-reopen-btn"
+                        disabled={deleting === iv.id}
+                        onClick={() => handleDelete(iv.id)}
+                        style={{ color:"#ef4444", borderColor:"#fca5a5" }}
+                      >{deleting===iv.id ? "⏳" : "🗑 ลบ"}</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1336,8 +1758,8 @@ export default function HRProfile() {
   const renderMain = () => {
     switch (activePage) {
       case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} applicants={applicants} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} shortlist={shortlist} setShortlist={setShortlist} initialTab={navScrollTo === "saved" ? "saved" : "jobs"} />;
-      case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} />;
-      case "interviews": return <InterviewView interviews={interviews} />;
+      case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} onInterviewScheduled={() => getInterviews().then(setInterviews)} />;
+      case "interviews": return <InterviewView interviews={interviews} onRefresh={() => { getInterviews().then(setInterviews); getStats().then(setStats); }} applicants={applicants} />;
       case "report":     return <ReportView reportData={reportData} />;
       case "open":       return <OpenJobsView openJobs={openJobs} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} />;
       case "closed":     return <ClosedJobsView closedJobs={closedJobs} onViewDetail={setSelectedJob} onReopen={handleReopenJob} />;
