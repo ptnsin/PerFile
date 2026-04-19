@@ -9,7 +9,7 @@ import {
 import { FiHome } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
 import JobDetailModal from "./JobDetailModal"; // ✅ เพิ่ม import
-import { useNotifications } from "../styles/useNotifications";
+import { useNotifications } from "./useNotifications";
 import NotificationDropdown from "./NotificationDropdown";
 
 export default function AdminDashboard() {
