@@ -990,7 +990,6 @@ export default function ResumeBuilder() {
   const [showA4Preview, setShowA4Preview] = useState(false);
   const [emailError, setEmailError] = useState("");
   const navigate = useNavigate();
-  const { publish } = useResumes();
 
   const set = (key, val) => setData(d => ({ ...d, [key]: val }));
 
@@ -1072,6 +1071,54 @@ export default function ResumeBuilder() {
       console.error("Save Error:", error);
       setSavedToast(false);
       alert("บันทึกไม่สำเร็จ");
+    }
+  };
+
+  const handlePublish = async () => {
+    try {
+      const payload = {
+        title: data.name ? data.name + " - Resume" : "My Resume",
+        template: data.template,
+        themeColor: data.themeColor || "#d4af37",
+        image_url: data.image,
+        visibility: "public",
+        name: data.name,
+        jobTitle: data.title,
+        email: data.email,
+        phone: data.phone,
+        location: data.location,
+        linkedin: data.linkedin,
+        website: data.website,
+        summary: data.summary,
+        experience: data.experience.map((exp) => ({
+          role: exp.role,
+          org: exp.org,
+          period: exp.period,
+          desc: exp.desc,
+        })),
+        education: data.education.map((edu) => ({
+          degree: edu.degree,
+          school: edu.school,
+          period: edu.period,
+          desc: edu.desc,
+        })),
+        skills: {
+          displayMode: data.skillDisplayMode,
+          list: data.skills,
+        },
+      };
+
+      const response = await axios.post("http://localhost:3000/resumes", payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      if (response.status === 201) {
+        alert("✅ โพสต์ Resume สาธารณะสำเร็จ!");
+        navigate("/feed");
+      }
+    } catch (error) {
+      console.error("Publish Error:", error);
+      alert("โพสต์ไม่สำเร็จ กรุณาลองใหม่");
     }
   };
 
@@ -1419,7 +1466,7 @@ export default function ResumeBuilder() {
             <button
               className="btn-download"
               style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
-              onClick={() => { publish(data); navigate("/feed"); }}
+              onClick={handlePublish}
             >
               🌐 โพสต์สาธารณะ → Feed
             </button>
