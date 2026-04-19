@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import prisma from '../config/prisma.js'
+import db from '../config/db.js'
 import { verifyJWT } from '../middleware/verifyJWT.js'
 import { requireRole } from '../middleware/requireRole.js'
 import { checkAccountStatus } from '../middleware/checkAccountStatus.js'
@@ -247,23 +248,21 @@ hrRouter.post('/shortlist', async (req, res) => {
       return res.status(400).json({ message: 'กรุณาระบุ resumeId' })
     }
 
-    // ตรวจว่ามีใน saved_resumes แล้วหรือยัง
-    const existing = await prisma.saved_resumes.findFirst({
-      where: { resume_id: Number(resumeId), seeker_id: req.user.id }
-    })
+    const [existing] = await db.query(
+      'SELECT id FROM saved_resumes WHERE resume_id = ? AND seeker_id = ?',
+      [Number(resumeId), Number(req.user.id)]
+    )
 
-    if (existing) {
-      return res.status(409).json({ message: 'resume นี้อยู่ใน shortlist แล้ว', id: existing.id })
+    if (existing.length > 0) {
+      return res.status(409).json({ message: 'resume นี้อยู่ใน shortlist แล้ว', id: existing[0].id })
     }
 
-    const created = await prisma.saved_resumes.create({
-      data: {
-        resume_id : Number(resumeId),
-        seeker_id : req.user.id,
-      }
-    })
+    const [result] = await db.query(
+      'INSERT INTO saved_resumes (resume_id, seeker_id) VALUES (?, ?)',
+      [Number(resumeId), Number(req.user.id)]
+    )
 
-    return res.status(201).json({ message: 'บันทึก shortlist สำเร็จ', id: created.id })
+    return res.status(201).json({ message: 'บันทึก shortlist สำเร็จ', id: result.insertId })
 
   } catch (err) {
     console.error('Shortlist create error:', err.message)
@@ -312,34 +311,44 @@ hrRouter.post('/shortlist', async (req, res) => {
 hrRouter.get('/shortlist', async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query
+    const offset = (parseInt(page) - 1) * parseInt(limit)
 
-    const skip = (parseInt(page) - 1) * parseInt(limit)
+    const [rows] = await db.query(
+      `SELECT
+        sr.id        AS id,
+        sr.resume_id AS resumeId,
+        r.title      AS resume_title,
+        r.visibility,
+        u.id         AS user_id,
+        u.fullName,
+        u.avatar,
+        u.username
+      FROM saved_resumes sr
+      JOIN resumes r ON sr.resume_id = r.id
+      JOIN users u   ON r.user_id   = u.id
+      WHERE sr.seeker_id = ?
+      ORDER BY sr.id DESC
+      LIMIT ? OFFSET ?`,
+      [Number(req.user.id), parseInt(limit), offset]
+    )
 
-    const shortlist = await prisma.saved_resumes.findMany({
-      where  : { seeker_id: req.user.id },
-      skip,
-      take   : parseInt(limit),
-      include: {
-        resume: {
-          include: {
-            users: {
-              select: { id: true, fullName: true, avatar: true, username: true }
-            }
-          }
+    const shortlist = rows.map(r => ({
+      id       : r.id,
+      resumeId : r.resumeId,
+      resume   : {
+        id         : r.resumeId,
+        title      : r.resume_title,
+        visibility : r.visibility,
+        users      : {
+          id       : r.user_id,
+          fullName : r.fullName,
+          avatar   : r.avatar,
+          username : r.username,
         }
-      },
-      orderBy: { created_at: 'desc' },
-    })
-
-    // map ให้ตรงกับที่ frontend คาดหวัง
-    const mapped = shortlist.map(s => ({
-      id        : s.id,
-      resumeId  : s.resume_id,
-      createdAt : s.created_at,
-      resume    : s.resume,
+      }
     }))
 
-    return res.status(200).json({ shortlist: mapped })
+    return res.status(200).json({ shortlist })
 
   } catch (err) {
     console.error('Shortlist get error:', err.message)
@@ -383,15 +392,16 @@ hrRouter.delete('/shortlist/:id', async (req, res) => {
   try {
     const { id } = req.params
 
-    const item = await prisma.saved_resumes.findFirst({
-      where: { id: Number(id), seeker_id: req.user.id }
-    })
+    const [existing] = await db.query(
+      'SELECT id FROM saved_resumes WHERE id = ? AND seeker_id = ?',
+      [Number(id), Number(req.user.id)]
+    )
 
-    if (!item) {
+    if (existing.length === 0) {
       return res.status(404).json({ message: 'ไม่พบรายการนี้ใน shortlist' })
     }
 
-    await prisma.saved_resumes.delete({ where: { id: Number(id) } })
+    await db.query('DELETE FROM saved_resumes WHERE id = ?', [Number(id)])
 
     return res.status(200).json({ message: 'ลบออกจาก shortlist สำเร็จ' })
 
@@ -812,14 +822,14 @@ hrRouter.delete('/jobs/:id', async (req, res) => {
 // ⚠️ ต้องสร้างตาราง saved_jobs ก่อน (ดู comment SQL ด้านบน)
 hrRouter.get('/saved-jobs', async (req, res) => {
   try {
-    const saved = await prisma.saved_jobs.findMany({
-      where: { hr_id: Number(req.user.id) },
-      include: { job: true },
-      orderBy: { created_at: 'desc' }
-    });
-
-    const savedJobs = saved.map(s => s.job);
-    res.json({ savedJobs });
+    const [rows] = await db.query(
+      `SELECT j.* FROM saved_jobs sj
+       JOIN Job j ON sj.job_id = j.id
+       WHERE sj.seeker_id = ?
+       ORDER BY sj.id DESC`,
+      [Number(req.user.id)]
+    );
+    res.json({ savedJobs: rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error fetching saved jobs" });
@@ -832,17 +842,19 @@ hrRouter.post('/saved-jobs/:id', async (req, res) => {
     const jobId = Number(req.params.id);
     const hrId  = Number(req.user.id);
 
-    const job = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!job) return res.status(404).json({ message: "ไม่พบประกาศงานนี้" });
+    const [jobRows] = await db.query('SELECT id FROM Job WHERE id = ?', [jobId]);
+    if (jobRows.length === 0) return res.status(404).json({ message: "ไม่พบประกาศงานนี้" });
 
-    const existing = await prisma.saved_jobs.findFirst({
-      where: { hr_id: hrId, job_id: jobId }
-    });
-    if (existing) return res.status(409).json({ message: "บันทึกไว้แล้ว" });
+    const [existing] = await db.query(
+      'SELECT id FROM saved_jobs WHERE seeker_id = ? AND job_id = ?',
+      [hrId, jobId]
+    );
+    if (existing.length > 0) return res.status(409).json({ message: "บันทึกไว้แล้ว" });
 
-    await prisma.saved_jobs.create({
-      data: { hr_id: hrId, job_id: jobId }
-    });
+    await db.query(
+      'INSERT INTO saved_jobs (seeker_id, job_id) VALUES (?, ?)',
+      [hrId, jobId]
+    );
 
     res.status(201).json({ message: "บันทึกงานสำเร็จ" });
   } catch (err) {
@@ -857,9 +869,10 @@ hrRouter.delete('/saved-jobs/:id', async (req, res) => {
     const jobId = Number(req.params.id);
     const hrId  = Number(req.user.id);
 
-    await prisma.saved_jobs.deleteMany({
-      where: { hr_id: hrId, job_id: jobId }
-    });
+    await db.query(
+      'DELETE FROM saved_jobs WHERE seeker_id = ? AND job_id = ?',
+      [hrId, jobId]
+    );
 
     res.json({ message: "ยกเลิก save สำเร็จ" });
   } catch (err) {

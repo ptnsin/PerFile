@@ -427,8 +427,8 @@ function ClosedJobCard({ job, onViewDetail, onReopen }) {
 }
 
 // ── Profile View ──────────────────────────────────────────────
-function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, applicants = [], newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen, shortlist = [], setShortlist }) {
-  const [activeTab, setActiveTab] = useState("jobs");
+function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, applicants = [], newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen, shortlist = [], setShortlist, initialTab = "jobs" }) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const navigate = useNavigate();
 
   // ใน ProfileView
@@ -577,7 +577,7 @@ const updateHr = (key) => (val) => {
       </div>
 
       {/* Job Postings */}
-      <div className="hr-card">
+      <div id="shortlist-section" className="hr-card">
         <div className="hr-card-header">
           <div className="hr-tab-bar">
             {TABS.map(t => (
@@ -1286,16 +1286,21 @@ export default function HRProfile() {
     }
   };
 
-  // ถ้า navigate มาพร้อม scrollTo: "applicants" ให้เปิดหน้าผู้สมัครทันที
-  const navToPage    = location.state?.scrollTo === "applicants" ? "applicants" : null;
+  const navScrollTo  = location.state?.scrollTo ?? null;   // "applicants" | "saved" | null
   const navFilterJob = location.state?.filterJobId ?? null;
-  
-  // ถ้า navigate มาพร้อม scrollTo: "applicants" ให้เปิดหน้าผู้สมัครทันที
+
   useEffect(() => {
-    if (navToPage === "applicants") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (navScrollTo === "applicants") {
       setFilterJobId(navFilterJob);
       setActivePage("applicants");
+      window.history.replaceState({}, document.title);
+    } else if (navScrollTo === "saved") {
+      setActivePage("profile");
+      // รอให้ ProfileView render เสร็จก่อน แล้ว scroll ไปที่ shortlist-section
+      setTimeout(() => {
+        const el = document.getElementById("shortlist-section");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 400);
       window.history.replaceState({}, document.title);
     }
   }, []); // eslint-disable-line
@@ -1330,7 +1335,7 @@ export default function HRProfile() {
 
   const renderMain = () => {
     switch (activePage) {
-      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} applicants={applicants} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} shortlist={shortlist} setShortlist={setShortlist} />;
+      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} applicants={applicants} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} shortlist={shortlist} setShortlist={setShortlist} initialTab={navScrollTo === "saved" ? "saved" : "jobs"} />;
       case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} />;
       case "interviews": return <InterviewView interviews={interviews} />;
       case "report":     return <ReportView reportData={reportData} />;
