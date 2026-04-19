@@ -7,7 +7,8 @@ import {
   LuBadgeCheck, LuClock, LuMapPin, LuBadgeMinus, LuUser
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
-import JobDetailModal from "./JobDetailModal";
+import SeekerJobModal from "./SeekerJobModal";
+import HRPopupModal from "./HRPopupModal";
 
 import "../styles/UsersFeed.css";
 
@@ -31,6 +32,8 @@ export default function UsersFeed() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [profilePopup, setProfilePopup] = useState(null);
+  const [hrPopup, setHrPopup] = useState(null);
+
 
   // Saved resumes (stored in localStorage for persistence)
   const [savedResumes, setSavedResumes] = useState(() => {
@@ -637,8 +640,9 @@ export default function UsersFeed() {
                         <option value="">ทั้งหมด</option>
                         <option value="Full-time">Full-time</option>
                         <option value="Part-time">Part-time</option>
-                        <option value="Freelance">Freelance</option>
+                        <option value="Contract">Contract</option>
                         <option value="Internship">Internship</option>
+                        <option value="Remote">Remote</option>
                       </select>
                       <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 4 }}>สถานที่ทำงาน</label>
                       <input
@@ -734,6 +738,11 @@ export default function UsersFeed() {
                           key={job.id}
                           job={{ ...job, company_name: job.users?.hr_profile?.company }}
                           onClick={() => handleOpenJobDetail(job)}
+                          onCompanyClick={(e) => {
+                            e.stopPropagation();
+                            const hrId = job.hrId || job.users?.id;
+                            if (hrId) setHrPopup(hrId);
+                          }}
                           isSaved={savedJobs.includes(job.id)}
                           onSave={(e) => { e.stopPropagation(); toggleSaveJob(job.id); }}
                         />
@@ -765,12 +774,20 @@ export default function UsersFeed() {
         />
       )}
 
-      <JobDetailModal
+      <SeekerJobModal
         open={isModalOpen}
         job={selectedJob}
         onClose={handleCloseModal}
-        onViewApplicants={() => { }}
+        isSaved={savedJobs.includes(selectedJob?.id)}
+        onToggleSave={() => toggleSaveJob(selectedJob?.id)}
       />
+
+      {hrPopup && (
+        <HRPopupModal
+          userId={hrPopup}
+          onClose={() => setHrPopup(null)}
+        />
+      )}
     </div>
   );
 }
@@ -996,7 +1013,7 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
   );
 }
 
-function JobCard({ job, onClick, isSaved, onSave }) {
+function JobCard({ job, onClick, onCompanyClick, isSaved, onSave }) {
   const [hovered, setHovered] = useState(false);
 
   const company = job.company_name || job.users?.hr_profile?.company;
@@ -1100,12 +1117,16 @@ function JobCard({ job, onClick, isSaved, onSave }) {
       <div style={{ padding: "10px 2px 12px" }}>
 
         {/* Company row */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          marginBottom: 6, padding: "5px 7px", borderRadius: 8,
-          background: hovered ? "#f0f4ff" : "transparent",
-          transition: "background 0.15s",
-        }}>
+        <div
+          onClick={onCompanyClick}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            marginBottom: 6, padding: "5px 7px", borderRadius: 8,
+            cursor: "pointer",
+            transition: "background 0.15s",
+            background: hovered ? "#f0f4ff" : "transparent",
+          }}
+        >
           <div style={{
             width: 28, height: 28, borderRadius: "50%",
             background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
@@ -1115,13 +1136,10 @@ function JobCard({ job, onClick, isSaved, onSave }) {
           }}>
             {companyInitial}
           </div>
-          <span style={{
-            fontSize: 14, fontWeight: 700, color: "#1e3a8a",
-            flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#1e3a8a", flex: 1 }}>
             {company || "ไม่ระบุบริษัท"}
           </span>
-          <LuBriefcase size={12} style={{ color: "#93c5fd", flexShrink: 0 }} />
+          <LuBriefcase size={12} style={{ color: "#93c5fd" }} />
         </div>
 
         {/* Job title */}

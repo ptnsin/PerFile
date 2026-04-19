@@ -13,19 +13,37 @@ const profileRouter = Router()
 // GET /profile/stats
 profileRouter.get('/stats', authMiddleware, async (req, res) => {
   try {
-    const [profileRows] = await db.query(
-      'SELECT views FROM seeker_profiles WHERE user_id = ?',
-      [req.user.id]
-    );
-    const [resumeRows] = await db.query(
-      'SELECT COUNT(*) as count FROM resumes WHERE user_id = ?',
-      [req.user.id]
-    );
+    const userId = req.user.id;
+
+    // ดึงข้อมูลทั้งหมดพร้อมกัน
+    const [[profileRow], [resumeRow], [skillRow], [expRow], [userRow]] = await Promise.all([
+      db.query('SELECT views, bio, location, portfolio, github, linkedin, avatar FROM seeker_profiles WHERE user_id = ?', [userId]),
+      db.query('SELECT COUNT(*) as count FROM resumes WHERE user_id = ?', [userId]),
+      db.query('SELECT COUNT(*) as count FROM user_skills WHERE user_id = ?', [userId]),
+      db.query('SELECT COUNT(*) as count FROM user_experiences WHERE user_id = ?', [userId]),
+      db.query('SELECT avatar, fullName FROM users WHERE id = ?', [userId]),
+    ]);
+
+    const p = profileRow[0] || {};
+    const avatar = p.avatar || userRow[0]?.avatar;
+
+    // คำนวณ Profile Score
+    let score = 0;
+    if (avatar)           score += 20;  // รูปโปรไฟล์
+    if (p.bio)            score += 20;  // bio
+    if (p.location)       score += 10;  // location
+    if (p.portfolio)      score += 10;  // portfolio
+    if (p.github)         score += 10;  // github
+    if (p.linkedin)       score += 10;  // linkedin
+    if (skillRow[0]?.count > 0)  score += 10;  // มี skill
+    if (expRow[0]?.count > 0)    score += 10;  // มี experience
+
     res.json({
-      views: profileRows[0]?.views || 0,
-      resumes: resumeRows[0]?.count || 0,
-      saved: 0,
-      jobs_posted: 0
+      views:            profileRow[0]?.views || 0,
+      resumes:          resumeRow[0]?.count  || 0,
+      profile_score:    score,
+      interview_count:  0,
+      shortlisted_count: 0,
     });
   } catch (err) {
     console.error('GET stats error:', err.message);
@@ -238,6 +256,37 @@ profileRouter.get('/public/:userId', async (req, res) => {
       user: userRows[0],
       resumes: resumes
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /profile/hr/:userId — ดึงข้อมูล HR สำหรับ popup
+profileRouter.get('/hr/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const [rows] = await db.query(
+      `SELECT u.id, u.fullName, u.avatar,
+              h.company, h.bio, h.website, h.location,
+              h.industry, h.company_size, h.founded, h.role
+       FROM users u
+       LEFT JOIN hr_profiles h ON u.id = h.user_id
+       WHERE u.id = ?`,
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "ไม่พบ HR" });
+    }
+
+    // ดึงจำนวนงานที่ประกาศอยู่
+    const [[jobCount]] = await db.query(
+      'SELECT COUNT(*) as count FROM Job WHERE hrId = ? AND status = "เปิดรับสมัคร"',
+      [userId]
+    );
+
+    res.json({ hr: rows[0], activeJobs: jobCount.count });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

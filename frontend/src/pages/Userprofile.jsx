@@ -20,9 +20,9 @@ const COVER_KEY  = "userprofile_cover";
 
 const DEFAULT_PROFILE = {
   displayName: "",
-  bio: "Frontend Developer & UI/UX Designer ที่ชอบสร้างประสบการณ์ที่สวยงามและใช้งานได้จริง 🚀",
-  location: "Bangkok, Thailand",
-  portfolio: "portfolio.dev",
+  bio: "",
+  location: "",
+  portfolio: "",
   email: "",
   github: "",
   linkedin: "",
