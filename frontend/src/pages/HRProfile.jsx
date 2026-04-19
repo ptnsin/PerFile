@@ -93,18 +93,30 @@ async function getClosedJobs() {
 async function getStats() {
   try {
     const token = localStorage.getItem("token");
-    const res = await fetch("http://localhost:3000/hr/jobs", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const allJobs = data.jobs || [];
-    
+
+    // ดึงข้อมูลงานและผู้สมัครพร้อมกัน
+    const [jobsRes, applicantsRes, interviewsRes] = await Promise.all([
+      fetch("http://localhost:3000/hr/jobs",        { headers: { Authorization: `Bearer ${token}` } }),
+      fetch("http://localhost:3000/hr/applicants",  { headers: { Authorization: `Bearer ${token}` } }),
+      fetch("http://localhost:3000/hr/interviews",  { headers: { Authorization: `Bearer ${token}` } }),
+    ]);
+
+    const allJobs        = jobsRes.ok        ? ((await jobsRes.json()).jobs        || []) : [];
+    const allApplicants  = applicantsRes.ok  ? ((await applicantsRes.json()).applicants || []) : [];
+    const allInterviews  = interviewsRes.ok  ? ((await interviewsRes.json()).interviews || []) : [];
+
+    // นับสัมภาษณ์เดือนนี้
+    const now = new Date();
+    const interviewsThisMonth = allInterviews.filter(iv => {
+      const d = new Date(iv.interview_date || iv.date || "");
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+
     return [
       { num: allJobs.filter(j => j.status === "เปิดรับสมัคร").length, label: "ตำแหน่งเปิดรับ" },
-      { num: "340", label: "ผู้สมัครทั้งหมด" }, // ส่วนนี้ถ้ายังไม่มี API ให้ใส่เลขหลอกไว้ก่อน
-      { num: "28", label: "สัมภาษณ์เดือนนี้" },
-      { num: "94%", label: "อัตราตอบรับ" },
+      { num: allApplicants.length,    label: "ผู้สมัครทั้งหมด" },
+      { num: interviewsThisMonth,     label: "สัมภาษณ์เดือนนี้" },
+      { num: "94%",                   label: "อัตราตอบรับ" },
     ];
   } catch (err) {
     console.error(err);
@@ -415,7 +427,7 @@ function ClosedJobCard({ job, onViewDetail, onReopen }) {
 }
 
 // ── Profile View ──────────────────────────────────────────────
-function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen, shortlist = [], setShortlist }) {
+function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, applicants = [], newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen, shortlist = [], setShortlist }) {
   const [activeTab, setActiveTab] = useState("jobs");
   const navigate = useNavigate();
 
@@ -581,7 +593,7 @@ const updateHr = (key) => (val) => {
           {activeTab === "jobs" && (
             openJobs.length === 0
               ? <EmptySlot icon="💼" text="รอข้อมูลตำแหน่งงานจาก Backend" />
-              : openJobs.map(job => <JobCard key={job.id} job={job} setActivePage={setActivePage} onViewDetail={onViewDetail} goToApplicants={goToApplicants} />)
+              : openJobs.map(job => <JobCard key={job.id} job={{ ...job, applicants: applicants.filter(a => a.jobId === job.id || a.job_id === job.id).length || job.applicants || 0 }} setActivePage={setActivePage} onViewDetail={onViewDetail} goToApplicants={goToApplicants} />)
           )}
           {activeTab === "closed" && (
             <div className="hr-closed-list">
@@ -1318,7 +1330,7 @@ export default function HRProfile() {
 
   const renderMain = () => {
     switch (activePage) {
-      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} shortlist={shortlist} setShortlist={setShortlist} />;
+      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} applicants={applicants} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} shortlist={shortlist} setShortlist={setShortlist} />;
       case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} />;
       case "interviews": return <InterviewView interviews={interviews} />;
       case "report":     return <ReportView reportData={reportData} />;

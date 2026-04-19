@@ -22,14 +22,22 @@ export default function HrFeed() {
   const [publicResumes, setPublicResumes] = useState([]);
   const [resumeLoading, setResumeLoading] = useState(false);
   // key = String(resumeId), value = shortlistId (เพื่อใช้ตอน unsave)
+  const [applicants, setApplicants]         = useState([]);
+  const [interviews, setInterviews]         = useState([]);
   const [savedResumeMap, setSavedResumeMap] = useState({});
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
+  const now = new Date();
+  const interviewsThisMonth = interviews.filter(iv => {
+    const d = new Date(iv.interview_date || iv.date || "");
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+
   const STATS = [
     { num: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString(), label: "ตำแหน่งเปิดรับ" },
-    { num: "100", label: "ผู้สมัครทั้งหมด" },
-    { num: "28", label: "สัมภาษณ์เดือนนี้" },
+    { num: applicants.length.toString(),   label: "ผู้สมัครทั้งหมด" },
+    { num: interviewsThisMonth.toString(), label: "สัมภาษณ์เดือนนี้" },
     { num: "94%", label: "อัตราตอบรับ" },
   ];
 
@@ -172,6 +180,46 @@ useEffect(() => {
     }
   };
   fetchShortlist();
+}, []);
+
+/* ── Fetch Applicants ── */
+useEffect(() => {
+  const fetchApplicants = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/applicants", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setApplicants(data.applicants || []);
+      }
+    } catch (err) {
+      console.error("Fetch applicants error:", err);
+    }
+  };
+  fetchApplicants();
+}, []);
+
+/* ── Fetch Interviews ── */
+useEffect(() => {
+  const fetchInterviews = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/interviews", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInterviews(data.interviews || []);
+      }
+    } catch (err) {
+      console.error("Fetch interviews error:", err);
+    }
+  };
+  fetchInterviews();
 }, []);
 
 const handleUpdateStatus = async (jobId, newStatus) => {
