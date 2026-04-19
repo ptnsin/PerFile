@@ -453,8 +453,18 @@ const handleUpdateStatus = async (jobId, newStatus) => {
           </button>
 
           <div className="hrf-section-label">Recent Applicants</div>
-          <div className="hrf-sub-item">Wasin Most</div>
-          <div className="hrf-sub-item">Supaji Wongpa</div>
+          {[...applicants]
+            .sort((a, b) => new Date(b.applied_at || b.createdAt || 0) - new Date(a.applied_at || a.createdAt || 0))
+            .slice(0, 5)
+            .map((ap, i) => (
+              <div key={ap.id ?? i} className="hrf-sub-item">
+                {ap.fullName || ap.full_name || ap.users?.fullName || ap.name || "ไม่ระบุชื่อ"}
+              </div>
+            ))
+          }
+          {applicants.length === 0 && (
+            <div className="hrf-sub-item" style={{ color: "#9ca3af", fontSize: 12 }}>ยังไม่มีผู้สมัคร</div>
+          )}
         </aside>
 
         {/* ─── MAIN ─── */}
