@@ -17,8 +17,9 @@ resumeRouter.get("/public", async (req, res) => {
         r.created_at AS published_at,
         JSON_OBJECT(
           'id',       u.id,
-          'fullName', u.fullName,
-          'avatar',   u.avatar
+          'fullName', COALESCE(u.fullName, u.username),
+          'avatar',   u.avatar,
+          'username', u.username
         ) AS users
       FROM resumes r 
       JOIN users u ON r.user_id = u.id 

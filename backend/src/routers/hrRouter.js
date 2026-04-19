@@ -241,30 +241,29 @@ hrRouter.get('/search/filter', async (req, res) => {
  */
 hrRouter.post('/shortlist', async (req, res) => {
   try {
-    const { resumeId, note } = req.body
+    const { resumeId } = req.body
 
     if (!resumeId) {
       return res.status(400).json({ message: 'กรุณาระบุ resumeId' })
     }
 
-    // ตรวจว่ามีใน shortlist แล้วหรือยัง
-    const existing = await prisma.shortlist.findFirst({
-      where: { resumeId, hrId: req.user.id }
+    // ตรวจว่ามีใน saved_resumes แล้วหรือยัง
+    const existing = await prisma.saved_resumes.findFirst({
+      where: { resume_id: Number(resumeId), seeker_id: req.user.id }
     })
 
     if (existing) {
-      return res.status(409).json({ message: 'resume นี้อยู่ใน shortlist แล้ว' })
+      return res.status(409).json({ message: 'resume นี้อยู่ใน shortlist แล้ว', id: existing.id })
     }
 
-    await prisma.shortlist.create({
+    const created = await prisma.saved_resumes.create({
       data: {
-        resumeId,
-        hrId : req.user.id,
-        note : note || '',
+        resume_id : Number(resumeId),
+        seeker_id : req.user.id,
       }
     })
 
-    return res.status(201).json({ message: 'บันทึก shortlist สำเร็จ' })
+    return res.status(201).json({ message: 'บันทึก shortlist สำเร็จ', id: created.id })
 
   } catch (err) {
     console.error('Shortlist create error:', err.message)
@@ -316,15 +315,31 @@ hrRouter.get('/shortlist', async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
 
-    const shortlist = await prisma.shortlist.findMany({
-      where  : { hrId: req.user.id },
+    const shortlist = await prisma.saved_resumes.findMany({
+      where  : { seeker_id: req.user.id },
       skip,
       take   : parseInt(limit),
-      include: { resume: true },
-      orderBy: { createdAt: 'desc' },
+      include: {
+        resume: {
+          include: {
+            users: {
+              select: { id: true, fullName: true, avatar: true, username: true }
+            }
+          }
+        }
+      },
+      orderBy: { created_at: 'desc' },
     })
 
-    return res.status(200).json({ shortlist })
+    // map ให้ตรงกับที่ frontend คาดหวัง
+    const mapped = shortlist.map(s => ({
+      id        : s.id,
+      resumeId  : s.resume_id,
+      createdAt : s.created_at,
+      resume    : s.resume,
+    }))
+
+    return res.status(200).json({ shortlist: mapped })
 
   } catch (err) {
     console.error('Shortlist get error:', err.message)
@@ -368,15 +383,15 @@ hrRouter.delete('/shortlist/:id', async (req, res) => {
   try {
     const { id } = req.params
 
-    const item = await prisma.shortlist.findFirst({
-      where: { id, hrId: req.user.id }
+    const item = await prisma.saved_resumes.findFirst({
+      where: { id: Number(id), seeker_id: req.user.id }
     })
 
     if (!item) {
       return res.status(404).json({ message: 'ไม่พบรายการนี้ใน shortlist' })
     }
 
-    await prisma.shortlist.delete({ where: { id } })
+    await prisma.saved_resumes.delete({ where: { id: Number(id) } })
 
     return res.status(200).json({ message: 'ลบออกจาก shortlist สำเร็จ' })
 

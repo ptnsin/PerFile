@@ -223,6 +223,21 @@ async function getReportData() {
   }
 }
 
+async function getShortlist() {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:3000/hr/shortlist?limit=100", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.shortlist || [];
+  } catch (err) {
+    console.error("getShortlist error:", err);
+    return [];
+  }
+}
+
 
 
 // TODO: เชื่อม update กลับ backend
@@ -400,8 +415,9 @@ function ClosedJobCard({ job, onViewDetail, onReopen }) {
 }
 
 // ── Profile View ──────────────────────────────────────────────
-function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen }) {
+function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen, shortlist = [], setShortlist }) {
   const [activeTab, setActiveTab] = useState("jobs");
+  const navigate = useNavigate();
 
   // ใน ProfileView
 const updateHr = (key) => (val) => {
@@ -429,7 +445,7 @@ const updateHr = (key) => (val) => {
   const TABS = [
     { key: "jobs",   label: "ตำแหน่งงาน", count: openJobs.length },
     { key: "closed", label: "ปิดแล้ว",     count: closedJobs.length },
-    { key: "saved",  label: "Saved",        count: 0 },
+    { key: "saved",  label: "Saved",        count: shortlist.length },
   ];
 
   return (
@@ -576,10 +592,99 @@ const updateHr = (key) => (val) => {
             </div>
           )}
           {activeTab === "saved" && (
-            <div className="hr-empty-tab">
-              <div className="hr-empty-icon">🔖</div>
-              <div className="hr-empty-title">Saved Resumes</div>
-              <div className="hr-empty-desc">ฟีเจอร์บันทึก Resume ของผู้สมัครกำลังจะมาเร็วๆ นี้</div>
+            <div className="hr-jobs-list">
+              {shortlist.length === 0 ? (
+                <div className="hr-empty-tab">
+                  <div className="hr-empty-icon">🔖</div>
+                  <div className="hr-empty-title">ยังไม่มี Saved Resume</div>
+                  <div className="hr-empty-desc">กด 3 จุด บนการ์ดเรซูเม่ที่หน้า HR Feed แล้วเลือก "บันทึก Shortlist"</div>
+                </div>
+              ) : (
+                shortlist.map((item) => {
+                  const resume = item.resume || {};
+                  const owner  = resume.users || {};
+                  return (
+                    <div key={item.id} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "14px 18px", background: "#fff",
+                      border: "1px solid #e5e7eb", borderRadius: 12,
+                      marginBottom: 10, gap: 14,
+                    }}>
+                      {/* avatar + info */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                        {owner.avatar ? (
+                          <img src={owner.avatar} alt="avatar" style={{
+                            width: 42, height: 42, borderRadius: "50%",
+                            objectFit: "cover", flexShrink: 0, border: "2px solid #e5e7eb",
+                          }} />
+                        ) : (
+                          <div style={{
+                            width: 42, height: 42, borderRadius: "50%",
+                            background: "#f3f4f6", display: "flex",
+                            alignItems: "center", justifyContent: "center",
+                            fontSize: 18, flexShrink: 0, fontWeight: 700, color: "#6b7280",
+                          }}>
+                            {(owner.fullName || owner.username || "?")[0].toUpperCase()}
+                          </div>
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 2 }}>
+                            {resume.title || "Untitled Resume"}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 2 }}>
+                            👤 {owner.fullName || owner.username || "ไม่ระบุชื่อ"}
+                          </div>
+                          {item.note && (
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>📝 {item.note}</div>
+                          )}
+                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                            บันทึกเมื่อ {item.createdAt ? new Date(item.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* actions */}
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button
+                          onClick={() => navigate(`/view-resume/${resume.id}`, { state: { from: "/hr-profile" } })}
+                          style={{
+                            padding: "7px 14px", background: "#c9a84c",
+                            border: "none", borderRadius: 8,
+                            fontWeight: 700, fontSize: 12,
+                            cursor: "pointer", color: "#000",
+                          }}
+                        >
+                          👁 ดู
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const token = localStorage.getItem("token");
+                            try {
+                              const res = await fetch(`http://localhost:3000/hr/shortlist/${item.id}`, {
+                                method: "DELETE",
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                              if (res.ok) {
+                                setShortlist(prev => prev.filter(s => s.id !== item.id));
+                              }
+                            } catch (err) {
+                              console.error("Remove shortlist error:", err);
+                            }
+                          }}
+                          style={{
+                            padding: "7px 14px", background: "#fff",
+                            border: "1px solid #fca5a5", borderRadius: 8,
+                            fontWeight: 700, fontSize: 12,
+                            cursor: "pointer", color: "#ef4444",
+                          }}
+                        >
+                          🗑 ลบ
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </div>
@@ -1194,6 +1299,7 @@ export default function HRProfile() {
   const [reportData, setReportData]   = useState(null);
   const [activities, setActivities]   = useState([]);
   const [quickActions, setQuickActions] = useState([]);
+  const [shortlist, setShortlist]     = useState([]);
 
   // ── TODO: แก้ getXxx() ด้านบนให้เรียก backend จริง ──────────
   useEffect(() => {
@@ -1207,11 +1313,12 @@ export default function HRProfile() {
     getReportData().then(setReportData);
     getActivities().then(setActivities);
     getQuickActions().then(setQuickActions);
+    getShortlist().then(setShortlist);
   }, []);
 
   const renderMain = () => {
     switch (activePage) {
-      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} />;
+      case "profile":    return <ProfileView hr={hr} setHr={setHr} aboutItems={aboutItems} setAboutItems={setAboutItems} stats={stats} openJobs={openJobs} closedJobs={closedJobs} newPerk={newPerk} setNewPerk={setNewPerk} setActivePage={setActivePage} openPostModal={() => setModalOpen(true)} onViewDetail={setSelectedJob} goToApplicants={openApplicantsModal} onReopen={handleReopenJob} shortlist={shortlist} setShortlist={setShortlist} />;
       case "applicants": return <ApplicantsView applicants={applicants} filterJobId={filterJobId} onClearFilter={() => setFilterJobId(null)} openJobs={openJobs} />;
       case "interviews": return <InterviewView interviews={interviews} />;
       case "report":     return <ReportView reportData={reportData} />;

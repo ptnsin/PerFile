@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap');`;
 
@@ -289,8 +289,12 @@ function ResumeContent({ data }) {
 export default function ViewResume() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [resumeData, setResumeData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // ถ้ามาจาก hr-feed ให้กลับไป hr-feed, ไม่งั้นกลับ /feed
+  const backPath = location.state?.from || "/feed";
 
   useEffect(() => {
     const fetchResume = async () => {
@@ -310,7 +314,7 @@ export default function ViewResume() {
   }, [id]);
 
   if (loading) return <><style>{fonts}</style><style>{globalStyles}</style><div style={{ color: "#c9a84c", textAlign: "center", padding: "80px", fontSize: "16px", background: "#0e0e0e", height: "100vh" }}>⏳ กำลังโหลด...</div></>;
-  if (!resumeData) return <><style>{fonts}</style><style>{globalStyles}</style><div style={{ color: "#fff", textAlign: "center", padding: "80px", background: "#0e0e0e", height: "100vh" }}><p style={{ fontSize: "20px", marginBottom: "20px" }}>ไม่พบข้อมูล</p><button onClick={() => navigate("/feed")} style={{ padding: "10px 24px", background: "#c9a84c", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}>← กลับ</button></div></>;
+  if (!resumeData) return <><style>{fonts}</style><style>{globalStyles}</style><div style={{ color: "#fff", textAlign: "center", padding: "80px", background: "#0e0e0e", height: "100vh" }}><p style={{ fontSize: "20px", marginBottom: "20px" }}>ไม่พบข้อมูล</p><button onClick={() => navigate(backPath)} style={{ padding: "10px 24px", background: "#c9a84c", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 700 }}>← กลับ</button></div></>;
 
   return (
     <>
@@ -324,7 +328,7 @@ export default function ViewResume() {
           </div>
           <div className="view-header-actions">
             <button className="btn-action" onClick={() => window.print()}>🖨️ พิมพ์ / PDF</button>
-            <button className="btn-action btn-back" onClick={() => navigate("/feed")}>← กลับ</button>
+            <button className="btn-action btn-back" onClick={() => navigate(backPath)}>← กลับ</button>
           </div>
         </header>
         <div className="preview-area">
