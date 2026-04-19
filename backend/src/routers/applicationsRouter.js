@@ -5,6 +5,47 @@ import { authMiddleware } from '../middleware/authMiddleware.js'
 const router = express.Router()
                                                    // ✅ ลบ new PrismaClient() ออก
 
+// POST /applications — สมัครงาน
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.user.id)
+    const jobId  = Number(req.body.job_id)
+
+    if (!jobId || isNaN(jobId)) {
+      return res.status(400).json({ message: 'กรุณาระบุ job_id' })
+    }
+
+    // เช็คว่างานมีอยู่จริงและยังเปิดรับสมัคร
+    const job = await prisma.job.findUnique({ where: { id: jobId } })
+    if (!job) {
+      return res.status(404).json({ message: 'ไม่พบงานนี้' })
+    }
+    if (job.status !== 'เปิดรับสมัคร') {
+      return res.status(403).json({ message: 'งานนี้ปิดรับสมัครแล้ว' })
+    }
+
+    // เช็คว่าสมัครแล้วหรือยัง
+    const existing = await prisma.jobApplication.findFirst({
+      where: { job_id: jobId, user_id: userId }
+    })
+    if (existing) {
+      return res.status(409).json({ message: 'คุณสมัครงานนี้ไปแล้ว' })
+    }
+
+    const application = await prisma.jobApplication.create({
+      data: { job_id: jobId, user_id: userId, status: 'รอการตรวจสอบ' }
+    })
+
+    return res.status(201).json({
+      message: 'สมัครงานสำเร็จ',
+      applicationId: application.id,
+    })
+  } catch (err) {
+    console.error('POST /applications error:', err)
+    res.status(500).json({ message: 'เกิดข้อผิดพลาด' })
+  }
+})
+
 router.get('/my', authMiddleware, async (req, res) => {
   try {
     const applications = await prisma.jobApplication.findMany({
