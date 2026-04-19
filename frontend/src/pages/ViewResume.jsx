@@ -379,6 +379,7 @@ export default function ViewResume() {
   const location = useLocation();
   const [resumeData, setResumeData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
 
   // ถ้ามาจาก hr-feed ให้กลับไป hr-feed, ไม่งั้นกลับ /feed
   const backPath = location.state?.from || "/feed";
@@ -392,7 +393,15 @@ export default function ViewResume() {
         });
         if (res.ok) {
           const result = await res.json();
-          setResumeData(normalizeResumeData(result.resume || result));
+          const normalized = normalizeResumeData(result.resume || result);
+          setResumeData(normalized);
+
+          // เช็คว่าเป็นเจ้าของหรือไม่
+          try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            const userId = payload.id || payload.userId || payload.sub;
+            setIsOwner(String(userId) === String((result.resume || result).user_id));
+          } catch { setIsOwner(false); }
         } else { setResumeData(null); }
       } catch (err) { console.error(err); setResumeData(null); }
       finally { setLoading(false); }
@@ -414,6 +423,15 @@ export default function ViewResume() {
             <p>Template: {resumeData.template} · Color: {resumeData.themeColor}</p>
           </div>
           <div className="view-header-actions">
+            {isOwner && (
+              <button
+                className="btn-action"
+                style={{ background: "#2563eb" }}
+                onClick={() => navigate(`/resume?edit=${id}`)}
+              >
+                ✏️ แก้ไข Resume
+              </button>
+            )}
             <button className="btn-action" onClick={() => window.print()}>🖨️ พิมพ์ / PDF</button>
             <button className="btn-action btn-back" onClick={() => navigate(backPath)}>← กลับ</button>
           </div>

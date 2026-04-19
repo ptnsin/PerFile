@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useResumes } from "./ResumeContext";
 import axios from "axios";
 import "../styles/Resume.css";
@@ -1029,7 +1029,83 @@ export default function ResumeBuilder() {
   const [savedToast, setSavedToast] = useState(false);
   const [showA4Preview, setShowA4Preview] = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // ── โหลดข้อมูลเดิมถ้าอยู่ใน Edit Mode ──
+  useEffect(() => {
+    const editParam = searchParams.get("edit");
+    if (!editParam) return;
+
+    setIsEditMode(true);
+    setEditId(editParam);
+    setLoadingEdit(true);
+
+    const fetchResume = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`http://localhost:3000/resumes/${editParam}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("ไม่พบ Resume");
+        const result = await res.json();
+        const r = result.resume;
+
+        // parse JSON fields
+        const parseJ = (val) => {
+          try { return typeof val === "string" ? JSON.parse(val) : (val ?? []); }
+          catch { return []; }
+        };
+
+        const skillsRaw = parseJ(r.skills);
+        let skillsList = [], skillDisplayMode = "simple";
+        if (skillsRaw?.list) { skillsList = skillsRaw.list; skillDisplayMode = skillsRaw.displayMode || "simple"; }
+        else if (Array.isArray(skillsRaw)) { skillsList = skillsRaw; }
+
+        const expRaw = parseJ(r.experience);
+        const eduRaw = parseJ(r.education);
+
+        setData({
+          name:            r.name || "",
+          title:           r.job_title || r.jobTitle || "",
+          template:        r.template || "classic",
+          themeColor:      r.theme_color || r.themeColor || "#d4af37",
+          image:           r.image_url || null,
+          email:           r.email || "",
+          phone:           r.phone || "",
+          location:        r.location || "",
+          linkedin:        r.linkedin || "",
+          website:         r.website || "",
+          summary:         r.summary || "",
+          experience:      expRaw.map((e, i) => ({ id: i + 1, role: e.role || "", org: e.org || "", period: e.period || "", desc: e.desc || "" })),
+          education:       eduRaw.map((e, i) => ({ id: i + 1, degree: e.degree || "", school: e.school || "", period: e.period || "", desc: e.desc || "" })),
+          skills:          skillsList,
+          skillDisplayMode,
+        });
+      } catch (err) {
+        console.error("Load Edit Resume Error:", err);
+        alert("โหลดข้อมูล Resume ไม่สำเร็จ");
+        navigate("/profile");
+      } finally {
+        setLoadingEdit(false);
+      }
+    };
+
+    fetchResume();
+  }, [searchParams]);
+
+  if (loadingEdit) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", backgroundColor: "#111", color: "#d4af37", fontSize: "16px", gap: "12px" }}>
+        <div style={{ width: "20px", height: "20px", border: "2px solid #d4af37", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        กำลังโหลด Resume...
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    );
+  }
 
   const set = (key, val) => setData(d => ({ ...d, [key]: val }));
 
@@ -1070,9 +1146,8 @@ export default function ResumeBuilder() {
         title: data.name + " - Resume",
         template: data.template,
         themeColor: data.themeColor || "#d4af37",
-        image_url: data.image,  // ส่งเป็น image_url ให้ backend บันทึกลง DB
+        image_url: data.image,
         visibility: "private",
-        // ข้อมูลส่วนตัว
         name: data.name,
         jobTitle: data.title,
         email: data.email,
@@ -1080,32 +1155,28 @@ export default function ResumeBuilder() {
         location: data.location,
         linkedin: data.linkedin,
         website: data.website,
-        // เนื้อหา Resume
         summary: data.summary,
-        experience: data.experience.map((exp) => ({
-          role: exp.role,
-          org: exp.org,
-          period: exp.period,
-          desc: exp.desc,
-        })),
-        education: data.education.map((edu) => ({
-          degree: edu.degree,
-          school: edu.school,
-          period: edu.period,
-          desc: edu.desc,
-        })),
-        skills: {
-          displayMode: data.skillDisplayMode,
-          list: data.skills,
-        },
+        experience: data.experience.map((exp) => ({ role: exp.role, org: exp.org, period: exp.period, desc: exp.desc })),
+        education: data.education.map((edu) => ({ degree: edu.degree, school: edu.school, period: edu.period, desc: edu.desc })),
+        skills: { displayMode: data.skillDisplayMode, list: data.skills },
       };
 
-      const response = await axios.post("http://localhost:3000/resumes", payload, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-
-      if (response.status === 201) {
-        setTimeout(() => { setSavedToast(false); navigate("/profile"); }, 1200);
+      const token = localStorage.getItem("token");
+      let response;
+      if (isEditMode && editId) {
+        response = await axios.put(`http://localhost:3000/resumes/${editId}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.status === 200) {
+          setTimeout(() => { setSavedToast(false); navigate("/profile"); }, 1200);
+        }
+      } else {
+        response = await axios.post("http://localhost:3000/resumes", payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.status === 201) {
+          setTimeout(() => { setSavedToast(false); navigate("/profile"); }, 1200);
+        }
       }
     } catch (error) {
       console.error("Save Error:", error);
@@ -1130,31 +1201,29 @@ export default function ResumeBuilder() {
         linkedin: data.linkedin,
         website: data.website,
         summary: data.summary,
-        experience: data.experience.map((exp) => ({
-          role: exp.role,
-          org: exp.org,
-          period: exp.period,
-          desc: exp.desc,
-        })),
-        education: data.education.map((edu) => ({
-          degree: edu.degree,
-          school: edu.school,
-          period: edu.period,
-          desc: edu.desc,
-        })),
-        skills: {
-          displayMode: data.skillDisplayMode,
-          list: data.skills,
-        },
+        experience: data.experience.map((exp) => ({ role: exp.role, org: exp.org, period: exp.period, desc: exp.desc })),
+        education: data.education.map((edu) => ({ degree: edu.degree, school: edu.school, period: edu.period, desc: edu.desc })),
+        skills: { displayMode: data.skillDisplayMode, list: data.skills },
       };
 
-      const response = await axios.post("http://localhost:3000/resumes", payload, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-
-      if (response.status === 201) {
-        alert("✅ โพสต์ Resume สาธารณะสำเร็จ!");
-        navigate("/feed");
+      const token = localStorage.getItem("token");
+      let response;
+      if (isEditMode && editId) {
+        response = await axios.put(`http://localhost:3000/resumes/${editId}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.status === 200) {
+          alert("✅ อัปเดต Resume สาธารณะสำเร็จ!");
+          navigate("/feed");
+        }
+      } else {
+        response = await axios.post("http://localhost:3000/resumes", payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.status === 201) {
+          alert("✅ โพสต์ Resume สาธารณะสำเร็จ!");
+          navigate("/feed");
+        }
       }
     } catch (error) {
       console.error("Publish Error:", error);
@@ -1172,7 +1241,7 @@ export default function ResumeBuilder() {
 
   return (
     <>
-      {savedToast && <div className="toast-notification">✓ บันทึก Resume แล้ว! กำลังไปหน้า Profile...</div>}
+      {savedToast && <div className="toast-notification">✓ {isEditMode ? "อัปเดต Resume แล้ว!" : "บันทึก Resume แล้ว!"} กำลังไปหน้า Profile...</div>}
       {showA4Preview && <A4PreviewModal data={data} onClose={() => setShowA4Preview(false)} />}
 
       <div className="app" style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -1180,8 +1249,13 @@ export default function ResumeBuilder() {
         {/* ── SIDEBAR ── */}
         <div className="sidebar">
           <div className="sidebar-header">
-            <button className="back-link" onClick={() => navigate("/feed")}>← กลับไปหน้า Feed</button>
+            <button className="back-link" onClick={() => navigate(isEditMode ? "/profile" : "/feed")}>← {isEditMode ? "กลับหน้า Profile" : "กลับไปหน้า Feed"}</button>
             <div className="logo">Resume<span>craft</span></div>
+            {isEditMode && (
+              <div style={{ fontSize: "10px", color: "#10b981", fontWeight: 700, letterSpacing: "0.5px", padding: "3px 10px", background: "rgba(16,185,129,0.12)", borderRadius: "20px", border: "1px solid rgba(16,185,129,0.3)", marginTop: "6px", textAlign: "center" }}>
+                ✏️ โหมดแก้ไข Resume
+              </div>
+            )}
           </div>
 
           <div className="sidebar-tabs">
@@ -1502,13 +1576,15 @@ export default function ResumeBuilder() {
             >
               📄 ดูตัวอย่าง A4 / Print
             </button>
-            <button className="btn-download" onClick={handleSavePrivate}>💾 บันทึก Resume</button>
+            <button className="btn-download" onClick={handleSavePrivate}>
+              {isEditMode ? "💾 บันทึกการแก้ไข" : "💾 บันทึก Resume"}
+            </button>
             <button
               className="btn-download"
               style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}
               onClick={handlePublish}
             >
-              🌐 โพสต์สาธารณะ → Feed
+              {isEditMode ? "🌐 อัปเดตและโพสต์สาธารณะ" : "🌐 โพสต์สาธารณะ → Feed"}
             </button>
           </div>
         </div>

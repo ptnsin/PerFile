@@ -2,7 +2,7 @@ import { Router } from "express";
 import db from "../config/db.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { requireRole } from '../middleware/requireRole.js'
-import { notifyAdmins } from "./adminRouter.js"; // ✅ เพิ่มบรรทัดนี้ (ปรับ path ให้ตรงกับโปรเจกต์)
+import { notifyAdmins } from "./adminRouter.js";
 
 const resumeRouter = Router();
 
@@ -80,7 +80,6 @@ resumeRouter.post("/", authMiddleware, async (req, res) => {
       ]
     );
 
-    // ✅ แจ้งเตือน Admin ทุกคนเมื่อมีการสร้าง Resume ใหม่
     await notifyAdmins(
       "NEW_RESUME",
       "มีการสร้าง Resume ใหม่",
@@ -118,12 +117,15 @@ resumeRouter.get("/:id", async (req, res) => {
   }
 });
 
+// ✅ แก้ไข: เพิ่ม name, jobTitle, email, phone, location, linkedin, website
 resumeRouter.put("/:id", authMiddleware, async (req, res) => {
   try {
     const resumeId = req.params.id;
     const userId = req.user.id;
     const { 
-      title, template, themeColor, visibility, 
+      title, template, themeColor, visibility,
+      name, jobTitle,
+      email, phone, location, linkedin, website,
       summary, experience, education, skills,
       image_url
     } = req.body;
@@ -138,11 +140,20 @@ resumeRouter.put("/:id", authMiddleware, async (req, res) => {
 
     await db.query(
       `UPDATE resumes 
-       SET title = ?, template = ?, theme_color = ?, visibility = ?, summary = ?, experience = ?, education = ?, skills = ?, image_url = ?
+       SET title = ?, template = ?, theme_color = ?, visibility = ?,
+           name = ?, job_title = ?,
+           email = ?, phone = ?, location = ?, linkedin = ?, website = ?,
+           summary = ?, experience = ?, education = ?, skills = ?, image_url = ?
        WHERE id = ?`,
       [
-        title, template, themeColor, visibility, summary, 
-        JSON.stringify(experience), JSON.stringify(education), JSON.stringify(skills),
+        title, template, themeColor, visibility,
+        name || null, jobTitle || null,
+        email || null, phone || null, location || null,
+        linkedin || null, website || null,
+        summary,
+        JSON.stringify(experience),
+        JSON.stringify(education),
+        JSON.stringify(skills),
         image_url || null,
         resumeId
       ]
