@@ -20,24 +20,23 @@ savedRouter.get("/jobs", authMiddleware, async (req, res) => {
 
     const [rows] = await db.query(
       `SELECT 
-        sj.id        AS saved_id,
-        COALESCE(sj.saved_at, sj.created_at) AS saved_at,
-        j.id         AS job_id,
-        j.title,
-        j.salary,
-        j.location,
-        j.job_type,
-        j.status,
-        j.createdAt,
-        u.fullName   AS hr_name,
-        hp.company   AS company_name,
-        hp.logo_url  AS company_logo
-      FROM saved_jobs sj
-      JOIN Job j        ON sj.job_id    = j.id
-      JOIN users u      ON j.hrId       = u.id
-      LEFT JOIN hr_profiles hp ON u.id  = hp.user_id
-      WHERE sj.seeker_id = ?
-      ORDER BY sj.saved_at DESC`,
+    sj.id        AS saved_id,
+    sj.saved_at,
+    j.id         AS job_id,
+    j.title,
+    j.salary,
+    j.location,
+    j.job_type,
+    j.status,
+    j.createdAt,
+    u.fullName   AS hr_name,
+    hp.company   AS company_name
+  FROM saved_jobs sj
+  JOIN Job j        ON sj.job_id    = j.id
+  JOIN users u      ON j.hrId       = u.id
+  LEFT JOIN hr_profiles hp ON u.id  = hp.user_id
+  WHERE sj.seeker_id = ?
+  ORDER BY sj.saved_at DESC`,
       [seekerId]
     );
 
@@ -181,9 +180,8 @@ savedRouter.post("/resumes/:resumeId", authMiddleware, async (req, res) => {
     const seekerId = req.user.id;
     const { resumeId } = req.params;
 
-    // เช็คว่า resume มีอยู่ + เป็น public + ไม่ใช่ของตัวเอง
     const [resumeRows] = await db.query(
-      "SELECT id, user_id, visibility FROM resumes WHERE id = ?",
+      "SELECT id, user_id, visibility, title FROM resumes WHERE id = ?",
       [resumeId]
     );
 
@@ -201,7 +199,6 @@ savedRouter.post("/resumes/:resumeId", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Resume นี้ไม่ได้เปิดสาธารณะ" });
     }
 
-    // Toggle
     const [existing] = await db.query(
       "SELECT id FROM saved_resumes WHERE seeker_id = ? AND resume_id = ?",
       [seekerId, resumeId]
@@ -219,6 +216,23 @@ savedRouter.post("/resumes/:resumeId", authMiddleware, async (req, res) => {
       "INSERT INTO saved_resumes (seeker_id, resume_id) VALUES (?, ?)",
       [seekerId, resumeId]
     );
+
+    // ✅ ดึงชื่อคนที่กด save
+    const [[saver]] = await db.query(
+      "SELECT fullName FROM users WHERE id = ?",
+      [seekerId]
+    );
+
+    // ✅ สร้างแจ้งเตือนให้เจ้าของ resume
+    await db.query(
+      `INSERT INTO notifications (user_id, type, title, message) 
+       VALUES (?, 'save_resume', '📌 มีคนบันทึก Resume ของคุณ', ?)`,
+      [
+        resume.user_id,
+        `${saver?.fullName || "ผู้ใช้"} บันทึก Resume "${resume.title}" ของคุณ`
+      ]
+    );
+
     res.status(201).json({ saved: true, message: "บันทึก Resume สำเร็จ" });
   } catch (err) {
     console.error("POST /saved/resumes/:resumeId Error:", err.message);

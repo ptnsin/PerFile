@@ -18,11 +18,16 @@ resumeRouter.get("/public", async (req, res) => {
   try {
     const [resumes] = await db.query(
       `SELECT 
-        r.id, 
+        r.id,
+        r.user_id,
         r.title, 
         r.visibility, 
         r.created_at AS published_at,
-        JSON_OBJECT('fullName', u.fullName) AS users
+        JSON_OBJECT(
+          'id',       u.id,
+          'fullName', u.fullName,
+          'avatar',   u.avatar
+        ) AS users
       FROM resumes r 
       JOIN users u ON r.user_id = u.id 
       WHERE r.visibility = 'public' 

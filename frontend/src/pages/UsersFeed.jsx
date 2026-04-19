@@ -39,6 +39,11 @@ export default function UsersFeed() {
     } catch { return []; }
   });
 
+  const [savedJobs, setSavedJobs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("savedJobs") || "[]"); }
+    catch { return []; }
+  });
+
   // Notification
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -50,6 +55,27 @@ export default function UsersFeed() {
   const [jobFilter, setJobFilter] = useState({ type: "", location: "", salaryMin: "", salaryMax: "" });
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    localStorage.setItem("savedJobs", JSON.stringify(savedJobs));
+  }, [savedJobs]);
+
+  const toggleSaveJob = async (jobId) => {
+    const token = localStorage.getItem("token");
+    if (!token) return alert("กรุณาเข้าสู่ระบบก่อนบันทึก");
+
+    const method = savedJobs.includes(jobId) ? "DELETE" : "POST";
+    const res = await fetch(`http://localhost:3000/saved/jobs/${jobId}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      setSavedJobs(prev =>
+        prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId]
+      );
+    }
+  };
 
   // Persist saved resumes
   useEffect(() => {
@@ -330,25 +356,65 @@ export default function UsersFeed() {
                 boxShadow: "0 8px 32px rgba(0,0,0,0.13)", border: "1px solid #e5e7eb",
                 zIndex: 999, overflow: "hidden",
               }}>
+                {/* Header */}
                 <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>แจ้งเตือน</span>
-                  {notifications.filter(n => !n.is_read).length > 0 && (
-                    <span style={{ background: "#eff6ff", color: "#1e3a8a", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>
-                      {notifications.filter(n => !n.is_read).length} ใหม่
-                    </span>
-                  )}
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {notifications.filter(n => !n.is_read).length > 0 && (
+                      <>
+                        <span style={{ background: "#eff6ff", color: "#1e3a8a", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>
+                          {notifications.filter(n => !n.is_read).length} ใหม่
+                        </span>
+                        {/* ✅ ปุ่มอ่านทั้งหมด */}
+                        <button
+                          onClick={async () => {
+                            const token = localStorage.getItem("token");
+                            await fetch("http://localhost:3000/notifications/read-all", {
+                              method: "PATCH",
+                              headers: { Authorization: `Bearer ${token}` }
+                            });
+                            setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
+                          }}
+                          style={{
+                            fontSize: 11, color: "#1e3a8a", background: "none",
+                            border: "none", cursor: "pointer", fontWeight: 600, padding: 0,
+                          }}
+                        >
+                          อ่านทั้งหมด
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
+
+                {/* List */}
                 <div style={{ maxHeight: 320, overflowY: "auto" }}>
                   {notifications.length > 0 ? notifications.map((n, i) => (
-                    <div key={n.id ?? i} style={{
-                      padding: "10px 16px", borderBottom: "1px solid #f9fafb",
-                      background: n.is_read ? "#fff" : "#f0f7ff",
-                      display: "flex", gap: 10, alignItems: "flex-start",
-                    }}>
+                    <div
+                      key={n.id ?? i}
+                      onClick={async () => {
+                        if (!n.is_read) {
+                          const token = localStorage.getItem("token");
+                          await fetch(`http://localhost:3000/notifications/${n.id}/read`, {
+                            method: "PATCH",
+                            headers: { Authorization: `Bearer ${token}` }
+                          });
+                          setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: 1 } : x));
+                        }
+                      }}
+                      style={{
+                        padding: "10px 16px", borderBottom: "1px solid #f9fafb",
+                        background: n.is_read ? "#fff" : "#f0f7ff",
+                        display: "flex", gap: 10, alignItems: "flex-start",
+                        cursor: n.is_read ? "default" : "pointer",
+                        transition: "background 0.15s",
+                      }}
+                    >
                       <div style={{ fontSize: 18, flexShrink: 0 }}>
                         {n.type === "application" ? "📋" : n.type === "shortlist" ? "⭐" : n.type === "interview" ? "📅" : "🔔"}
                       </div>
                       <div style={{ flex: 1 }}>
+                        {n.title && <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 2 }}>{n.title}</div>}
                         <div style={{ fontSize: 13, color: "#111827", fontWeight: n.is_read ? 400 : 600 }}>{n.message ?? n.title}</div>
                         {n.created_at && (
                           <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
@@ -366,6 +432,25 @@ export default function UsersFeed() {
                     </div>
                   )}
                 </div>
+
+                {/* Footer — ลบทั้งหมด */}
+                {notifications.length > 0 && (
+                  <div style={{ padding: "10px 16px", borderTop: "1px solid #f3f4f6", textAlign: "center" }}>
+                    <button
+                      onClick={async () => {
+                        const token = localStorage.getItem("token");
+                        await fetch("http://localhost:3000/notifications/clear", {
+                          method: "DELETE",
+                          headers: { Authorization: `Bearer ${token}` }
+                        });
+                        setNotifications([]);
+                      }}
+                      style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      ลบทั้งหมด
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -611,7 +696,7 @@ export default function UsersFeed() {
                         key={resume.id}
                         resume={{ ...resume, users: usersObj }}
                         isSaved={savedResumes.includes(resume.id)}
-                        onToggleSave={() => toggleSave(resume.id)}
+                        onSave={() => toggleSave(resume.id)}
                         onClick={() => navigate(`/view-resume/${resume.id}`)}  // ✅ กดรูป → ViewResume
                         onOwnerClick={(e) => {
                           e.stopPropagation();
@@ -649,6 +734,8 @@ export default function UsersFeed() {
                           key={job.id}
                           job={{ ...job, company_name: job.users?.hr_profile?.company }}
                           onClick={() => handleOpenJobDetail(job)}
+                          isSaved={savedJobs.includes(job.id)}
+                          onSave={(e) => { e.stopPropagation(); toggleSaveJob(job.id); }}
                         />
                       ))}
                     </>
@@ -741,7 +828,7 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
     >
       {/* ── Save Button (top-right corner) ── */}
       <button
-        onClick={onSave}
+        onClick={(e) => { e.stopPropagation(); onSave(); }}
         title={isSaved ? "Unsave" : "Save"}
         style={{
           position: "absolute",
@@ -768,19 +855,19 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
       </button>
 
       {/* ── PREVIEW AREA ── */}
-      <div 
-      onClick={onClick}
-      style={{
-        position: "relative",
-        width: "100%",
-        height: previewH,
-        overflow: "hidden",
-        background: "#f8fafc",
-        flexShrink: 0,
-        borderRadius: "8px",
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-      }}>
+      <div
+        onClick={onClick}
+        style={{
+          position: "relative",
+          width: "100%",
+          height: previewH,
+          overflow: "hidden",
+          background: "#f8fafc",
+          flexShrink: 0,
+          borderRadius: "8px",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        }}>
         {inView ? (
           <iframe
             src={`/view-resume/${resume.id}`}
@@ -838,23 +925,23 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
           title={`ดูโปรไฟล์ ${ownerName}`}
         >
           {/* Avatar */}
-          <div 
-          onClick={onOwnerClick}
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 700,
-            color: "#fff",
-            overflow: "hidden",
-            border: "2px solid #e0e7ff",
-          }}>
+          <div
+            onClick={onOwnerClick}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#fff",
+              overflow: "hidden",
+              border: "2px solid #e0e7ff",
+            }}>
             {ownerAvatar
               ? <img src={ownerAvatar} alt={ownerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
               : ownerInitial}
@@ -909,39 +996,151 @@ function ResumeCard({ resume, onClick, onOwnerClick, onSave, isSaved }) {
   );
 }
 
-function JobCard({ job, onClick }) {
+function JobCard({ job, onClick, isSaved, onSave }) {
+  const [hovered, setHovered] = useState(false);
+
+  const company = job.company_name || job.users?.hr_profile?.company;
+  const companyInitial = company?.[0]?.toUpperCase() ?? "?";
+  const postedDate = job.createdAt || job.created_at
+    ? new Date(job.createdAt || job.created_at).toLocaleDateString("th-TH")
+    : "—";
+
   return (
     <div
-      className="hrf-job-card"
+      className="uf-resume-card"
       onClick={onClick}
-      style={{ cursor: "pointer", position: "relative", overflow: "visible" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        cursor: "pointer",
+        padding: "12px 12px 0 12px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        position: "relative",
+        transition: "box-shadow 0.2s",
+        boxShadow: hovered ? "0 8px 28px rgba(30,58,138,0.13)" : undefined,
+      }}
     >
-      <div className="hrf-job-header" style={{ marginBottom: "12px" }}>
-        <div className="hrf-job-icon"><LuBriefcase /></div>
-        <span className="hrf-job-type" style={{ marginTop: 8 }}>
-          {job.job_type || "ไม่ระบุ"}
-        </span>
-      </div>
-      <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem" }}>
-        {job.title || "ไม่ระบุตำแหน่ง"}
-      </div>
-      {(job.company_name || job.users?.hr_profile?.company) && (
-        <div style={{
-          fontSize: 12, color: "#6366f1", fontWeight: 600,
-          display: "flex", alignItems: "center", gap: 4, marginTop: 4,
+      {/* ── PREVIEW AREA — gradient banner ── */}
+      <div style={{
+        position: "relative",
+        width: "100%",
+        height: 148,
+        overflow: "hidden",
+        background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 60%, #60a5fa 100%)",
+        flexShrink: 0,
+        borderRadius: "8px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <button
+          onClick={onSave}
+          title={isSaved ? "Unsave" : "Save"}
+          style={{
+            position: "absolute", top: 10, right: 10, zIndex: 10,
+            background: isSaved ? "#1e3a8a" : "rgba(255,255,255,0.92)",
+            border: isSaved ? "none" : "1.5px solid #e2e8f0",
+            borderRadius: "50%", width: 30, height: 30,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+            color: isSaved ? "#fff" : "#6b7280",
+          }}
+        >
+          <LuBookmark style={{ fill: isSaved ? "#fff" : "none" }} size={14} />
+        </button>
+        {/* Job type badge */}
+        <span style={{
+          position: "absolute", top: 10, left: 10,
+          background: "rgba(255,255,255,0.2)",
+          backdropFilter: "blur(4px)",
+          color: "#fff", fontSize: 10, fontWeight: 700,
+          borderRadius: 6, padding: "3px 8px",
+          letterSpacing: "0.05em", textTransform: "uppercase",
+          border: "1px solid rgba(255,255,255,0.3)",
         }}>
-          <LuBadgeCheck size={12} />
-          {job.company_name || job.users?.hr_profile?.company}
+          {job.job_type || "งาน"}
+        </span>
+
+        {/* Center icon */}
+        <div style={{
+          width: 56, height: 56, borderRadius: "50%",
+          background: "rgba(255,255,255,0.15)",
+          border: "2px solid rgba(255,255,255,0.3)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 24, fontWeight: 800, color: "#fff",
+        }}>
+          <LuBriefcase size={24} />
         </div>
-      )}
-      <div className="hrf-job-meta" style={{ marginTop: "8px" }}>
-        {job.category && <span><LuBadgeCheck /> {job.category}</span>}
-        {job.location && <span><LuMapPin /> {job.location}</span>}
-      </div>
-      <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #f1f5f9" }}>
-        <span style={{ color: "#059669", fontWeight: 700, fontSize: "14px" }}>
+
+        {/* Salary badge bottom-right */}
+        <span style={{
+          position: "absolute", bottom: 10, right: 10,
+          background: "rgba(255,255,255,0.15)",
+          backdropFilter: "blur(4px)",
+          color: "#fff", fontSize: 11, fontWeight: 700,
+          borderRadius: 6, padding: "3px 8px",
+          border: "1px solid rgba(255,255,255,0.3)",
+        }}>
           ฿ {job.salary ?? "ไม่ระบุ"}
         </span>
+
+        {/* Hover overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: hovered ? "rgba(30,58,138,0.15)" : "transparent",
+          transition: "background 0.2s", borderRadius: "8px",
+        }} />
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div style={{ padding: "10px 2px 12px" }}>
+
+        {/* Company row */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          marginBottom: 6, padding: "5px 7px", borderRadius: 8,
+          background: hovered ? "#f0f4ff" : "transparent",
+          transition: "background 0.15s",
+        }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%",
+            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
+            flexShrink: 0, display: "flex", alignItems: "center",
+            justifyContent: "center", fontSize: 12, fontWeight: 700,
+            color: "#fff", border: "2px solid #e0e7ff",
+          }}>
+            {companyInitial}
+          </div>
+          <span style={{
+            fontSize: 14, fontWeight: 700, color: "#1e3a8a",
+            flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {company || "ไม่ระบุบริษัท"}
+          </span>
+          <LuBriefcase size={12} style={{ color: "#93c5fd", flexShrink: 0 }} />
+        </div>
+
+        {/* Job title */}
+        <div style={{
+          fontSize: 12, fontWeight: 600, color: "#111827",
+          marginBottom: 4, paddingLeft: 2,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {job.title || "ไม่ระบุตำแหน่ง"}
+        </div>
+
+        {/* Location + date */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 4,
+          fontSize: 11, color: "#9ca3af", paddingLeft: 2,
+        }}>
+          {job.location && <><LuMapPin size={11} />{job.location} · </>}
+          <LuClock size={11} />{postedDate}
+        </div>
       </div>
     </div>
   );
@@ -995,11 +1194,11 @@ function ProfilePopupModal({ userId, onClose, navigate }) {
         borderRadius: 20,
         width: "100%", maxWidth: 520,
         maxHeight: "88vh",
-        overflowY: "auto",   
-        overflowX: "visible", 
+        overflowY: "auto",
+        overflowX: "visible",
         boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
         position: "relative",
-        
+
       }}>
 
         {loading ? (
@@ -1051,12 +1250,12 @@ function ProfilePopupModal({ userId, onClose, navigate }) {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   overflow: "hidden", flexShrink: 0, fontSize: 28, fontWeight: 800, color: "#fff",
                   boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                  marginTop: -45, marginBottom: 12,position: "relative",zIndex: 10,
+                  marginTop: -45, marginBottom: 12, position: "relative", zIndex: 10,
                 }}>
                   {profile?.avatar
                     ? <img src={profile.avatar} alt={displayName}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        crossOrigin="anonymous" />
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      crossOrigin="anonymous" />
                     : initial}
                 </div>
 
