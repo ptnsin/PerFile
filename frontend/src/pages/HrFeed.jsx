@@ -11,14 +11,18 @@ import "../styles/HRFeed.css";
 
 
 export default function HrFeed() {
-  const [activeTab, setActiveTab]     = useState("candidates");
-  const [userData, setUserData]       = useState(null);
-  const [menuOpen, setMenuOpen]       = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [modalOpen, setModalOpen]     = useState(false);
-  const [jobs, setJobs]               = useState([]);
-  const [savedJobIds, setSavedJobIds] = useState([]);
-  const [selectedJob, setSelectedJob] = useState(null);
+  const [activeTab, setActiveTab]         = useState("candidates");
+  const [userData, setUserData]           = useState(null);
+  const [menuOpen, setMenuOpen]           = useState(false);
+  const [sidebarOpen, setSidebarOpen]     = useState(true);
+  const [modalOpen, setModalOpen]         = useState(false);
+  const [jobs, setJobs]                   = useState([]);
+  const [savedJobIds, setSavedJobIds]     = useState([]);
+  const [selectedJob, setSelectedJob]     = useState(null);
+  const [publicResumes, setPublicResumes] = useState([]);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  // key = String(resumeId), value = shortlistId (เพื่อใช้ตอน unsave)
+  const [savedResumeMap, setSavedResumeMap] = useState({});
   const sidebarRef = useRef(null);
   const navigate   = useNavigate();
 
@@ -30,8 +34,8 @@ export default function HrFeed() {
   ];
 
   const TABS = [
-    { key: "candidates", label: " Public Resume", icon: <LuUsers />, count: 100 },
-    { key: "jobs",       label: "JobPost", icon: <LuBriefcase /> },   // count is dynamic
+    { key: "candidates", label: " Public Resume", icon: <LuUsers />, count: publicResumes.length },
+    { key: "jobs",       label: "JobPost", icon: <LuBriefcase /> },
   ];
 
   /* ── Resizable sidebar ── */
@@ -126,6 +130,50 @@ useEffect(() => {
   fetchSaved();
 }, []);
 
+/* ── Fetch Public Resumes (แท็บ candidates) ── */
+useEffect(() => {
+  const fetchPublicResumes = async () => {
+    setResumeLoading(true);
+    try {
+      const res = await fetch("http://localhost:3000/resumes/public");
+      if (res.ok) {
+        const data = await res.json();
+        setPublicResumes(data.resumes || []);
+      }
+    } catch (err) {
+      console.error("Fetch public resumes error:", err);
+    } finally {
+      setResumeLoading(false);
+    }
+  };
+  fetchPublicResumes();
+}, []);
+
+/* ── Fetch Shortlist (resume ที่ HR save ไว้แล้ว) ── */
+useEffect(() => {
+  const fetchShortlist = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/shortlist?limit=100", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // สร้าง map: resumeId → shortlistId เพื่อเช็คว่า save แล้วหรือยัง
+        const map = {};
+        (data.shortlist || []).forEach(item => {
+          map[String(item.resumeId)] = item.id;
+        });
+        setSavedResumeMap(map);
+      }
+    } catch (err) {
+      console.error("Fetch shortlist error:", err);
+    }
+  };
+  fetchShortlist();
+}, []);
+
 const handleUpdateStatus = async (jobId, newStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -174,6 +222,62 @@ const handleUpdateStatus = async (jobId, newStatus) => {
     // แทนที่จะเซ็ต State เอง ให้เรียกฟังก์ชันดึงข้อมูลใหม่ (หรือรีเฟรชหน้า)
     window.location.reload(); 
     // หรือถ้าเขียนฟังก์ชัน fetchJobs แยกไว้ ก็เรียกใช้ฟังก์ชันนั้นแทนครับ
+  };
+
+  /* ── Save / Unsave Resume (Shortlist) ── */
+  const handleSaveResume = async (resumeId) => {
+    const key = String(resumeId);
+    const existingShortlistId = savedResumeMap[key];
+    const isSaved = !!existingShortlistId;
+    const token = localStorage.getItem("token");
+
+    if (isSaved) {
+      // Optimistic remove
+      setSavedResumeMap(prev => { const n = { ...prev }; delete n[key]; return n; });
+      try {
+        await fetch(`http://localhost:3000/hr/shortlist/${existingShortlistId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (err) {
+        console.error(err);
+        // Rollback
+        setSavedResumeMap(prev => ({ ...prev, [key]: existingShortlistId }));
+      }
+    } else {
+      // Optimistic add (ใช้ "pending" ชั่วคราวก่อนได้ id จริง)
+      setSavedResumeMap(prev => ({ ...prev, [key]: "pending" }));
+      try {
+        const res = await fetch("http://localhost:3000/hr/shortlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ resumeId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // อัปเดต id จริงจาก server (ถ้า API ส่ง id กลับมา)
+          const realId = data.id || data.shortlistId || "saved";
+          setSavedResumeMap(prev => ({ ...prev, [key]: realId }));
+        } else if (res.status === 409) {
+          // มีอยู่แล้วใน shortlist — fetch ใหม่เพื่อเอา id ที่ถูกต้อง
+          const refetch = await fetch("http://localhost:3000/hr/shortlist?limit=100", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (refetch.ok) {
+            const d = await refetch.json();
+            const map = {};
+            (d.shortlist || []).forEach(item => { map[String(item.resumeId)] = item.id; });
+            setSavedResumeMap(map);
+          }
+        } else {
+          // Rollback
+          setSavedResumeMap(prev => { const n = { ...prev }; delete n[key]; return n; });
+        }
+      } catch (err) {
+        console.error(err);
+        setSavedResumeMap(prev => { const n = { ...prev }; delete n[key]; return n; });
+      }
+    }
   };
 
   /* ── Save / Unsave job then navigate to profile saved section ── */
@@ -360,11 +464,28 @@ const handleUpdateStatus = async (jobId, newStatus) => {
 
             <div className="hrf-cards-grid">
               {activeTab === "candidates" ? (
-                <div className="hrf-empty">
-                  <div className="hrf-empty-icon">👥</div>
-                  <div className="hrf-empty-title">ยังไม่มีผู้สมัคร</div>
-                  <div className="hrf-empty-desc">รายการผู้สมัครงานจะแสดงที่นี่</div>
-                </div>
+                resumeLoading ? (
+                  <div className="hrf-empty">
+                    <div className="hrf-empty-icon">⏳</div>
+                    <div className="hrf-empty-title">กำลังโหลด...</div>
+                  </div>
+                ) : publicResumes.length === 0 ? (
+                  <div className="hrf-empty">
+                    <div className="hrf-empty-icon">👥</div>
+                    <div className="hrf-empty-title">ยังไม่มี Public Resume</div>
+                    <div className="hrf-empty-desc">ยังไม่มีผู้ใช้โพสต์เรซูเม่สาธารณะ</div>
+                  </div>
+                ) : (
+                  publicResumes.map((resume) => (
+                    <CandidateCard
+                      key={resume.id}
+                      resume={resume}
+                      isSaved={!!savedResumeMap[String(resume.id)]}
+                      onSave={() => handleSaveResume(resume.id)}
+                      onView={() => navigate(`/view-resume/${resume.id}`, { state: { from: "/hr-feed" } })}
+                    />
+                  ))
+                )
               ) : jobs.length === 0 ? (
                 <div className="hrf-empty">
                   <div className="hrf-empty-icon">📋</div>
@@ -522,6 +643,135 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
           <LuBookmarkCheck size={10} /> Saved
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Candidate Card (Public Resume) ── */
+function CandidateCard({ resume, onView, isSaved, onSave }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const user =
+    typeof resume.users === "string"
+      ? (() => { try { return JSON.parse(resume.users); } catch { return {}; } })()
+      : resume.users || {};
+
+  const publishedDate = resume.published_at
+    ? new Date(resume.published_at).toLocaleDateString("th-TH", {
+        year: "numeric", month: "short", day: "numeric",
+      })
+    : "";
+
+  return (
+    <div
+      className="hrf-job-card"
+      style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", overflow: "visible" }}
+    >
+      {/* Backdrop ปิด dropdown */}
+      {menuOpen && (
+        <div
+          onClick={() => setMenuOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 90, background: "transparent" }}
+        />
+      )}
+
+      {/* 3-dot button */}
+      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 100 }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
+          style={{
+            width: 30, height: 30,
+            background: menuOpen ? "#e0e7ff" : "rgba(255,255,255,0.9)",
+            border: "1.5px solid " + (menuOpen ? "#a5b4fc" : "#e4e4e7"),
+            borderRadius: "50%", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: menuOpen ? "#4f46e5" : "#64748b",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            transition: "all 0.15s",
+          }}
+        >
+          <LuEllipsisVertical size={16} />
+        </button>
+
+        {menuOpen && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0,
+            background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12,
+            width: 185, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            padding: 6, zIndex: 101,
+          }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onView(); }}
+              style={dropdownItemStyle}
+            >
+              <LuUsers size={14} /> ดูเรซูเม่
+            </button>
+            <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
+            <button
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSave(); }}
+              style={{ ...dropdownItemStyle, color: isSaved ? "#ef4444" : "#16a34a" }}
+            >
+              {isSaved ? <LuBookmarkCheck size={14} /> : <LuBookmark size={14} />}
+              {isSaved ? "ยกเลิก Shortlist" : "บันทึก Shortlist"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Avatar + name */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 28 }}>
+        {user.avatar ? (
+          <img
+            src={user.avatar}
+            alt="avatar"
+            style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2px solid #e5e7eb" }}
+          />
+        ) : (
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+            👤
+          </div>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {user.fullName || "ไม่ระบุชื่อ"}
+          </div>
+          {publishedDate && (
+            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+              เผยแพร่ {publishedDate}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Resume title */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", padding: "8px 10px", background: "#f9fafb", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+        📄 {resume.title || "Untitled Resume"}
+      </div>
+
+      {/* Saved badge */}
+      {isSaved && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
+          <LuBookmarkCheck size={13} /> บันทึกใน Shortlist แล้ว
+        </div>
+      )}
+
+      {/* View button */}
+      <button
+        onClick={onView}
+        style={{
+          width: "100%", padding: "9px 0",
+          background: "#c9a84c", border: "none",
+          borderRadius: 8, fontWeight: 700,
+          fontSize: 13, cursor: "pointer",
+          color: "#000", display: "flex",
+          alignItems: "center", justifyContent: "center", gap: 6,
+          transition: "opacity 0.15s",
+        }}
+        onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+        onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+      >
+        👁 ดูเรซูเม่
+      </button>
     </div>
   );
 }
