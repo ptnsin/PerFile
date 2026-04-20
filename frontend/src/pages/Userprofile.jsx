@@ -68,6 +68,7 @@ export default function UserProfile() {
   const [savedSubTab, setSavedSubTab] = useState("jobs");
   const [savedLoading, setSavedLoading] = useState(false);
   const [stats, setStats] = useState({ views: "0", score: "0%", interviewing: "0", shortlisted: "0" });
+  const [searchQuery, setSearchQuery] = useState("");
   // Notification
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -97,6 +98,31 @@ export default function UserProfile() {
     const close = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  // ── Fetch Stats จาก backend ──────────────────────────────────
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API}/profile/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStats({
+            views: String(data.views ?? 0),
+            score: `${data.profile_score ?? 0}%`,
+            interviewing: String(data.interview_count ?? 0),
+            shortlisted: String(data.shortlisted_count ?? 0),
+          });
+        }
+      } catch (err) {
+        console.error("Fetch stats error:", err);
+      }
+    };
+    fetchStats();
   }, []);
 
   // ── Profile editable state ──────────────────────────────────────
@@ -492,7 +518,17 @@ export default function UserProfile() {
         <div className="uf-nav-left">
           <button className="uf-toggle-btn" onClick={toggleSidebar}><LuPanelLeft /></button>
           <div className="uf-logo">Per<em>File</em><span className="uf-logo-badge">Seeker</span></div>
-          <div className="uf-search"><LuSearch /><input type="text" placeholder="ค้นหา Username หรือ Company..." /></div>
+          <div className="uf-search"><LuSearch /><input
+              type="text"
+              placeholder="ค้นหา Username หรือ Company..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && searchQuery.trim()) {
+                  navigate(`/feed?q=${encodeURIComponent(searchQuery.trim())}`);
+                }
+              }}
+            /></div>
         </div>
         <div className="uf-nav-right">
           <div ref={notifRef} style={{ position: "relative" }}>
