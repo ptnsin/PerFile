@@ -1106,21 +1106,45 @@ const STATUS_CONFIG = {
 
 function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onInterviewScheduled }) {
   const navigate = useNavigate();
-  // กรองตาม job ถ้ามี filterJobId
-  const baseData = filterJobId
-    ? applicants.filter(a => String(a.jobId ?? a.job_id) === String(filterJobId))
-    : applicants;
-  const allData = baseData;
-  const filterJobName = filterJobId
-    ? (openJobs?.find(j => String(j.id) === String(filterJobId))?.title ?? `Job #${filterJobId}`)
-    : null;
 
+  // ✅ useState ต้องมาก่อน เพื่อป้องกัน "Cannot access before initialization"
+  const [localApplicants, setLocalApplicants] = useState(applicants);
   const [search, setSearch]             = useState("");
   const [activeStatus, setActiveStatus] = useState("ทั้งหมด");
   const [sortBy, setSortBy]             = useState("latest");
   const [ivModal, setIvModal]           = useState(false);
   const [ivPrefill, setIvPrefill]       = useState(null);
   const [resumePicker, setResumePicker] = useState({ open: false, applicant: null });
+
+  useEffect(() => { setLocalApplicants(applicants); }, [applicants]);
+
+  // กรองตาม job ถ้ามี filterJobId
+  const baseData = filterJobId
+    ? localApplicants.filter(a => String(a.jobId ?? a.job_id) === String(filterJobId))
+    : localApplicants;
+  const allData = baseData;
+  const filterJobName = filterJobId
+    ? (openJobs?.find(j => String(j.id) === String(filterJobId))?.title ?? `Job #${filterJobId}`)
+    : null;
+
+  const updateStatus = async (applicantId, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/hr/applicants/${applicantId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setLocalApplicants(prev => prev.map(a => a.id === applicantId ? { ...a, status: newStatus } : a));
+      } else {
+        const d = await res.json();
+        alert(d.message || "อัปเดตสถานะไม่สำเร็จ");
+      }
+    } catch (err) {
+      console.error("updateStatus error:", err);
+    }
+  };
 
   const openSchedule = (a) => {
     setIvPrefill({
@@ -1280,7 +1304,19 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onIn
                   <div className="hr-applicant-score-label">คะแนน</div>
                 </div>
               )}
-              <span className="hr-job-dept" style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{a.status}</span>
+              <select
+                value={a.status}
+                onChange={e => updateStatus(a.id, e.target.value)}
+                style={{
+                  background: sc.bg, color: sc.text, border: `1px solid ${sc.text}40`,
+                  borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600,
+                  cursor: "pointer", outline: "none", width: "fit-content", maxWidth: 130,
+                }}
+              >
+                {Object.keys(STATUS_CONFIG).filter(k => k !== "ทั้งหมด").map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 <button
                   className="hr-reopen-btn"

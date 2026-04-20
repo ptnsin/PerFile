@@ -1030,6 +1030,36 @@ hrRouter.get('/applicants', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
+// PATCH /hr/applicants/:id/status — อัปเดตสถานะผู้สมัคร
+hrRouter.patch('/applicants/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const allowed = ['รอการตรวจสอบ', 'ผ่านคัดกรอง', 'สัมภาษณ์รอบ 2', 'เสนอ offer', 'ไม่ผ่าน'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: 'สถานะไม่ถูกต้อง' });
+    }
+
+    // ตรวจสอบว่า application นี้เป็นของ HR คนนี้จริง
+    const [rows] = await db.query(
+      `SELECT a.id FROM applications a JOIN Job j ON j.id = a.job_id WHERE a.id = ? AND j.hrId = ?`,
+      [Number(id), Number(req.user.id)]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'ไม่พบข้อมูลผู้สมัคร' });
+    }
+
+    await db.query('UPDATE applications SET status = ? WHERE id = ?', [status, Number(id)]);
+
+    res.json({ message: 'อัปเดตสถานะสำเร็จ', id: Number(id), status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating status' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /hr/user-resumes/:userId — ดึง resume ทั้งหมดของ user (HR เลือกดู)
 hrRouter.get('/user-resumes/:userId', async (req, res) => {
   try {
