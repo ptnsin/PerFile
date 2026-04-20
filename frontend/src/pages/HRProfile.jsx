@@ -42,7 +42,8 @@ async function getHrProfile() {
       founded: profile.hr_profile?.founded || profile.founded || "ยังไม่ระบุ",
       
       role: profile.hr_profile?.role || "HR Recruiter",
-      handle: profile.username ? `@${profile.username}` : "@username"
+      handle: profile.username ? `@${profile.username}` : "@username",
+      profile_image: profile.hr_profile?.profile_image || profile.profile_image || null,
     };
   } catch (err) {
     console.error(err);
@@ -434,6 +435,35 @@ function ClosedJobCard({ job, onViewDetail, onReopen }) {
 function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, applicants = [], newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen, shortlist = [], setShortlist, initialTab = "jobs" }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  const [profileImage, setProfileImage] = useState(hr?.profile_image || null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingImg(true);
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("http://localhost:3000/hr/profile-image", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.imageUrl) {
+        setProfileImage(data.imageUrl);
+        setHr(prev => ({ ...prev, profile_image: data.imageUrl }));
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setUploadingImg(false);
+      e.target.value = "";
+    }
+  };
 
   // ใน ProfileView
 const updateHr = (key) => (val) => {
@@ -474,7 +504,40 @@ const updateHr = (key) => (val) => {
         </div>
         <div className="hr-profile-body">
           <div className="hr-avatar-row">
-            <div className="hr-avatar">{hr?.name?.[0] ?? "?"}</div>
+            <div
+              className="hr-avatar"
+              onClick={() => fileInputRef.current.click()}
+              title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+              style={{ position: "relative", cursor: "pointer", overflow: "visible" }}
+            >
+              {profileImage ? (
+                <img
+                  src={`http://localhost:3000${profileImage}`}
+                  alt="profile"
+                  style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
+                />
+              ) : (
+                hr?.name?.[0] ?? "?"
+              )}
+              <span style={{
+                position: "absolute", bottom: 2, right: 2,
+                background: uploadingImg ? "#9ca3af" : "#6c63ff",
+                borderRadius: "50%", width: 24, height: 24,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, color: "#fff", border: "2px solid #fff",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                pointerEvents: "none",
+              }}>
+                {uploadingImg ? "⏳" : "✏️"}
+              </span>
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: "none" }}
+            />
           </div>
           <div className="hr-profile-name"><EditableField value={hr?.name}   onChange={updateHr("name")} /></div>
           <div className="hr-profile-role">
@@ -1913,8 +1976,8 @@ export default function HRProfile() {
           <div className="hrf-user-area" style={{ position: "relative" }}>
             <div className="hrf-user-chip" onClick={() => setShowUserMenu(v => !v)}>
               <div className="hrf-avatar">
-                {hr?.avatar
-                  ? <img src={hr.avatar} alt="avatar" />
+                {hr?.profile_image
+                  ? <img src={`http://localhost:3000${hr.profile_image}`} alt="avatar" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
                   : (hr?.name?.[0]?.toUpperCase() ?? "H")}
               </div>
               <span>{hr?.name ?? "Loading..."}</span>
