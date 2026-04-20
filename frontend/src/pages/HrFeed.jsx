@@ -30,6 +30,9 @@ export default function HrFeed() {
 
   // Notification
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterOpen, setFilterOpen]   = useState(false);
+  const [filterType, setFilterType]   = useState("");   // job_type filter
+  const [responseRate, setResponseRate] = useState(null); // null = loading
 
   // Notification
   const [notifOpen, setNotifOpen] = useState(false);
@@ -47,12 +50,12 @@ export default function HrFeed() {
     { num: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString(), label: "ตำแหน่งเปิดรับ", icon: <LuBriefcase />, color: "#1d4ed8", bg: "#eff6ff" },
     { num: applicants.length.toString(),   label: "ผู้สมัครทั้งหมด", icon: <LuUsers />, color: "#15803d", bg: "#f0fdf4" },
     { num: interviewsThisMonth.toString(), label: "สัมภาษณ์เดือนนี้", icon: <LuBadgeCheck />, color: "#a855f7", bg: "#faf5ff" },
-    { num: "94%", label: "อัตราตอบรับ", icon: <LuBadgeCheck />, color: "#f97316", bg: "#fff7ed" },
+    { num: responseRate !== null ? `${responseRate}%` : "...", label: "อัตราตอบรับ", icon: <LuBadgeCheck />, color: "#f97316", bg: "#fff7ed" },
   ];
 
   const TABS = [
     { key: "candidates", label: " Public Resume", icon: <LuUsers />, count: publicResumes.length },
-    { key: "jobs",       label: "JobPost", icon: <LuBriefcase /> },
+    { key: "jobs",       label: "JobPost", icon: <LuBriefcase />, count: jobs.length },
   ];
 
   // Fetch HR Notifications
@@ -257,6 +260,27 @@ useEffect(() => {
   fetchInterviews();
 }, []);
 
+/* ── Fetch Stats (response rate) ── */
+useEffect(() => {
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResponseRate(data.responseRate ?? 0);
+      }
+    } catch (err) {
+      console.error("Fetch stats error:", err);
+      setResponseRate(0);
+    }
+  };
+  fetchStats();
+}, []);
+
 const handleUpdateStatus = async (jobId, newStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -300,11 +324,21 @@ const handleUpdateStatus = async (jobId, newStatus) => {
     setSidebarOpen((v) => !v);
   };
 
-  /* ── Refresh jobs after posting ── */
-  const handleJobPosted = () => {
-    // แทนที่จะเซ็ต State เอง ให้เรียกฟังก์ชันดึงข้อมูลใหม่ (หรือรีเฟรชหน้า)
-    window.location.reload(); 
-    // หรือถ้าเขียนฟังก์ชัน fetchJobs แยกไว้ ก็เรียกใช้ฟังก์ชันนั้นแทนครับ
+  /* ── Refresh jobs after posting (no full reload) ── */
+  const handleJobPosted = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setJobs(data.jobs || data);
+      }
+    } catch (err) {
+      console.error("Refetch jobs error:", err);
+    }
   };
 
   /* ── Save / Unsave Resume (Shortlist) ── */
@@ -363,7 +397,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
     }
   };
 
-  /* ── Save / Unsave job then navigate to profile saved section ── */
+  /* ── Save / Unsave job ── */
   const handleSaveJob = async (jobId) => {
     const sid = String(jobId);
     const isSaved = savedJobIds.includes(sid);
@@ -380,10 +414,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
       // rollback ถ้า API fail
       setSavedJobIds(prev => isSaved ? [...prev, sid] : prev.filter(id => id !== sid));
     }
-    if (!isSaved) {
-      // navigate ไป HR Profile แล้ว scroll ไปที่ saved section
-      navigate("/hr-profile", { state: { scrollTo: "saved" } });
-    }
+    // ไม่ navigate ออกจากหน้า — ให้ user กด Saved ใน sidebar เองถ้าอยากไปดู
   };
 
   /* ── Navigate to HR Profile applicants filtered by job ── */
@@ -597,9 +628,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
             </div>
 
             <div className="hrf-tab-bar">
-              {TABS.map((t) => {
-                const count = t.key === "jobs" ? jobs.filter(j => j.status !== "ปิดแล้ว").length : t.count;
-                return (
+              {TABS.map((t) => (
                   <button
                     key={t.key}
                     className={`hrf-tab${activeTab === t.key ? " active" : ""}`}
@@ -607,10 +636,9 @@ const handleUpdateStatus = async (jobId, newStatus) => {
                   >
                     {t.icon}
                     {t.label}
-                    <span className="hrf-tab-badge">{count}</span>
+                    <span className="hrf-tab-badge">{t.count}</span>
                   </button>
-                );
-              })}
+                ))}
             </div>
           </div>
 
@@ -636,8 +664,43 @@ const handleUpdateStatus = async (jobId, newStatus) => {
 
           {/* Content panel */}
           <div className="hrf-panel">
-            <div className="hrf-filter-bar">
-              <button className="hrf-filter-btn"><LuFilter /> กรอง</button>
+            <div className="hrf-filter-bar" style={{ position: "relative" }}>
+              <div style={{ position: "relative" }}>
+                <button
+                  className="hrf-filter-btn"
+                  onClick={() => setFilterOpen(v => !v)}
+                  style={filterType ? { background: "#eff6ff", color: "#1d4ed8", borderColor: "#93c5fd" } : {}}
+                >
+                  <LuFilter /> กรอง {filterType ? `· ${filterType}` : ""}
+                </button>
+                {filterOpen && (
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 6px)", left: 0,
+                    background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 8, zIndex: 200,
+                    minWidth: 180,
+                  }}>
+                    {["", "Full-time", "Part-time", "Freelance", "Internship"].map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => { setFilterType(opt); setFilterOpen(false); }}
+                        style={{
+                          display: "block", width: "100%", textAlign: "left",
+                          padding: "9px 12px", background: filterType === opt ? "#eff6ff" : "none",
+                          border: "none", borderRadius: 8, cursor: "pointer",
+                          fontSize: 13, color: filterType === opt ? "#1d4ed8" : "#334155",
+                          fontWeight: filterType === opt ? 700 : 400,
+                        }}
+                      >
+                        {opt === "" ? "ทั้งหมด" : opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {filterOpen && (
+                <div onClick={() => setFilterOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 199 }} />
+              )}
               {activeTab === "jobs" && (
                 <button
                   className="hrf-filter-btn"
@@ -687,6 +750,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
               })() : (() => {
                 const filteredJobs = jobs
                   .filter((j) => j.status !== "ปิดแล้ว")
+                  .filter((j) => !filterType || (j.job_type || "").toLowerCase() === filterType.toLowerCase())
                   .filter((j) => {
                     if (!searchQuery) return true;
                     const q = searchQuery.toLowerCase();
