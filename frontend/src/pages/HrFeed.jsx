@@ -80,6 +80,7 @@ export default function HrFeed() {
 
   /* ── Resizable sidebar ── */
   useEffect(() => {
+    const sidebar = sidebarRef.current;
     if (!sidebar) return;
     const handle = sidebar.querySelector(".hrf-resize-handle");
     if (!handle) return;
@@ -207,7 +208,7 @@ useEffect(() => {
         setSavedResumeMap(map);
       }
     } catch (err) {
-      console.error("Fetch shortlist error:", err);
+      console.error("Fetch saved resumes error:", err);
     }
   };
   fetchShortlist();
@@ -559,7 +560,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
             <LuBriefcase /> My Jobs
           </button>
           <button className="hrf-menu-item" onClick={() => navigate("/hr-profile", { state: { scrollTo: "saved" } })}>
-            <LuBookmark /> Shortlisted
+            <LuBookmark /> Saved
           </button>
 
           <div className="hrf-section-label">Recent Applicants</div>
@@ -1009,7 +1010,7 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
               style={{ ...dropdownItemStyle, color: isSaved ? "#ef4444" : "#16a34a" }}
             >
               {isSaved ? <LuBookmarkCheck size={14} /> : <LuBookmark size={14} />}
-              {isSaved ? "ยกเลิก Shortlist" : "บันทึก Shortlist"}
+              {isSaved ? "ยกเลิก Saved" : "บันทึก Saved"}
             </button>
           </div>
         )}
@@ -1048,7 +1049,7 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
       {/* Saved badge */}
       {isSaved && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
-          <LuBookmarkCheck size={13} /> บันทึกใน Shortlist แล้ว
+          <LuBookmarkCheck size={13} /> บันทึกใน Saved แล้ว
         </div>
       )}
 
