@@ -1033,8 +1033,11 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
   );
 }
 
-/* ── Candidate Card (Public Resume) ── */
+/* ── Candidate Card (Public Resume) — iframe preview แบบ UsersFeed ── */
 function CandidateCard({ resume, onView, isSaved, onSave }) {
+  const cardRef = useRef(null);
+  const [inView, setInView] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const user =
@@ -1042,16 +1045,51 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
       ? (() => { try { return JSON.parse(resume.users); } catch { return {}; } })()
       : resume.users || {};
 
+  const ownerName = user.fullName || "ไม่ระบุชื่อ";
+  const ownerAvatar = user.avatar || null;
+  const ownerInitial = ownerName?.[0]?.toUpperCase() ?? "?";
+
   const publishedDate = resume.published_at
     ? new Date(resume.published_at).toLocaleDateString("th-TH", {
         year: "numeric", month: "short", day: "numeric",
       })
     : "";
 
+  // IntersectionObserver — โหลด iframe ตอนการ์ดเข้า viewport
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const CARD_W = 236;
+  const IFRAME_W = 794;
+  const IFRAME_H = 1123;
+  const scale = CARD_W / IFRAME_W;
+  const previewH = Math.round((IFRAME_H / 2) * scale);
+
   return (
     <div
+      ref={cardRef}
       className="hrf-job-card"
-      style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", overflow: "visible" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        cursor: "pointer",
+        padding: "12px 12px 0 12px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        position: "relative",
+        transition: "box-shadow 0.2s",
+        boxShadow: hovered ? "0 8px 28px rgba(30,58,138,0.13)" : undefined,
+      }}
     >
       {/* Backdrop ปิด dropdown */}
       {menuOpen && (
@@ -1061,103 +1099,119 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
         />
       )}
 
-      {/* 3-dot button */}
-      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 100 }}>
-        <button
-          onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
-          style={{
-            width: 30, height: 30,
-            background: menuOpen ? "#e0e7ff" : "rgba(255,255,255,0.9)",
-            border: "1.5px solid " + (menuOpen ? "#a5b4fc" : "#e4e4e7"),
-            borderRadius: "50%", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: menuOpen ? "#4f46e5" : "#64748b",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-            transition: "all 0.15s",
-          }}
-        >
-          <LuEllipsisVertical size={16} />
-        </button>
-
-        {menuOpen && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 6px)", right: 0,
-            background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12,
-            width: 185, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            padding: 6, zIndex: 101,
-          }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onView(); }}
-              style={dropdownItemStyle}
-            >
-              <LuUsers size={14} /> ดูเรซูเม่
-            </button>
-            <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSave(); }}
-              style={{ ...dropdownItemStyle, color: isSaved ? "#ef4444" : "#16a34a" }}
-            >
-              {isSaved ? <LuBookmarkCheck size={14} /> : <LuBookmark size={14} />}
-              {isSaved ? "ยกเลิก Saved" : "บันทึก Saved"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Avatar + name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 28 }}>
-        {user.avatar ? (
-          <img
-            src={user.avatar}
-            alt="avatar"
-            style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2px solid #e5e7eb" }}
-          />
-        ) : (
-          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-            👤
-          </div>
-        )}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {user.fullName || "ไม่ระบุชื่อ"}
-          </div>
-          {publishedDate && (
-            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-              เผยแพร่ {publishedDate}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Resume title */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", padding: "8px 10px", background: "#f9fafb", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-        📄 {resume.title || "Untitled Resume"}
-      </div>
-
-      {/* Saved badge */}
-      {isSaved && (
-        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
-          <LuBookmarkCheck size={13} /> บันทึกใน Saved แล้ว
-        </div>
-      )}
-
-      {/* View button */}
+      {/* ── Save Button (top-right) ── */}
       <button
+        onClick={(e) => { e.stopPropagation(); onSave(); }}
+        title={isSaved ? "ยกเลิก Saved" : "บันทึก Saved"}
+        style={{
+          position: "absolute", top: 10, right: 10, zIndex: 10,
+          background: isSaved ? "#1e3a8a" : "rgba(255,255,255,0.92)",
+          border: isSaved ? "none" : "1.5px solid #e2e8f0",
+          borderRadius: "50%", width: 30, height: 30,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+          transition: "background 0.2s, transform 0.15s",
+          transform: hovered ? "scale(1.08)" : "scale(1)",
+          color: isSaved ? "#fff" : "#6b7280", fontSize: 14,
+        }}
+      >
+        <LuBookmark style={{ fill: isSaved ? "#fff" : "none" }} size={14} />
+      </button>
+
+      {/* ── IFRAME PREVIEW ── */}
+      <div
         onClick={onView}
         style={{
-          width: "100%", padding: "9px 0",
-          background: "#c9a84c", border: "none",
-          borderRadius: 8, fontWeight: 700,
-          fontSize: 13, cursor: "pointer",
-          color: "#000", display: "flex",
-          alignItems: "center", justifyContent: "center", gap: 6,
-          transition: "opacity 0.15s",
+          position: "relative", width: "100%", height: previewH,
+          overflow: "hidden", background: "#f8fafc", flexShrink: 0,
+          borderRadius: "8px", border: "1px solid #e2e8f0",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
         }}
-        onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-        onMouseLeave={e => e.currentTarget.style.opacity = "1"}
       >
-        👁 ดูเรซูเม่
-      </button>
+        {inView ? (
+          <iframe
+            src={`/view-resume/${resume.id}`}
+            title={resume.title}
+            scrolling="no"
+            style={{
+              width: IFRAME_W, height: IFRAME_H,
+              border: "none", transformOrigin: "top left",
+              transform: `scale(${scale})`,
+              pointerEvents: "none", userSelect: "none",
+            }}
+          />
+        ) : (
+          <div style={{
+            width: "100%", height: "100%",
+            background: "linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)",
+            backgroundSize: "200% 100%",
+            animation: "hrf-shimmer 1.4s infinite",
+          }} />
+        )}
+        {/* Hover overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: hovered ? "rgba(30,58,138,0.06)" : "transparent",
+          transition: "background 0.2s", borderRadius: "8px",
+        }} />
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div style={{ padding: "10px 2px 12px" }}>
+
+        {/* Owner row */}
+        <div
+          onClick={onView}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, marginBottom: 6,
+            padding: "5px 7px", borderRadius: 8, cursor: "pointer",
+            transition: "background 0.15s",
+            background: hovered ? "#f0f4ff" : "transparent",
+          }}
+        >
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%",
+            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
+            flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 12, fontWeight: 700, color: "#fff",
+            overflow: "hidden", border: "2px solid #e0e7ff",
+          }}>
+            {ownerAvatar
+              ? <img src={ownerAvatar} alt={ownerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+              : ownerInitial}
+          </div>
+          <span style={{
+            fontSize: "14px", fontWeight: 700, color: "#1e3a8a",
+            letterSpacing: "-0.01em", flex: 1,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {ownerName}
+          </span>
+          <LuUsers size={12} style={{ color: "#93c5fd", flexShrink: 0 }} />
+        </div>
+
+        {/* Resume title */}
+        <div style={{
+          fontSize: "12px", fontWeight: 500, color: "#4b5563",
+          marginBottom: 4, paddingLeft: 2,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {resume.title || "Untitled Resume"}
+        </div>
+
+        {/* Date */}
+        {publishedDate && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 4,
+            fontSize: "11px", color: "#9ca3af", paddingLeft: 2,
+          }}>
+            <LuUsers size={11} style={{ display: "none" }} />
+            🕐 {publishedDate}
+          </div>
+        )}
+      </div>
+
+      <style>{`@keyframes hrf-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
     </div>
   );
 }
