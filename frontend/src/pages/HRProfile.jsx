@@ -191,13 +191,15 @@ async function getApplicants() {
     const data = await res.json();
     return (data.applicants || []).map(a => ({
       ...a,
-      name:    a.fullName   || a.name     || "ไม่ระบุชื่อ",
-      avatar:  (a.fullName  || a.name     || "?")[0].toUpperCase(),
-      role:    a.position   || a.role     || "ไม่ระบุตำแหน่ง",
-      status:  a.status     || "รอการตรวจสอบ",
-      applied: a.appliedAt  ? new Date(a.appliedAt).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : (a.applied || ""),
-      exp:     a.experience || a.exp      || null,
-      score:   a.score      ?? null,
+      name:      a.fullName   || a.name     || "ไม่ระบุชื่อ",
+      avatar:    (a.fullName  || a.name     || "?")[0].toUpperCase(),
+      role:      a.position   || a.role     || "ไม่ระบุตำแหน่ง",
+      status:    a.status     || "รอการตรวจสอบ",
+      applied:   a.appliedAt  ? new Date(a.appliedAt).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : (a.applied || ""),
+      exp:       a.experience || a.exp      || null,
+      score:     a.score      ?? null,
+      resume_id: a.resume_id  ?? null,
+      userId:    a.userId     || a.user_id  || null,
     }));
   } catch (err) {
     console.error(err);
@@ -991,6 +993,107 @@ function ApplicantsModal({ open, onClose, job, applicants }) {
   );
 }
 
+// ── Resume Picker Modal ───────────────────────────────────────
+function ResumePickerModal({ open, onClose, applicant, navigate }) {
+  const [resumes, setResumes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !applicant?.userId) return;
+    setLoading(true);
+    const token = localStorage.getItem("token");
+    fetch(`http://localhost:3000/hr/user-resumes/${applicant.userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => setResumes(data.resumes || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [open, applicant]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: "fixed", inset: 0, zIndex: 900,
+        background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)",
+      }} />
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 901,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+        pointerEvents: "none",
+      }}>
+        <div onClick={e => e.stopPropagation()} style={{
+          background: "#fff", borderRadius: 20, width: "100%", maxWidth: 460,
+          maxHeight: "80vh", overflowY: "auto", pointerEvents: "all",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+          fontFamily: "'DM Sans', sans-serif",
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "18px 22px 14px", borderBottom: "1px solid #f0f0f0",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#18181b" }}>📄 เลือก Resume</div>
+              <div style={{ fontSize: 12, color: "#71717a", marginTop: 2 }}>
+                {applicant?.name} — {resumes.length} resume
+              </div>
+            </div>
+            <button onClick={onClose} style={{
+              width: 32, height: 32, borderRadius: 8, border: "1.5px solid #e4e4e7",
+              background: "#fff", cursor: "pointer", color: "#71717a", fontSize: 16,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>✕</button>
+          </div>
+          {/* List */}
+          <div style={{ padding: "12px 16px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {loading ? (
+              <div style={{ padding: 32, textAlign: "center", color: "#9ca3af" }}>⏳ กำลังโหลด...</div>
+            ) : resumes.length === 0 ? (
+              <div style={{ padding: 32, textAlign: "center", color: "#9ca3af" }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
+                <div>ผู้สมัครนี้ยังไม่มี Resume ในระบบ</div>
+              </div>
+            ) : resumes.map(r => (
+              <button
+                key={r.id}
+                onClick={() => {
+                  navigate(`/view-resume/${r.id}`, { state: { from: "/hr-profile" } });
+                  onClose();
+                }}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "12px 16px", border: "1.5px solid #e4e4e7", borderRadius: 12,
+                  background: "#fff", cursor: "pointer", textAlign: "left", width: "100%",
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#18181b" }}>
+                    {r.title || "Untitled Resume"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 3 }}>
+                    อัปเดต {r.updated_at ? new Date(r.updated_at).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                    {" · "}
+                    <span style={{ color: r.visibility === "public" ? "#15803d" : "#6b7280" }}>
+                      {r.visibility === "public" ? "🌐 สาธารณะ" : "🔒 ส่วนตัว"}
+                    </span>
+                  </div>
+                </div>
+                <span style={{
+                  background: "#eff6ff", color: "#1d4ed8", borderRadius: 8,
+                  padding: "5px 12px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
+                }}>ดู →</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Applicants View ───────────────────────────────────────────
 const STATUS_CONFIG = {
   "ทั้งหมด":        { bg: "#f4f4f5",  text: "#52525b",  active: "#18181b" },
@@ -1002,6 +1105,7 @@ const STATUS_CONFIG = {
 };
 
 function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onInterviewScheduled }) {
+  const navigate = useNavigate();
   // กรองตาม job ถ้ามี filterJobId
   const baseData = filterJobId
     ? applicants.filter(a => String(a.jobId ?? a.job_id) === String(filterJobId))
@@ -1016,6 +1120,7 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onIn
   const [sortBy, setSortBy]             = useState("latest");
   const [ivModal, setIvModal]           = useState(false);
   const [ivPrefill, setIvPrefill]       = useState(null);
+  const [resumePicker, setResumePicker] = useState({ open: false, applicant: null });
 
   const openSchedule = (a) => {
     setIvPrefill({
@@ -1047,6 +1152,12 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onIn
 
   return (
     <div className="hr-card">
+      <ResumePickerModal
+        open={resumePicker.open}
+        onClose={() => setResumePicker({ open: false, applicant: null })}
+        applicant={resumePicker.applicant}
+        navigate={navigate}
+      />
       <InterviewModal
         open={ivModal}
         onClose={() => { setIvModal(false); setIvPrefill(null); }}
@@ -1171,7 +1282,11 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onIn
               )}
               <span className="hr-job-dept" style={{ background: sc.bg, color: sc.text, whiteSpace: "nowrap" }}>{a.status}</span>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button className="hr-reopen-btn">📄 Resume</button>
+                <button
+                  className="hr-reopen-btn"
+                  onClick={() => setResumePicker({ open: true, applicant: a })}
+                  style={{ cursor: "pointer" }}
+                >📄 Resume</button>
                 <button
                   className="hr-reopen-btn"
                   onClick={() => openSchedule(a)}

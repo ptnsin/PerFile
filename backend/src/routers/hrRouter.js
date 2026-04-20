@@ -980,6 +980,7 @@ hrRouter.delete('/saved-jobs/:id', async (req, res) => {
 // GET /hr/applicants — ดึงผู้สมัครทั้งหมดของ HR คนนี้
 // ⚠️ ต้องสร้างตาราง applications ก่อน (ดู comment SQL ด้านบน)
 hrRouter.get('/applicants', async (req, res) => {
+  console.log("🔍 HR applicants - req.user:", req.user)
   try {
     // ใช้ $queryRaw เพราะตารางชื่อ `applications` ไม่ตรงกับ Prisma model
     const applications = await prisma.$queryRaw`
@@ -993,7 +994,13 @@ hrRouter.get('/applicants', async (req, res) => {
         u.username,
         u.avatar,
         u.email,
-        j.title AS job_title
+        j.title AS job_title,
+        (
+          SELECT r.id FROM resumes r
+          WHERE r.user_id = a.user_id
+          ORDER BY r.updated_at DESC
+          LIMIT 1
+        ) AS resume_id
       FROM applications a
       JOIN users u ON u.id = a.user_id
       JOIN Job j   ON j.id = a.job_id
@@ -1008,8 +1015,10 @@ hrRouter.get('/applicants', async (req, res) => {
       email:     a.email,
       position:  a.job_title,
       jobId:     a.job_id,
+      userId:    a.user_id,
       status:    a.status,
       appliedAt: a.applied_at,
+      resume_id: a.resume_id ? Number(a.resume_id) : null,
     }));
 
     res.json({ applicants });
@@ -1018,6 +1027,23 @@ hrRouter.get('/applicants', async (req, res) => {
     res.status(500).json({ message: "Error fetching applicants" });
   }
 });
+
+
+// ─────────────────────────────────────────────────────────────
+// GET /hr/user-resumes/:userId — ดึง resume ทั้งหมดของ user (HR เลือกดู)
+hrRouter.get('/user-resumes/:userId', async (req, res) => {
+  try {
+    const userId = Number(req.params.userId)
+    const [resumes] = await db.query(
+      'SELECT id, title, updated_at, visibility FROM resumes WHERE user_id = ? ORDER BY updated_at DESC',
+      [userId]
+    )
+    res.json({ resumes })
+  } catch (err) {
+    console.error('GET /hr/user-resumes error:', err)
+    res.status(500).json({ message: 'Error fetching user resumes' })
+  }
+})
 
 // ─────────────────────────────────────────────────────────────
 // GET /hr/about — ดึง about items ของ HR
