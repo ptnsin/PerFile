@@ -29,6 +29,9 @@ export default function HrFeed() {
   const sidebarRef = useRef(null);
 
   // Notification
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Notification
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const notifRef = useRef(null);
@@ -436,7 +439,12 @@ const handleUpdateStatus = async (jobId, newStatus) => {
 
           <div className="hrf-search">
             <LuSearch />
-            <input type="text" placeholder="ค้นหาแคนดิเดต หรือเรซูเม่..." />
+            <input
+              type="text"
+              placeholder="ค้นหาแคนดิเดต หรือเรซูเม่..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
 
@@ -642,64 +650,80 @@ const handleUpdateStatus = async (jobId, newStatus) => {
             </div>
 
             <div className="hrf-cards-grid" style={{ alignItems: "stretch" }}>
-              {activeTab === "candidates" ? (
-                resumeLoading ? (
+              {activeTab === "candidates" ? (() => {
+                const filteredResumes = publicResumes.filter((r) => {
+                  if (!searchQuery) return true;
+                  const q = searchQuery.toLowerCase();
+                  const user = typeof r.users === "string"
+                    ? (() => { try { return JSON.parse(r.users); } catch { return {}; } })()
+                    : r.users || {};
+                  return (
+                    (user.fullName || "").toLowerCase().includes(q) ||
+                    (r.title || "").toLowerCase().includes(q)
+                  );
+                });
+                if (resumeLoading) return (
                   <div className="hrf-empty">
                     <div className="hrf-empty-icon">⏳</div>
                     <div className="hrf-empty-title">กำลังโหลด...</div>
                   </div>
-                ) : publicResumes.length === 0 ? (
+                );
+                if (filteredResumes.length === 0) return (
                   <div className="hrf-empty">
                     <div className="hrf-empty-icon">👥</div>
-                    <div className="hrf-empty-title">ยังไม่มี Public Resume</div>
-                    <div className="hrf-empty-desc">ยังไม่มีผู้ใช้โพสต์เรซูเม่สาธารณะ</div>
+                    <div className="hrf-empty-title">{searchQuery ? `ไม่พบผลลัพธ์สำหรับ "${searchQuery}"` : "ยังไม่มี Public Resume"}</div>
+                    <div className="hrf-empty-desc">{searchQuery ? "ลองค้นหาด้วยคำอื่น" : "ยังไม่มีผู้ใช้โพสต์เรซูเม่สาธารณะ"}</div>
                   </div>
-                ) : (
-                  publicResumes.map((resume) => (
-                    <CandidateCard
-                      key={resume.id}
-                      resume={resume}
-                      isSaved={!!savedResumeMap[String(resume.id)]}
-                      onSave={() => handleSaveResume(resume.id)}
-                      onView={() => navigate(`/view-resume/${resume.id}`, { state: { from: "/hr-feed" } })}
-                    />
-                  ))
-                )
-              ) : jobs.length === 0 ? (
-                <div className="hrf-empty">
-                  <div className="hrf-empty-icon">📋</div>
-                  <div className="hrf-empty-title">ยังไม่มีประกาศงาน</div>
-                  <div className="hrf-empty-desc">
-                    กด{" "}
-                    <span
-                      style={{ color: "#1d4ed8", cursor: "pointer", fontWeight: 700 }}
-                      onClick={openModal}
-                    >
-                      Post Job
-                    </span>{" "}
-                    เพื่อลงประกาศงานใหม่
-                  </div>
-                </div>
-              ) : (
-                jobs
-                  .filter((job) => job.status !== "ปิดแล้ว")
-                  .map((job) => {
-                    const jobApplicantCount = applicants.filter(
-                      (a) => String(a.job_id ?? a.jobId ?? a.jobID) === String(job.id)
-                    ).length;
+                );
+                return filteredResumes.map((resume) => (
+                  <CandidateCard
+                    key={resume.id}
+                    resume={resume}
+                    isSaved={!!savedResumeMap[String(resume.id)]}
+                    onSave={() => handleSaveResume(resume.id)}
+                    onView={() => navigate(`/view-resume/${resume.id}`, { state: { from: "/hr-feed" } })}
+                  />
+                ));
+              })() : (() => {
+                const filteredJobs = jobs
+                  .filter((j) => j.status !== "ปิดแล้ว")
+                  .filter((j) => {
+                    if (!searchQuery) return true;
+                    const q = searchQuery.toLowerCase();
                     return (
-                      <JobCard 
-                        key={job.id} 
-                        job={{ ...job, applicantCount: jobApplicantCount }} 
-                        onClick={() => setSelectedJob(job)} 
-                        onUpdateStatus={handleUpdateStatus}
-                        isSaved={savedJobIds.includes(String(job.id))}
-                        onSave={handleSaveJob}
-                        onViewApplicants={handleViewApplicants}
-                      />
+                      (j.title || "").toLowerCase().includes(q) ||
+                      (j.location || "").toLowerCase().includes(q) ||
+                      (j.category || "").toLowerCase().includes(q) ||
+                      (j.company || "").toLowerCase().includes(q) ||
+                      (j.description || "").toLowerCase().includes(q)
                     );
-                  })
-              )}
+                  });
+                if (filteredJobs.length === 0) return (
+                  <div className="hrf-empty">
+                    <div className="hrf-empty-icon">📋</div>
+                    <div className="hrf-empty-title">{searchQuery ? `ไม่พบผลลัพธ์สำหรับ "${searchQuery}"` : "ยังไม่มีประกาศงาน"}</div>
+                    <div className="hrf-empty-desc">
+                      {searchQuery ? "ลองค้นหาด้วยคำอื่น" : <>กด{" "}<span style={{ color: "#1d4ed8", cursor: "pointer", fontWeight: 700 }} onClick={openModal}>Post Job</span>{" "}เพื่อลงประกาศงานใหม่</>}
+                    </div>
+                  </div>
+                );
+                return filteredJobs.map((job) => {
+                  const jobApplicantCount = applicants.filter(
+                    (a) => String(a.job_id ?? a.jobId ?? a.jobID) === String(job.id)
+                  ).length;
+                  return (
+                    <JobCard
+                      key={job.id}
+                      job={{ ...job, applicantCount: jobApplicantCount }}
+                      onClick={() => setSelectedJob(job)}
+                      onUpdateStatus={handleUpdateStatus}
+                      isSaved={savedJobIds.includes(String(job.id))}
+                      onSave={handleSaveJob}
+                      onViewApplicants={handleViewApplicants}
+                    />
+                  );
+                });
+              })()}
             </div>
           </div>
 
