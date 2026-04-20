@@ -35,17 +35,9 @@ export default function UsersFeed() {
   const [hrPopup, setHrPopup] = useState(null);
 
 
-  // Saved resumes (stored in localStorage for persistence)
-  const [savedResumes, setSavedResumes] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("savedResumes") || "[]");
-    } catch { return []; }
-  });
-
-  const [savedJobs, setSavedJobs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("savedJobs") || "[]"); }
-    catch { return []; }
-  });
+  // Saved resumes — sync จาก backend
+  const [savedResumes, setSavedResumes] = useState([]);
+  const [savedJobs, setSavedJobs] = useState([]);
 
   // Notification
   const [notifOpen, setNotifOpen] = useState(false);
@@ -59,47 +51,53 @@ export default function UsersFeed() {
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
 
+  // Fetch saved jobs/resumes จาก backend ตอน mount
   useEffect(() => {
-    localStorage.setItem("savedJobs", JSON.stringify(savedJobs));
-  }, [savedJobs]);
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    // saved jobs
+    fetch("http://localhost:3000/saved/jobs", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setSavedJobs((d.savedJobs || []).map(j => j.job_id)); })
+      .catch(() => { });
+    // saved resumes
+    fetch("http://localhost:3000/saved/resumes", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setSavedResumes((d.savedResumes || []).map(r => r.resume_id)); })
+      .catch(() => { });
+  }, []);
 
   const toggleSaveJob = async (jobId) => {
     const token = localStorage.getItem("token");
     if (!token) return alert("กรุณาเข้าสู่ระบบก่อนบันทึก");
-
-    const method = savedJobs.includes(jobId) ? "DELETE" : "POST";
+    const isSaved = savedJobs.includes(jobId);
+    // optimistic UI
+    setSavedJobs(prev => isSaved ? prev.filter(id => id !== jobId) : [...prev, jobId]);
+    const method = isSaved ? "DELETE" : "POST";
     const res = await fetch(`http://localhost:3000/saved/jobs/${jobId}`, {
       method,
       headers: { Authorization: `Bearer ${token}` }
     });
-
-    if (res.ok) {
-      setSavedJobs(prev =>
-        prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId]
-      );
+    if (!res.ok) {
+      // rollback
+      setSavedJobs(prev => isSaved ? [...prev, jobId] : prev.filter(id => id !== jobId));
     }
   };
-
-  // Persist saved resumes
-  useEffect(() => {
-    localStorage.setItem("savedResumes", JSON.stringify(savedResumes));
-  }, [savedResumes]);
 
   const toggleSave = async (resumeId) => {
     const token = localStorage.getItem("token");
     if (!token) return alert("กรุณาเข้าสู่ระบบก่อนบันทึก");
-
-    const method = savedResumes.includes(resumeId) ? "DELETE" : "POST";
+    const isSaved = savedResumes.includes(resumeId);
+    // optimistic UI
+    setSavedResumes(prev => isSaved ? prev.filter(id => id !== resumeId) : [...prev, resumeId]);
+    const method = isSaved ? "DELETE" : "POST";
     const res = await fetch(`http://localhost:3000/saved/resumes/${resumeId}`, {
       method,
       headers: { Authorization: `Bearer ${token}` }
     });
-
-    if (res.ok) {
-      // อัปเดต UI หลังจากบันทึกสำเร็จ
-      setSavedResumes(prev =>
-        prev.includes(resumeId) ? prev.filter(id => id !== resumeId) : [...prev, resumeId]
-      );
+    if (!res.ok) {
+      // rollback
+      setSavedResumes(prev => isSaved ? [...prev, resumeId] : prev.filter(id => id !== resumeId));
     }
   };
 
@@ -195,9 +193,12 @@ export default function UsersFeed() {
       const matchType = !jobFilter.type || j.job_type === jobFilter.type;
       const matchLocation = !jobFilter.location ||
         (j.location?.toLowerCase() || "").includes(jobFilter.location.toLowerCase());
-      const salary = parseFloat(j.salary) || 0;
-      const matchMin = !jobFilter.salaryMin || salary >= parseFloat(jobFilter.salaryMin);
-      const matchMax = !jobFilter.salaryMax || salary <= parseFloat(jobFilter.salaryMax);
+      // salary อาจเป็น string "15000-30000" หรือ "15000" ให้ดึงตัวเลขทั้งหมดออกมา
+      const salaryNums = String(j.salary || "").match(/\d+/g)?.map(Number) || [];
+      const salaryMin = salaryNums.length > 0 ? Math.min(...salaryNums) : 0;
+      const salaryMax = salaryNums.length > 0 ? Math.max(...salaryNums) : 0;
+      const matchMin = !jobFilter.salaryMin || salaryMax >= parseFloat(jobFilter.salaryMin);
+      const matchMax = !jobFilter.salaryMax || salaryMin <= parseFloat(jobFilter.salaryMax);
       return matchSearch && matchType && matchLocation && matchMin && matchMax;
     });
   }, [jobs, searchTerm, jobFilter]);
@@ -503,9 +504,20 @@ export default function UsersFeed() {
                 key={a.id}
                 className="uf-sub-item"
                 style={{ cursor: "pointer" }}
-                onClick={() => navigate(`/jobs/${a.job_id}`)}
+                onClick={() => {
+                  setSelectedJob({
+                    id: a.jobId,
+                    title: a.jobTitle,
+                    location: a.location,
+                    salary: a.salary,
+                    job_type: a.jobType,
+                    company_name: a.companyName,
+                    alreadyApplied: true,
+                  });
+                  setIsModalOpen(true);
+                }}
               >
-                💼 {a.jobs?.title ?? "งาน"}
+                💼 {a.jobTitle ?? "งาน"}
               </div>
             ))
           ) : (

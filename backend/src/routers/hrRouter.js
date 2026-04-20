@@ -1226,6 +1226,39 @@ hrRouter.get('/report', async (req, res) => {
   }
 });
 // ─────────────────────────────────────────────────────────────
+// GET /hr/stats — คำนวณสถิติ dashboard (อัตราตอบรับจริง ฯลฯ)
+// ─────────────────────────────────────────────────────────────
+hrRouter.get('/stats', async (req, res) => {
+  try {
+    const hrId = Number(req.user.id);
+
+    // นับ applications ทั้งหมดของ HR นี้
+    const totalApps = await prisma.$queryRaw`
+      SELECT COUNT(*) as total FROM applications a
+      JOIN Job j ON j.id = a.job_id
+      WHERE j.hrId = ${hrId}
+    `;
+
+    // นับที่ตอบรับแล้ว (status = 'reviewed' | 'interviewed' | 'offered' | 'hired' — ไม่ใช่ pending/rejected)
+    const respondedApps = await prisma.$queryRaw`
+      SELECT COUNT(*) as total FROM applications a
+      JOIN Job j ON j.id = a.job_id
+      WHERE j.hrId = ${hrId}
+        AND a.status NOT IN ('pending', 'rejected')
+    `;
+
+    const total     = Number(totalApps[0]?.total || 0);
+    const responded = Number(respondedApps[0]?.total || 0);
+    const responseRate = total > 0 ? Math.round((responded / total) * 100) : 0;
+
+    res.json({ responseRate, total, responded });
+  } catch (err) {
+    console.error('GET /hr/stats error:', err);
+    res.json({ responseRate: 0, total: 0, responded: 0 });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // NOTIFICATIONS (HR)
 // ─────────────────────────────────────────────────────────────
 

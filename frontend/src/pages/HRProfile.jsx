@@ -1064,7 +1064,7 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onIn
                   onClick={() => openSchedule(a)}
                   style={{ background:"#eff6ff", color:"#1d4ed8", borderColor:"#bfdbfe", fontWeight:700 }}
                 >📅 นัด</button>
-                <button className="hr-apply-btn">ดูโปรไฟล์ →</button>
+               
               </div>
             </div>
           );

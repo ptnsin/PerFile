@@ -29,6 +29,12 @@ export default function HrFeed() {
   const sidebarRef = useRef(null);
 
   // Notification
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterOpen, setFilterOpen]   = useState(false);
+  const [filterType, setFilterType]   = useState("");   // job_type filter
+  const [responseRate, setResponseRate] = useState(null); // null = loading
+
+  // Notification
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const notifRef = useRef(null);
@@ -44,12 +50,12 @@ export default function HrFeed() {
     { num: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString(), label: "ตำแหน่งเปิดรับ", icon: <LuBriefcase />, color: "#1d4ed8", bg: "#eff6ff" },
     { num: applicants.length.toString(),   label: "ผู้สมัครทั้งหมด", icon: <LuUsers />, color: "#15803d", bg: "#f0fdf4" },
     { num: interviewsThisMonth.toString(), label: "สัมภาษณ์เดือนนี้", icon: <LuBadgeCheck />, color: "#a855f7", bg: "#faf5ff" },
-    { num: "94%", label: "อัตราตอบรับ", icon: <LuBadgeCheck />, color: "#f97316", bg: "#fff7ed" },
+    { num: responseRate !== null ? `${responseRate}%` : "...", label: "อัตราตอบรับ", icon: <LuBadgeCheck />, color: "#f97316", bg: "#fff7ed" },
   ];
 
   const TABS = [
     { key: "candidates", label: " Public Resume", icon: <LuUsers />, count: publicResumes.length },
-    { key: "jobs",       label: "JobPost", icon: <LuBriefcase /> },
+    { key: "jobs",       label: "JobPost", icon: <LuBriefcase />, count: jobs.length },
   ];
 
   // Fetch HR Notifications
@@ -254,6 +260,27 @@ useEffect(() => {
   fetchInterviews();
 }, []);
 
+/* ── Fetch Stats (response rate) ── */
+useEffect(() => {
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResponseRate(data.responseRate ?? 0);
+      }
+    } catch (err) {
+      console.error("Fetch stats error:", err);
+      setResponseRate(0);
+    }
+  };
+  fetchStats();
+}, []);
+
 const handleUpdateStatus = async (jobId, newStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -297,11 +324,21 @@ const handleUpdateStatus = async (jobId, newStatus) => {
     setSidebarOpen((v) => !v);
   };
 
-  /* ── Refresh jobs after posting ── */
-  const handleJobPosted = () => {
-    // แทนที่จะเซ็ต State เอง ให้เรียกฟังก์ชันดึงข้อมูลใหม่ (หรือรีเฟรชหน้า)
-    window.location.reload(); 
-    // หรือถ้าเขียนฟังก์ชัน fetchJobs แยกไว้ ก็เรียกใช้ฟังก์ชันนั้นแทนครับ
+  /* ── Refresh jobs after posting (no full reload) ── */
+  const handleJobPosted = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/hr/jobs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setJobs(data.jobs || data);
+      }
+    } catch (err) {
+      console.error("Refetch jobs error:", err);
+    }
   };
 
   /* ── Save / Unsave Resume (Shortlist) ── */
@@ -360,7 +397,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
     }
   };
 
-  /* ── Save / Unsave job then navigate to profile saved section ── */
+  /* ── Save / Unsave job ── */
   const handleSaveJob = async (jobId) => {
     const sid = String(jobId);
     const isSaved = savedJobIds.includes(sid);
@@ -377,10 +414,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
       // rollback ถ้า API fail
       setSavedJobIds(prev => isSaved ? [...prev, sid] : prev.filter(id => id !== sid));
     }
-    if (!isSaved) {
-      // navigate ไป HR Profile แล้ว scroll ไปที่ saved section
-      navigate("/hr-profile", { state: { scrollTo: "saved" } });
-    }
+    // ไม่ navigate ออกจากหน้า — ให้ user กด Saved ใน sidebar เองถ้าอยากไปดู
   };
 
   /* ── Navigate to HR Profile applicants filtered by job ── */
@@ -436,7 +470,12 @@ const handleUpdateStatus = async (jobId, newStatus) => {
 
           <div className="hrf-search">
             <LuSearch />
-            <input type="text" placeholder="ค้นหาแคนดิเดต หรือเรซูเม่..." />
+            <input
+              type="text"
+              placeholder="ค้นหาแคนดิเดต หรือเรซูเม่..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
 
@@ -589,9 +628,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
             </div>
 
             <div className="hrf-tab-bar">
-              {TABS.map((t) => {
-                const count = t.key === "jobs" ? jobs.filter(j => j.status !== "ปิดแล้ว").length : t.count;
-                return (
+              {TABS.map((t) => (
                   <button
                     key={t.key}
                     className={`hrf-tab${activeTab === t.key ? " active" : ""}`}
@@ -599,10 +636,9 @@ const handleUpdateStatus = async (jobId, newStatus) => {
                   >
                     {t.icon}
                     {t.label}
-                    <span className="hrf-tab-badge">{count}</span>
+                    <span className="hrf-tab-badge">{t.count}</span>
                   </button>
-                );
-              })}
+                ))}
             </div>
           </div>
 
@@ -628,8 +664,43 @@ const handleUpdateStatus = async (jobId, newStatus) => {
 
           {/* Content panel */}
           <div className="hrf-panel">
-            <div className="hrf-filter-bar">
-              <button className="hrf-filter-btn"><LuFilter /> กรอง</button>
+            <div className="hrf-filter-bar" style={{ position: "relative" }}>
+              <div style={{ position: "relative" }}>
+                <button
+                  className="hrf-filter-btn"
+                  onClick={() => setFilterOpen(v => !v)}
+                  style={filterType ? { background: "#eff6ff", color: "#1d4ed8", borderColor: "#93c5fd" } : {}}
+                >
+                  <LuFilter /> กรอง {filterType ? `· ${filterType}` : ""}
+                </button>
+                {filterOpen && (
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 6px)", left: 0,
+                    background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 8, zIndex: 200,
+                    minWidth: 180,
+                  }}>
+                    {["", "Full-time", "Part-time", "Freelance", "Internship"].map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => { setFilterType(opt); setFilterOpen(false); }}
+                        style={{
+                          display: "block", width: "100%", textAlign: "left",
+                          padding: "9px 12px", background: filterType === opt ? "#eff6ff" : "none",
+                          border: "none", borderRadius: 8, cursor: "pointer",
+                          fontSize: 13, color: filterType === opt ? "#1d4ed8" : "#334155",
+                          fontWeight: filterType === opt ? 700 : 400,
+                        }}
+                      >
+                        {opt === "" ? "ทั้งหมด" : opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {filterOpen && (
+                <div onClick={() => setFilterOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 199 }} />
+              )}
               {activeTab === "jobs" && (
                 <button
                   className="hrf-filter-btn"
@@ -642,64 +713,81 @@ const handleUpdateStatus = async (jobId, newStatus) => {
             </div>
 
             <div className="hrf-cards-grid" style={{ alignItems: "stretch" }}>
-              {activeTab === "candidates" ? (
-                resumeLoading ? (
+              {activeTab === "candidates" ? (() => {
+                const filteredResumes = publicResumes.filter((r) => {
+                  if (!searchQuery) return true;
+                  const q = searchQuery.toLowerCase();
+                  const user = typeof r.users === "string"
+                    ? (() => { try { return JSON.parse(r.users); } catch { return {}; } })()
+                    : r.users || {};
+                  return (
+                    (user.fullName || "").toLowerCase().includes(q) ||
+                    (r.title || "").toLowerCase().includes(q)
+                  );
+                });
+                if (resumeLoading) return (
                   <div className="hrf-empty">
                     <div className="hrf-empty-icon">⏳</div>
                     <div className="hrf-empty-title">กำลังโหลด...</div>
                   </div>
-                ) : publicResumes.length === 0 ? (
+                );
+                if (filteredResumes.length === 0) return (
                   <div className="hrf-empty">
                     <div className="hrf-empty-icon">👥</div>
-                    <div className="hrf-empty-title">ยังไม่มี Public Resume</div>
-                    <div className="hrf-empty-desc">ยังไม่มีผู้ใช้โพสต์เรซูเม่สาธารณะ</div>
+                    <div className="hrf-empty-title">{searchQuery ? `ไม่พบผลลัพธ์สำหรับ "${searchQuery}"` : "ยังไม่มี Public Resume"}</div>
+                    <div className="hrf-empty-desc">{searchQuery ? "ลองค้นหาด้วยคำอื่น" : "ยังไม่มีผู้ใช้โพสต์เรซูเม่สาธารณะ"}</div>
                   </div>
-                ) : (
-                  publicResumes.map((resume) => (
-                    <CandidateCard
-                      key={resume.id}
-                      resume={resume}
-                      isSaved={!!savedResumeMap[String(resume.id)]}
-                      onSave={() => handleSaveResume(resume.id)}
-                      onView={() => navigate(`/view-resume/${resume.id}`, { state: { from: "/hr-feed" } })}
-                    />
-                  ))
-                )
-              ) : jobs.length === 0 ? (
-                <div className="hrf-empty">
-                  <div className="hrf-empty-icon">📋</div>
-                  <div className="hrf-empty-title">ยังไม่มีประกาศงาน</div>
-                  <div className="hrf-empty-desc">
-                    กด{" "}
-                    <span
-                      style={{ color: "#1d4ed8", cursor: "pointer", fontWeight: 700 }}
-                      onClick={openModal}
-                    >
-                      Post Job
-                    </span>{" "}
-                    เพื่อลงประกาศงานใหม่
-                  </div>
-                </div>
-              ) : (
-                jobs
-                  .filter((job) => job.status !== "ปิดแล้ว")
-                  .map((job) => {
-                    const jobApplicantCount = applicants.filter(
-                      (a) => String(a.job_id ?? a.jobId ?? a.jobID) === String(job.id)
-                    ).length;
+                );
+                return filteredResumes.map((resume) => (
+                  <CandidateCard
+                    key={resume.id}
+                    resume={resume}
+                    isSaved={!!savedResumeMap[String(resume.id)]}
+                    onSave={() => handleSaveResume(resume.id)}
+                    onView={() => navigate(`/view-resume/${resume.id}`, { state: { from: "/hr-feed" } })}
+                  />
+                ));
+              })() : (() => {
+                const filteredJobs = jobs
+                  .filter((j) => j.status !== "ปิดแล้ว")
+                  .filter((j) => !filterType || (j.job_type || "").toLowerCase() === filterType.toLowerCase())
+                  .filter((j) => {
+                    if (!searchQuery) return true;
+                    const q = searchQuery.toLowerCase();
                     return (
-                      <JobCard 
-                        key={job.id} 
-                        job={{ ...job, applicantCount: jobApplicantCount }} 
-                        onClick={() => setSelectedJob(job)} 
-                        onUpdateStatus={handleUpdateStatus}
-                        isSaved={savedJobIds.includes(String(job.id))}
-                        onSave={handleSaveJob}
-                        onViewApplicants={handleViewApplicants}
-                      />
+                      (j.title || "").toLowerCase().includes(q) ||
+                      (j.location || "").toLowerCase().includes(q) ||
+                      (j.category || "").toLowerCase().includes(q) ||
+                      (j.company || "").toLowerCase().includes(q) ||
+                      (j.description || "").toLowerCase().includes(q)
                     );
-                  })
-              )}
+                  });
+                if (filteredJobs.length === 0) return (
+                  <div className="hrf-empty">
+                    <div className="hrf-empty-icon">📋</div>
+                    <div className="hrf-empty-title">{searchQuery ? `ไม่พบผลลัพธ์สำหรับ "${searchQuery}"` : "ยังไม่มีประกาศงาน"}</div>
+                    <div className="hrf-empty-desc">
+                      {searchQuery ? "ลองค้นหาด้วยคำอื่น" : <>กด{" "}<span style={{ color: "#1d4ed8", cursor: "pointer", fontWeight: 700 }} onClick={openModal}>Post Job</span>{" "}เพื่อลงประกาศงานใหม่</>}
+                    </div>
+                  </div>
+                );
+                return filteredJobs.map((job) => {
+                  const jobApplicantCount = applicants.filter(
+                    (a) => String(a.job_id ?? a.jobId ?? a.jobID) === String(job.id)
+                  ).length;
+                  return (
+                    <JobCard
+                      key={job.id}
+                      job={{ ...job, applicantCount: jobApplicantCount }}
+                      onClick={() => setSelectedJob(job)}
+                      onUpdateStatus={handleUpdateStatus}
+                      isSaved={savedJobIds.includes(String(job.id))}
+                      onSave={handleSaveJob}
+                      onViewApplicants={handleViewApplicants}
+                    />
+                  );
+                });
+              })()}
             </div>
           </div>
 
@@ -938,8 +1026,11 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
   );
 }
 
-/* ── Candidate Card (Public Resume) ── */
+/* ── Candidate Card (Public Resume) — iframe preview แบบ UsersFeed ── */
 function CandidateCard({ resume, onView, isSaved, onSave }) {
+  const cardRef = useRef(null);
+  const [inView, setInView] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const user =
@@ -947,16 +1038,51 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
       ? (() => { try { return JSON.parse(resume.users); } catch { return {}; } })()
       : resume.users || {};
 
+  const ownerName = user.fullName || "ไม่ระบุชื่อ";
+  const ownerAvatar = user.avatar || null;
+  const ownerInitial = ownerName?.[0]?.toUpperCase() ?? "?";
+
   const publishedDate = resume.published_at
     ? new Date(resume.published_at).toLocaleDateString("th-TH", {
         year: "numeric", month: "short", day: "numeric",
       })
     : "";
 
+  // IntersectionObserver — โหลด iframe ตอนการ์ดเข้า viewport
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const CARD_W = 236;
+  const IFRAME_W = 794;
+  const IFRAME_H = 1123;
+  const scale = CARD_W / IFRAME_W;
+  const previewH = Math.round((IFRAME_H / 2) * scale);
+
   return (
     <div
+      ref={cardRef}
       className="hrf-job-card"
-      style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", overflow: "visible" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        cursor: "pointer",
+        padding: "12px 12px 0 12px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "12px",
+        position: "relative",
+        transition: "box-shadow 0.2s",
+        boxShadow: hovered ? "0 8px 28px rgba(30,58,138,0.13)" : undefined,
+      }}
     >
       {/* Backdrop ปิด dropdown */}
       {menuOpen && (
@@ -966,103 +1092,119 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
         />
       )}
 
-      {/* 3-dot button */}
-      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 100 }}>
-        <button
-          onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
-          style={{
-            width: 30, height: 30,
-            background: menuOpen ? "#e0e7ff" : "rgba(255,255,255,0.9)",
-            border: "1.5px solid " + (menuOpen ? "#a5b4fc" : "#e4e4e7"),
-            borderRadius: "50%", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: menuOpen ? "#4f46e5" : "#64748b",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-            transition: "all 0.15s",
-          }}
-        >
-          <LuEllipsisVertical size={16} />
-        </button>
-
-        {menuOpen && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 6px)", right: 0,
-            background: "#fff", border: "1px solid #e4e4e7", borderRadius: 12,
-            width: 185, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            padding: 6, zIndex: 101,
-          }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onView(); }}
-              style={dropdownItemStyle}
-            >
-              <LuUsers size={14} /> ดูเรซูเม่
-            </button>
-            <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
-            <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onSave(); }}
-              style={{ ...dropdownItemStyle, color: isSaved ? "#ef4444" : "#16a34a" }}
-            >
-              {isSaved ? <LuBookmarkCheck size={14} /> : <LuBookmark size={14} />}
-              {isSaved ? "ยกเลิก Saved" : "บันทึก Saved"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Avatar + name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 28 }}>
-        {user.avatar ? (
-          <img
-            src={user.avatar}
-            alt="avatar"
-            style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2px solid #e5e7eb" }}
-          />
-        ) : (
-          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-            👤
-          </div>
-        )}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {user.fullName || "ไม่ระบุชื่อ"}
-          </div>
-          {publishedDate && (
-            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-              เผยแพร่ {publishedDate}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Resume title */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", padding: "8px 10px", background: "#f9fafb", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-        📄 {resume.title || "Untitled Resume"}
-      </div>
-
-      {/* Saved badge */}
-      {isSaved && (
-        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
-          <LuBookmarkCheck size={13} /> บันทึกใน Saved แล้ว
-        </div>
-      )}
-
-      {/* View button */}
+      {/* ── Save Button (top-right) ── */}
       <button
+        onClick={(e) => { e.stopPropagation(); onSave(); }}
+        title={isSaved ? "ยกเลิก Saved" : "บันทึก Saved"}
+        style={{
+          position: "absolute", top: 10, right: 10, zIndex: 10,
+          background: isSaved ? "#1e3a8a" : "rgba(255,255,255,0.92)",
+          border: isSaved ? "none" : "1.5px solid #e2e8f0",
+          borderRadius: "50%", width: 30, height: 30,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+          transition: "background 0.2s, transform 0.15s",
+          transform: hovered ? "scale(1.08)" : "scale(1)",
+          color: isSaved ? "#fff" : "#6b7280", fontSize: 14,
+        }}
+      >
+        <LuBookmark style={{ fill: isSaved ? "#fff" : "none" }} size={14} />
+      </button>
+
+      {/* ── IFRAME PREVIEW ── */}
+      <div
         onClick={onView}
         style={{
-          width: "100%", padding: "9px 0",
-          background: "#c9a84c", border: "none",
-          borderRadius: 8, fontWeight: 700,
-          fontSize: 13, cursor: "pointer",
-          color: "#000", display: "flex",
-          alignItems: "center", justifyContent: "center", gap: 6,
-          transition: "opacity 0.15s",
+          position: "relative", width: "100%", height: previewH,
+          overflow: "hidden", background: "#f8fafc", flexShrink: 0,
+          borderRadius: "8px", border: "1px solid #e2e8f0",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
         }}
-        onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-        onMouseLeave={e => e.currentTarget.style.opacity = "1"}
       >
-        👁 ดูเรซูเม่
-      </button>
+        {inView ? (
+          <iframe
+            src={`/view-resume/${resume.id}`}
+            title={resume.title}
+            scrolling="no"
+            style={{
+              width: IFRAME_W, height: IFRAME_H,
+              border: "none", transformOrigin: "top left",
+              transform: `scale(${scale})`,
+              pointerEvents: "none", userSelect: "none",
+            }}
+          />
+        ) : (
+          <div style={{
+            width: "100%", height: "100%",
+            background: "linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)",
+            backgroundSize: "200% 100%",
+            animation: "hrf-shimmer 1.4s infinite",
+          }} />
+        )}
+        {/* Hover overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: hovered ? "rgba(30,58,138,0.06)" : "transparent",
+          transition: "background 0.2s", borderRadius: "8px",
+        }} />
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div style={{ padding: "10px 2px 12px" }}>
+
+        {/* Owner row */}
+        <div
+          onClick={onView}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, marginBottom: 6,
+            padding: "5px 7px", borderRadius: 8, cursor: "pointer",
+            transition: "background 0.15s",
+            background: hovered ? "#f0f4ff" : "transparent",
+          }}
+        >
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%",
+            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
+            flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 12, fontWeight: 700, color: "#fff",
+            overflow: "hidden", border: "2px solid #e0e7ff",
+          }}>
+            {ownerAvatar
+              ? <img src={ownerAvatar} alt={ownerName} style={{ width: "100%", height: "100%", objectFit: "cover" }} crossOrigin="anonymous" />
+              : ownerInitial}
+          </div>
+          <span style={{
+            fontSize: "14px", fontWeight: 700, color: "#1e3a8a",
+            letterSpacing: "-0.01em", flex: 1,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {ownerName}
+          </span>
+          <LuUsers size={12} style={{ color: "#93c5fd", flexShrink: 0 }} />
+        </div>
+
+        {/* Resume title */}
+        <div style={{
+          fontSize: "12px", fontWeight: 500, color: "#4b5563",
+          marginBottom: 4, paddingLeft: 2,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {resume.title || "Untitled Resume"}
+        </div>
+
+        {/* Date */}
+        {publishedDate && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 4,
+            fontSize: "11px", color: "#9ca3af", paddingLeft: 2,
+          }}>
+            <LuUsers size={11} style={{ display: "none" }} />
+            🕐 {publishedDate}
+          </div>
+        )}
+      </div>
+
+      <style>{`@keyframes hrf-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
     </div>
   );
 }
