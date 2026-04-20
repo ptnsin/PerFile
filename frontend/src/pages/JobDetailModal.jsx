@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import {
   LuX, LuBriefcase, LuMapPin, LuBadgeCheck,
   LuClock, LuDollarSign, LuUsers, LuCalendar,
-  LuShare2, LuPencil, LuTrash2,
+  LuPencil, LuTrash2,
 } from "react-icons/lu";
 
 const overlay = {
@@ -14,7 +14,7 @@ const overlay = {
   animation: "jdm-fade 0.18s ease",
 };
 
-export default function JobDetailModal({ open, job, onClose, onEdit, onDelete, onViewApplicants }) {
+export default function JobDetailModal({ open, job, onClose, onEdit, onDelete, onViewApplicants, applicantCount }) {
   /* Close on Escape */
   useEffect(() => {
     if (!open) return;
@@ -238,6 +238,17 @@ export default function JobDetailModal({ open, job, onClose, onEdit, onDelete, o
                     <div className="jdm-info-card-value">{job.experience || "ไม่ระบุ"}</div>
                   </div>
                 </div>
+                <div className="jdm-info-card">
+                  <div className="jdm-info-card-icon" style={{ background: "#f0fdf4", color: "#15803d" }}>
+                    <LuUsers />
+                  </div>
+                  <div>
+                    <div className="jdm-info-card-label">ผู้สมัคร</div>
+                    <div className="jdm-info-card-value" style={{ color: "#15803d" }}>
+                      {applicantCount ?? 0} คน
+                    </div>
+                  </div>
+                </div>
                 {job.time && (
                   <div className="jdm-info-card" style={{ gridColumn: "span 2" }}>
                     <div className="jdm-info-card-icon"><LuCalendar /></div>
@@ -293,11 +304,17 @@ export default function JobDetailModal({ open, job, onClose, onEdit, onDelete, o
               )}
             </div>
             <div style={{ display:"flex", gap:8 }}>
-              <button className="jdm-btn-ghost" onClick={onClose}>
-                <LuShare2 size={14}/> แชร์
-              </button>
               <button className="jdm-btn-primary" onClick={() => { onClose(); onViewApplicants?.(job); }}>
-                ดูผู้สมัคร <LuUsers size={14}/>
+                ดูผู้สมัคร
+                {applicantCount != null && (
+                  <span style={{
+                    background: "rgba(255,255,255,0.25)", borderRadius: "99px",
+                    padding: "1px 8px", fontSize: "12px", fontWeight: 700,
+                  }}>
+                    {applicantCount}
+                  </span>
+                )}
+                <LuUsers size={14}/>
               </button>
             </div>
           </div>

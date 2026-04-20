@@ -39,7 +39,7 @@ const EMPTY = {
   description: "", requirements: "", benefits: "",
 };
 
-export default function PostJobModal({ open, onClose, onSubmit }) {
+export default function PostJobModal({ open, onClose, onSubmit, initialData = null, editMode = false }) {
   const [form, setForm]       = useState(EMPTY);
   const [step, setStep]       = useState(1);     // 1 = basic, 2 = details, 3 = success
   const [loading, setLoading] = useState(false);
@@ -51,7 +51,26 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
 
   /* reset on open */
   useEffect(() => {
-    if (open) { setForm(EMPTY); setStep(1); setErrors({}); }
+    if (open) {
+      if (editMode && initialData) {
+        // pre-fill form with existing job data
+        setForm({
+          title:       initialData.title       || "",
+          category:    initialData.category    || "",
+          type:        initialData.job_type    || initialData.type || "Full-time",
+          location:    initialData.location    || "",
+          salaryMin:   initialData.salaryMin   || "",
+          salaryMax:   initialData.salaryMax   || "",
+          experience:  initialData.experience  || "Entry Level",
+          description: initialData.description || "",
+          requirements:initialData.requirements|| "",
+          benefits:    initialData.benefits    || "",
+        });
+      } else {
+        setForm(EMPTY);
+      }
+      setStep(1); setErrors({});
+    }
   }, [open]);
 
   /* scroll to top on step change */
@@ -90,19 +109,23 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
     try {
       const token = localStorage.getItem("token");
       const finalCategory = form.category === "Other" ? customCategory : form.category;
-      const res = await fetch("http://localhost:3000/hr/jobs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...form,
-          category: finalCategory,
-          salary: form.salaryMin && form.salaryMax
-            ? `${form.salaryMin}-${form.salaryMax}`
-            : form.salaryMin || form.salaryMax || "ไม่ระบุ",
-        }),
+      const body = JSON.stringify({
+        ...form,
+        category: finalCategory,
+        salary: form.salaryMin && form.salaryMax
+          ? `${form.salaryMin}-${form.salaryMax}`
+          : form.salaryMin || form.salaryMax || "ไม่ระบุ",
+      });
+
+      const url    = editMode && initialData?.id
+        ? `http://localhost:3000/hr/jobs/${initialData.id}`
+        : "http://localhost:3000/hr/jobs";
+      const method = editMode && initialData?.id ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body,
       });
       if (res.ok) {
         const data = await res.json();
@@ -112,8 +135,7 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
         alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
       }
     } catch {
-      /* network error — still show success in demo */
-      onSubmit?.({ id: Date.now(), ...form, time: "เพิ่งโพสต์" });
+      onSubmit?.({ id: initialData?.id ?? Date.now(), ...form, time: "เพิ่งโพสต์" });
       setStep(3);
     } finally {
       setLoading(false);
@@ -203,7 +225,7 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
                   <LuBriefcase />
                 </div>
                 <h2 style={{ fontFamily:"'DM Serif Display',serif", fontSize:20, color:"#18181b" }}>
-                  ลงประกาศงานใหม่
+                  {editMode ? "แก้ไขประกาศงาน" : "ลงประกาศงานใหม่"}
                 </h2>
               </div>
               <div className="pjm-step-dots">
@@ -346,7 +368,7 @@ export default function PostJobModal({ open, onClose, onSubmit }) {
                 <LuCheck />
               </div>
               <h3 style={{ fontFamily:"'DM Serif Display',serif", fontSize:22, color:"#18181b", marginBottom:6 }}>
-                ลงประกาศสำเร็จ!
+                {editMode ? "บันทึกการแก้ไขสำเร็จ!" : "ลงประกาศสำเร็จ!"}
               </h3>
               <p style={{ fontSize:13, color:"#71717a", marginBottom:24 }}>
                 ประกาศงาน <strong>"{form.title}"</strong> ถูกเผยแพร่เรียบร้อยแล้ว

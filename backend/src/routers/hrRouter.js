@@ -772,6 +772,60 @@ hrRouter.patch('/jobs/:id/status', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────
+// PATCH /hr/jobs/:id — แก้ไขข้อมูลประกาศงาน
+hrRouter.patch('/jobs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const job = await prisma.job.findFirst({
+      where: { id: Number(id), hrId: Number(req.user.id) }
+    });
+
+    if (!job) {
+      return res.status(404).json({ message: "ไม่พบประกาศงานนี้ หรือคุณไม่มีสิทธิ์แก้ไข" });
+    }
+
+    const {
+      title, category, location, type, experience,
+      salaryMin, salaryMax, description, requirements, benefits, status
+    } = req.body;
+
+    // คำนวณ salary string เหมือน POST route
+    const salary = salaryMin && salaryMax
+      ? `${salaryMin}-${salaryMax}`
+      : (salaryMin || salaryMax || job.salary || "ไม่ระบุ");
+
+    const updatedJob = await prisma.job.update({
+      where: { id: Number(id) },
+      data: {
+        ...(title        !== undefined && { title }),
+        ...(category     !== undefined && { category }),
+        ...(location     !== undefined && { location }),
+        ...(type         !== undefined && { job_type: type }),
+        ...(experience   !== undefined && { experience }),
+        ...(description  !== undefined && { description }),
+        ...(requirements !== undefined && { requirements }),
+        ...(benefits     !== undefined && { benefits }),
+        ...(status       !== undefined && { status }),
+        salary,
+      }
+    });
+
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: Number(req.user.id),
+        text: `คุณได้แก้ไขประกาศงาน: ${updatedJob.title}`
+      }
+    });
+
+    res.json({ message: "แก้ไขประกาศงานสำเร็จ", job: updatedJob });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในการแก้ไขประกาศงาน" });
+  }
+});
+
 hrRouter.get('/activities', async (req, res) => {
   try {
     const activities = await prisma.hr_activities.findMany({

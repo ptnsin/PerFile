@@ -19,6 +19,7 @@ export default function HrFeed() {
   const [jobs, setJobs]                   = useState([]);
   const [savedJobIds, setSavedJobIds]     = useState([]);
   const [selectedJob, setSelectedJob]     = useState(null);
+  const [editJob, setEditJob]             = useState(null);
   const [publicResumes, setPublicResumes] = useState([]);
   const [resumeLoading, setResumeLoading] = useState(false);
   // key = String(resumeId), value = shortlistId (เพื่อใช้ตอน unsave)
@@ -362,10 +363,19 @@ const handleUpdateStatus = async (jobId, newStatus) => {
   return (
     <div className="hrf-page">
 
-      {/* ─── MODAL ─── */}
+      {/* ─── MODAL (Post new) ─── */}
       <PostJobModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        onSubmit={handleJobPosted}
+      />
+
+      {/* ─── MODAL (Edit) ─── */}
+      <PostJobModal
+        open={!!editJob}
+        initialData={editJob}
+        editMode={true}
+        onClose={() => setEditJob(null)}
         onSubmit={handleJobPosted}
       />
 
@@ -377,6 +387,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
           (a) => String(a.job_id ?? a.jobId ?? a.jobID) === String(selectedJob.id)
         ).length : 0}
         onClose={() => setSelectedJob(null)}
+        onEdit={(job) => { setSelectedJob(null); setEditJob(job); }}
         onViewApplicants={(job) => { setSelectedJob(null); handleViewApplicants(job.id); }}
       />
 
@@ -533,7 +544,7 @@ const handleUpdateStatus = async (jobId, newStatus) => {
               )}
             </div>
 
-            <div className="hrf-cards-grid">
+            <div className="hrf-cards-grid" style={{ alignItems: "stretch" }}>
               {activeTab === "candidates" ? (
                 resumeLoading ? (
                   <div className="hrf-empty">
@@ -658,7 +669,7 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
     <div
       className="hrf-job-card hrf-job-card-v2"
       onClick={onClick}
-      style={{ cursor: "pointer", position: "relative", overflow: "visible", padding: 0 }}
+      style={{ cursor: "pointer", position: "relative", overflow: "visible", padding: 0, height: "100%", display: "flex", flexDirection: "column" }}
     >
       {/* Backdrop */}
       {menuOpen && (
@@ -674,7 +685,7 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
         background: `linear-gradient(90deg, ${col.accent}, ${col.accent}aa)`,
       }} />
 
-      <div style={{ padding: "16px 16px 14px" }}>
+      <div style={{ padding: "16px 16px 14px", display: "flex", flexDirection: "column", flex: 1 }}>
 
         {/* Top row: icon + badges + 3-dot */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
@@ -818,8 +829,11 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
           </div>
         )}
 
+        {/* Spacer */}
+        <div style={{ flex: 1, minHeight: 8 }} />
+
         {/* Footer: applicants + posted */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "3px 10px" }}>
             <LuUsers size={10} /> {job.applicantCount ?? 0} ผู้สมัคร
           </div>
