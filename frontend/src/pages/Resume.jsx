@@ -34,15 +34,17 @@ function EntryBlock({ type, entries, onChange, onAdd, onRemove }) {
             </span>
             <button className="btn-remove" onClick={() => onRemove(e.id)}>×</button>
           </div>
+
+          {/* ── ตำแหน่ง / วุฒิ ── */}
           <div className="field">
-            <label>{isEdu ? "วุฒิการศึกษา / สาขา" : "ตำแหน่ง / ชื่อ"}</label>
+            <label>{isEdu ? "วุฒิการศึกษา / สาขา" : "ตำแหน่งงาน"}</label>
             <input
-              list={isEdu ? `degree-list-${e.id}` : undefined}
+              list={isEdu ? `degree-list-${e.id}` : `role-list-${e.id}`}
               value={isEdu ? e.degree : e.role}
               onChange={ev => onChange(e.id, isEdu ? "degree" : "role", ev.target.value)}
-              placeholder={isEdu ? "เช่น ปริญญาตรี วิทยาการคอมพิวเตอร์" : "ชื่อตำแหน่งงาน"}
+              placeholder={isEdu ? "เช่น ปริญญาตรี วิทยาการคอมพิวเตอร์" : "เช่น Frontend Developer, UX Designer"}
             />
-            {isEdu && (
+            {isEdu ? (
               <datalist id={`degree-list-${e.id}`}>
                 <option value="ปริญญาตรี วิทยาการคอมพิวเตอร์" /><option value="ปริญญาตรี วิศวกรรมคอมพิวเตอร์" />
                 <option value="ปริญญาตรี วิศวกรรมซอฟต์แวร์" /><option value="ปริญญาตรี เทคโนโลยีสารสนเทศ" />
@@ -54,8 +56,23 @@ function EntryBlock({ type, entries, onChange, onAdd, onRemove }) {
                 <option value="ประกาศนียบัตรวิชาชีพชั้นสูง (ปวส.)" /><option value="ประกาศนียบัตรวิชาชีพ (ปวช.)" />
                 <option value="มัธยมศึกษาตอนปลาย" />
               </datalist>
+            ) : (
+              <datalist id={`role-list-${e.id}`}>
+                <option value="Frontend Developer" /><option value="Backend Developer" />
+                <option value="Full Stack Developer" /><option value="Mobile Developer" />
+                <option value="UX/UI Designer" /><option value="Graphic Designer" />
+                <option value="Product Manager" /><option value="Project Manager" />
+                <option value="Data Analyst" /><option value="Data Scientist" />
+                <option value="DevOps Engineer" /><option value="QA Engineer" />
+                <option value="Marketing Executive" /><option value="Content Creator" />
+                <option value="Business Analyst" /><option value="HR Executive" />
+                <option value="Accountant" /><option value="Financial Analyst" />
+                <option value="Sales Executive" /><option value="Customer Support" />
+              </datalist>
             )}
           </div>
+
+          {/* ── บริษัท / สถานศึกษา ── */}
           <div className="row">
             <div className="field">
               <label>{isEdu ? "สถานศึกษา" : "องค์กร / บริษัท"}</label>
@@ -63,7 +80,7 @@ function EntryBlock({ type, entries, onChange, onAdd, onRemove }) {
                 list={isEdu ? `school-list-${e.id}` : undefined}
                 value={isEdu ? e.school : e.org}
                 onChange={ev => onChange(e.id, isEdu ? "school" : "org", ev.target.value)}
-                placeholder={isEdu ? "ชื่อมหาวิทยาลัย / โรงเรียน" : "ชื่อบริษัท"}
+                placeholder={isEdu ? "ชื่อมหาวิทยาลัย / โรงเรียน" : "เช่น บริษัท ABC จำกัด"}
               />
               {isEdu && (
                 <datalist id={`school-list-${e.id}`}>
@@ -80,30 +97,67 @@ function EntryBlock({ type, entries, onChange, onAdd, onRemove }) {
                 </datalist>
               )}
             </div>
+
+            {/* ── ช่วงเวลา + checkbox ปัจจุบัน (เฉพาะ experience) ── */}
             <div className="field">
               <label>ช่วงเวลา</label>
               <input
                 value={e.period}
                 onChange={ev => {
+                  // ตัดเฉพาะตัวเลข จำกัดสูงสุด 8 ตัว (ปีเริ่ม 4 + ปีจบ 4)
                   const digits = ev.target.value.replace(/\D/g, "").slice(0, 8);
                   const formatted = digits.length > 4
                     ? digits.slice(0, 4) + " – " + digits.slice(4)
                     : digits;
                   onChange(e.id, "period", formatted);
                 }}
-                placeholder="2020 – 2023"
+                placeholder={isEdu ? "2018 – 2022" : "2020 – 2023"}
                 inputMode="numeric"
+                disabled={!isEdu && !!e.currentJob}
               />
+              {!isEdu && (
+                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, fontSize: 12, color: "#9ca3af", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={!!e.currentJob}
+                    onChange={ev => {
+                      onChange(e.id, "currentJob", ev.target.checked);
+                      if (ev.target.checked) {
+                        // auto-fill ปีที่เริ่มถ้ามี แล้วต่อด้วย – ปัจจุบัน
+                        const startYear = e.period ? e.period.split("–")[0].trim() : new Date().getFullYear();
+                        onChange(e.id, "period", `${startYear} – ปัจจุบัน`);
+                      }
+                    }}
+                    style={{ accentColor: "#d4af37" }}
+                  />
+                  ทำงานที่นี่อยู่ในปัจจุบัน
+                </label>
+              )}
             </div>
           </div>
+
+          {/* ── รายละเอียด ── */}
           <div className="field">
-            <label>{isEdu ? "รายละเอียดเพิ่มเติม" : "รายละเอียดงาน"}</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <label style={{ margin: 0 }}>{isEdu ? "รายละเอียดเพิ่มเติม" : "รายละเอียดงาน"}</label>
+              <span style={{ fontSize: 10, color: (e.desc || "").length > 400 ? "#ef4444" : "#6b7280" }}>
+                {(e.desc || "").length}/500
+              </span>
+            </div>
             <textarea
-              rows={3}
+              rows={4}
+              maxLength={500}
               value={e.desc}
               onChange={ev => onChange(e.id, "desc", ev.target.value)}
-              placeholder={isEdu ? "เช่น เกรดเฉลี่ย หรือรางวัล" : "อธิบายหน้าที่ความรับผิดชอบ"}
+              placeholder={isEdu
+                ? "เช่น\n• เกรดเฉลี่ยสะสม 3.45\n• รางวัลเรียนดี 2 ปีติดต่อกัน\n• โครงงานจบ: ระบบแนะนำงานด้วย AI"
+                : "เช่น\n• พัฒนา REST API ด้วย Node.js รองรับผู้ใช้ 50,000+ คน\n• ลดเวลาโหลดหน้าเว็บจาก 3s → 0.8s ด้วย lazy loading\n• ทำงานร่วมกับทีม UX เพื่อออกแบบ feature ใหม่"}
             />
+            {!isEdu && (e.desc || "").length === 0 && (
+              <p style={{ fontSize: 10, color: "#6b7280", margin: "4px 0 0", lineStyle: "italic" }}>
+                💡 เขียนเป็น bullet point จะช่วยให้ HR อ่านง่ายและเห็นผลงานชัดเจนขึ้น
+              </p>
+            )}
           </div>
         </div>
       ))}
@@ -1377,11 +1431,40 @@ export default function ResumeBuilder() {
                 <div className="section-label">ข้อมูลส่วนตัว</div>
                 <div className="field">
                   <label>ชื่อ-นามสกุล</label>
-                  <input value={data.name} onChange={e => set("name", e.target.value)} placeholder="ชื่อเต็มของคุณ" />
+                  <input
+                    value={data.name}
+                    onChange={e => set("name", e.target.value)}
+                    placeholder="เช่น สมชาย ใจดี / Somchai Jaidee"
+                  />
+                  <p style={{ fontSize: 10, color: "#6b7280", margin: "4px 0 0" }}>
+                    💡 ใส่ชื่อจริงทั้งภาษาไทยหรืออังกฤษ ตามที่ใช้ในเอกสารราชการ
+                  </p>
                 </div>
                 <div className="field">
                   <label>ตำแหน่ง / สาขาอาชีพ</label>
-                  <input value={data.title} onChange={e => set("title", e.target.value)} placeholder="เช่น Software Engineer" />
+                  <input
+                    list="title-list"
+                    value={data.title}
+                    onChange={e => set("title", e.target.value)}
+                    placeholder="เช่น Frontend Developer, UX Designer, Data Analyst"
+                  />
+                  <datalist id="title-list">
+                    <option value="Frontend Developer" /><option value="Backend Developer" />
+                    <option value="Full Stack Developer" /><option value="Mobile Developer (iOS/Android)" />
+                    <option value="UX/UI Designer" /><option value="Graphic Designer" />
+                    <option value="Product Manager" /><option value="Project Manager" />
+                    <option value="Data Analyst" /><option value="Data Scientist" />
+                    <option value="DevOps Engineer" /><option value="QA / Test Engineer" />
+                    <option value="Marketing Executive" /><option value="Digital Marketing Specialist" />
+                    <option value="Content Creator / Copywriter" /><option value="Business Analyst" />
+                    <option value="HR Executive" /><option value="Recruiter" />
+                    <option value="Accountant" /><option value="Financial Analyst" />
+                    <option value="Sales Executive" /><option value="Customer Success Manager" />
+                    <option value="Software Engineer" /><option value="System Administrator" />
+                  </datalist>
+                  <p style={{ fontSize: 10, color: "#6b7280", margin: "4px 0 0" }}>
+                    💡 ใส่ตำแหน่งที่ตรงกับงานที่ต้องการสมัคร เพื่อให้ HR ค้นหาเจอง่ายขึ้น
+                  </p>
                 </div>
 
                 <div className="section-label">ช่องทางติดต่อ</div>
@@ -1465,12 +1548,40 @@ export default function ResumeBuilder() {
                   </div>
                 </div>
                 <div className="field">
-                  <label>เว็บไซต์</label>
-                  <input value={data.website} onChange={e => set("website", e.target.value)} />
+                  <label>เว็บไซต์ / Portfolio</label>
+                  <input
+                    value={data.website}
+                    onChange={e => set("website", e.target.value)}
+                    onBlur={e => {
+                      let v = e.target.value.trim();
+                      if (!v) return;
+                      if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+                      set("website", v);
+                    }}
+                    placeholder="https://yourportfolio.com หรือ github.com/username"
+                  />
+                  <p style={{ fontSize: 10, color: "#6b7280", margin: "4px 0 0" }}>
+                    💡 ใส่ลิงก์ Portfolio, GitHub, Behance หรือเว็บส่วนตัว
+                  </p>
                 </div>
                 <div className="field">
-                  <label>สรุปประวัติ</label>
-                  <textarea rows={5} value={data.summary} onChange={e => set("summary", e.target.value)} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <label style={{ margin: 0 }}>สรุปประวัติ (Professional Summary)</label>
+                    <span style={{ fontSize: 10, color: (data.summary || "").length > 400 ? "#ef4444" : (data.summary || "").length >= 150 ? "#10b981" : "#6b7280" }}>
+                      {(data.summary || "").length}/500
+                      {(data.summary || "").length >= 150 && (data.summary || "").length <= 500 && " ✓"}
+                    </span>
+                  </div>
+                  <textarea
+                    rows={6}
+                    maxLength={500}
+                    value={data.summary}
+                    onChange={e => set("summary", e.target.value)}
+                    placeholder={"เขียนแนะนำตัวเองสั้นๆ 3–5 ประโยค เช่น\n\nนักพัฒนาซอฟต์แวร์ประสบการณ์ 3 ปี เชี่ยวชาญด้าน React และ Node.js มีประสบการณ์ทำงานในสตาร์ทอัพและบริษัทขนาดกลาง ชื่นชอบการสร้างผลิตภัณฑ์ที่แก้ปัญหาให้ผู้ใช้จริงๆ และมีทักษะในการทำงานเป็นทีม"}
+                  />
+                  <p style={{ fontSize: 10, color: "#6b7280", margin: "4px 0 0" }}>
+                    💡 แนะนำ 150–300 ตัวอักษร — บอกว่าคุณเป็นใคร ถนัดอะไร และอยากทำงานแบบไหน
+                  </p>
                 </div>
               </>
             )}
