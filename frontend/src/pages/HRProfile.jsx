@@ -1770,7 +1770,7 @@ function CompanyView({ hr, setHr }) {
       </div>
       <div className="hr-company-body">
         <div className="hr-company-top">
-          <div className="hr-company-logo">{hr?.companyLogo ?? "?"}</div>
+          
           <div>
             <div className="hr-company-name"><EditableField value={hr?.company}  onChange={updateHr("company")} /></div>
             <div className="hr-company-industry"><EditableField value={hr?.industry} onChange={updateHr("industry")} /></div>
