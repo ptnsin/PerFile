@@ -29,7 +29,29 @@ jobRouter.get('/all', async (req, res) => {
 
 // 2. Protected Routes: ต้อง Login ก่อน (เช่น ดูรายละเอียดลึกๆ หรือกดสมัคร)
 jobRouter.get('/:id', verifyJWT, async (req, res) => {
-  // Logic ดึงรายละเอียดงานตัวเดียว
+  try {
+    const { id } = req.params
+    
+    const job = await prisma.job.findUnique({
+      where: { id: Number(id) },
+      include: {
+        users: {
+          include: {
+            hr_profile: true
+          }
+        }
+      }
+    })
+
+    if (!job) {
+      return res.status(404).json({ message: "ไม่พบงานนี้" })
+    }
+
+    res.json({ job })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: "Error fetching job" })
+  }
 })
 
 // 3. HR Routes: เฉพาะ HR เท่านั้นที่จัดการงานของตัวเองได้

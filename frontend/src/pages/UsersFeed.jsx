@@ -59,12 +59,12 @@ export default function UsersFeed() {
     fetch("http://localhost:3000/saved/jobs", { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setSavedJobs((d.savedJobs || []).map(j => j.job_id)); })
-      .catch(() => {});
+      .catch(() => { });
     // saved resumes
     fetch("http://localhost:3000/saved/resumes", { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setSavedResumes((d.savedResumes || []).map(r => r.resume_id)); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const toggleSaveJob = async (jobId) => {
@@ -504,9 +504,20 @@ export default function UsersFeed() {
                 key={a.id}
                 className="uf-sub-item"
                 style={{ cursor: "pointer" }}
-                onClick={() => navigate(`/jobs/${a.job_id}`)}
+                onClick={() => {
+                  setSelectedJob({
+                    id: a.jobId,
+                    title: a.jobTitle,
+                    location: a.location,
+                    salary: a.salary,
+                    job_type: a.jobType,
+                    company_name: a.companyName,
+                    alreadyApplied: true,
+                  });
+                  setIsModalOpen(true);
+                }}
               >
-                💼 {a.jobs?.title ?? "งาน"}
+                💼 {a.jobTitle ?? "งาน"}
               </div>
             ))
           ) : (

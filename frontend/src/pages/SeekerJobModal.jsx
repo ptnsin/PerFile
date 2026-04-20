@@ -22,7 +22,10 @@ export default function SeekerJobModal({ open, job, onClose, isSaved, onToggleSa
 
   // Reset state เมื่อเปิด job ใหม่
   useEffect(() => {
-    if (open) { setApplied(false); setApplyMsg(""); }
+    if (open) {
+      setApplied(job?.alreadyApplied ?? false);  // ← แก้ตรงนี้
+      setApplyMsg(job?.alreadyApplied ? "คุณสมัครงานนี้ไปแล้ว" : "");
+    }
   }, [open, job?.id]);
 
   if (!open || !job) return null;
