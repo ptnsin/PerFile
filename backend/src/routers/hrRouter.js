@@ -1361,7 +1361,7 @@ hrRouter.put('/profile-image', hrUpload.single('image'), async (req, res) => {
 
     // เช็คว่ามี row ใน hr_profiles มั้ย
     const [rows] = await db.query(
-      'SELECT id FROM hr_profiles WHERE user_id = ?',
+      'SELECT user_id FROM hr_profiles WHERE user_id = ?',
       [Number(req.user.id)]
     )
 
@@ -1389,6 +1389,48 @@ hrRouter.put('/profile-image', hrUpload.single('image'), async (req, res) => {
   } catch (err) {
     console.error('HR profile-image upload error:', err.message)
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' })
+  }
+})
+
+// ─────────────────────────────────────────────────────────────
+// PUT /hr/cover-image — อัปโหลดรูปปกโปรไฟล์ HR
+// ─────────────────────────────────────────────────────────────
+hrRouter.put('/cover-image', hrUpload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'ไม่พบไฟล์รูปภาพ' })
+    }
+
+    const imageUrl = `/uploads/hr_profiles/${req.file.filename}`
+
+    const [rows] = await db.query(
+      'SELECT user_id FROM hr_profiles WHERE user_id = ?',
+      [Number(req.user.id)]
+    )
+
+    if (rows.length > 0) {
+      await db.query(
+        'UPDATE hr_profiles SET cover_image = ? WHERE user_id = ?',
+        [imageUrl, Number(req.user.id)]
+      )
+    } else {
+      await db.query(
+        'INSERT INTO hr_profiles (user_id, cover_image) VALUES (?, ?)',
+        [Number(req.user.id), imageUrl]
+      )
+    }
+
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: Number(req.user.id),
+        text: 'อัปเดตรูปปกโปรไฟล์เรียบร้อยแล้ว'
+      }
+    })
+
+    return res.status(200).json({ success: true, imageUrl })
+  } catch (err) {
+    console.error('HR cover-image upload error:', err.message)
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปโหลดรูปปก' })
   }
 })
 
