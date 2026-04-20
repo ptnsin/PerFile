@@ -873,8 +873,6 @@ export default function UserProfile() {
             {[
               { num: stats.views, label: "VIEWS", color: "#1e3a8a" },
               { num: stats.score, label: "PROFILE SCORE", color: "#4f46e5" },
-              { num: stats.interviewing, label: "INTERVIEWING", color: "#1e3a8a" },
-              { num: stats.shortlisted, label: "SHORTLISTED", color: "#1e3a8a" },
             ].map(s => (
               <div key={s.label} className="up-stat-card">
                 <div className="up-stat-num" style={{ color: s.color }}>{s.num}</div>
