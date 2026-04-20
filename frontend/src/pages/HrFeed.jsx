@@ -870,7 +870,7 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
         background: `linear-gradient(90deg, ${col.accent}, ${col.accent}aa)`,
       }} />
 
-      <div style={{ padding: "16px 16px 14px", display: "flex", flexDirection: "column", flex: 1 }}>
+      <div style={{ padding: "4px 16px 14px", display: "flex", flexDirection: "column", flex: 1 }}>
 
         {/* Top row: icon + badges + 3-dot */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
@@ -1082,6 +1082,7 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
         position: "relative",
         transition: "box-shadow 0.2s",
         boxShadow: hovered ? "0 8px 28px rgba(30,58,138,0.13)" : undefined,
+        
       }}
     >
       {/* Backdrop ปิด dropdown */}
