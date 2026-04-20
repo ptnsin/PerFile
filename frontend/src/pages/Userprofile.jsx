@@ -9,6 +9,7 @@ import {
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
 import "../styles/Userprofile.css";
+import SeekerJobModal from "./SeekerJobModal";
 
 const API = "http://localhost:3000";
 
@@ -73,6 +74,10 @@ export default function UserProfile() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const notifRef = useRef(null);
+
+  // เพิ่ม state ใน UserProfile()
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchNotifs = async () => {
@@ -519,16 +524,16 @@ export default function UserProfile() {
           <button className="uf-toggle-btn" onClick={toggleSidebar}><LuPanelLeft /></button>
           <div className="uf-logo">Per<em>File</em><span className="uf-logo-badge">Seeker</span></div>
           <div className="uf-search"><LuSearch /><input
-              type="text"
-              placeholder="ค้นหา Username หรือ Company..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && searchQuery.trim()) {
-                  navigate(`/feed?q=${encodeURIComponent(searchQuery.trim())}`);
-                }
-              }}
-            /></div>
+            type="text"
+            placeholder="ค้นหา Username หรือ Company..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter" && searchQuery.trim()) {
+                navigate(`/feed?q=${encodeURIComponent(searchQuery.trim())}`);
+              }
+            }}
+          /></div>
         </div>
         <div className="uf-nav-right">
           <div ref={notifRef} style={{ position: "relative" }}>
@@ -651,9 +656,26 @@ export default function UserProfile() {
             )}
           </div>
           {appliedJobs.length > 0 ? appliedJobs.slice(0, 5).map(a => (
-            <div key={a.id} className="uf-sub-item" style={{ cursor: "default" }}>
+            <div
+              key={a.id}
+              className="uf-sub-item"
+              style={{ cursor: "pointer" }}  // ← เปลี่ยนจาก default เป็น pointer
+              onClick={() => {               // ← เพิ่ม onClick
+                setSelectedJob({
+                  id: a.jobId,
+                  title: a.jobTitle,
+                  location: a.location,
+                  salary: a.salary,
+                  job_type: a.jobType,
+                  company_name: a.companyName,
+                  alreadyApplied: true,
+                });
+                setIsModalOpen(true);
+              }}
+            >
               <span style={{
-                display: "inline-block", marginRight: 5, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
+                display: "inline-block", marginRight: 5, fontSize: 9, fontWeight: 700,
+                padding: "1px 5px", borderRadius: 6,
                 background: a.status === "accepted" ? "#dcfce7" : a.status === "rejected" ? "#fee2e2" : "#fef9c3",
                 color: a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
               }}>
@@ -1088,6 +1110,14 @@ export default function UserProfile() {
           </div>
 
         </main>
+
+        <SeekerJobModal
+          open={isModalOpen}
+          job={selectedJob}
+          onClose={() => { setIsModalOpen(false); setSelectedJob(null); }}
+          isSaved={false}
+          onToggleSave={() => { }}
+        />
       </div>
 
       {/* Spin keyframe */}

@@ -42,7 +42,8 @@ async function getHrProfile() {
       founded: profile.hr_profile?.founded || profile.founded || "ยังไม่ระบุ",
       
       role: profile.hr_profile?.role || "HR Recruiter",
-      handle: profile.username ? `@${profile.username}` : "@username"
+      handle: profile.username ? `@${profile.username}` : "@username",
+      profile_image: profile.hr_profile?.profile_image || profile.profile_image || null,
     };
   } catch (err) {
     console.error(err);
@@ -434,6 +435,72 @@ function ClosedJobCard({ job, onViewDetail, onReopen }) {
 function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, closedJobs, applicants = [], newPerk, setNewPerk, setActivePage, openPostModal, onViewDetail, goToApplicants, onReopen, shortlist = [], setShortlist, initialTab = "jobs" }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  const coverInputRef = useRef(null);
+  const [profileImage, setProfileImage] = useState(null);
+  const [coverImage, setCoverImage] = useState(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+
+  useEffect(() => {
+    if (hr?.profile_image) setProfileImage(hr.profile_image);
+  }, [hr?.profile_image]);
+
+  useEffect(() => {
+    if (hr?.cover_image) setCoverImage(hr.cover_image);
+  }, [hr?.cover_image]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingImg(true);
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("http://localhost:3000/hr/profile-image", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.imageUrl) {
+        setProfileImage(data.imageUrl);
+        setHr(prev => ({ ...prev, profile_image: data.imageUrl }));
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setUploadingImg(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("http://localhost:3000/hr/cover-image", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.imageUrl) {
+        setCoverImage(data.imageUrl);
+        setHr(prev => ({ ...prev, cover_image: data.imageUrl }));
+      }
+    } catch (err) {
+      console.error("Cover upload failed:", err);
+    } finally {
+      setUploadingCover(false);
+      e.target.value = "";
+    }
+  };
 
   // ใน ProfileView
 const updateHr = (key) => (val) => {
@@ -468,13 +535,61 @@ const updateHr = (key) => (val) => {
     <>
       {/* Profile Card */}
       <div className="hr-card">
-        <div className="hr-cover">
-          <div className="hr-cover-pattern" />
-          <button className="hr-cover-edit">✏️ แก้ไขปก</button>
+        <div className="hr-cover" style={{
+          backgroundImage: coverImage ? `url(http://localhost:3000${coverImage})` : undefined,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}>
+          {!coverImage && <div className="hr-cover-pattern" />}
+          <button className="hr-cover-edit" onClick={() => coverInputRef.current.click()} disabled={uploadingCover}>
+            {uploadingCover ? "⏳ กำลังอัปโหลด..." : "✏️ แก้ไขปก"}
+          </button>
+          <input
+            type="file"
+            ref={coverInputRef}
+            onChange={handleCoverUpload}
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: "none" }}
+          />
         </div>
         <div className="hr-profile-body">
-          <div className="hr-avatar-row">
-            <div className="hr-avatar">{hr?.name?.[0] ?? "?"}</div>
+          <div className="hr-avatar-row" style={{ position: "relative", display: "inline-block" }}>
+            <div
+              className="hr-avatar"
+              onClick={() => fileInputRef.current.click()}
+              title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+              style={{ position: "relative", cursor: "pointer", overflow: "hidden", borderRadius: "50%" }}
+            >
+              {profileImage ? (
+                <img
+                  src={`http://localhost:3000${profileImage}`}
+                  alt="profile"
+                  style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
+                />
+              ) : (
+                hr?.name?.[0] ?? "?"
+              )}
+            </div>
+            <span
+              onClick={() => fileInputRef.current.click()}
+              style={{
+                position: "absolute", bottom: 2, right: 2,
+                background: uploadingImg ? "#9ca3af" : "#6c63ff",
+                borderRadius: "50%", width: 24, height: 24,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, color: "#fff", border: "2px solid #fff",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                cursor: "pointer", zIndex: 2,
+              }}>
+              {uploadingImg ? "⏳" : "✏️"}
+            </span>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: "none" }}
+            />
           </div>
           <div className="hr-profile-name"><EditableField value={hr?.name}   onChange={updateHr("name")} /></div>
           <div className="hr-profile-role">
@@ -1913,8 +2028,8 @@ export default function HRProfile() {
           <div className="hrf-user-area" style={{ position: "relative" }}>
             <div className="hrf-user-chip" onClick={() => setShowUserMenu(v => !v)}>
               <div className="hrf-avatar">
-                {hr?.avatar
-                  ? <img src={hr.avatar} alt="avatar" />
+                {hr?.profile_image
+                  ? <img src={`http://localhost:3000${hr.profile_image}`} alt="avatar" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
                   : (hr?.name?.[0]?.toUpperCase() ?? "H")}
               </div>
               <span>{hr?.name ?? "Loading..."}</span>

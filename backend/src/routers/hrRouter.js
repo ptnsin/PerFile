@@ -4,6 +4,30 @@ import db from '../config/db.js'
 import { verifyJWT } from '../middleware/verifyJWT.js'
 import { requireRole } from '../middleware/requireRole.js'
 import { checkAccountStatus } from '../middleware/checkAccountStatus.js'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
+
+// ── Multer config สำหรับอัปโหลดรูปโปรไฟล์ HR ──────────────────
+const hrUploadDir = 'uploads/hr_profiles'
+if (!fs.existsSync(hrUploadDir)) fs.mkdirSync(hrUploadDir, { recursive: true })
+
+const hrStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, hrUploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    cb(null, `hr_${req.user.id}_${Date.now()}${ext}`)
+  }
+})
+
+const hrUpload = multer({
+  storage: hrStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp']
+    cb(null, allowed.includes(file.mimetype))
+  }
+})
 
 const hrRouter = Router()
 
@@ -1320,6 +1344,93 @@ hrRouter.delete('/notifications/clear', async (req, res) => {
   } catch (err) {
     console.error('DELETE /hr/notifications/clear error:', err.message)
     res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+
+// ─────────────────────────────────────────────────────────────
+// PUT /hr/profile-image — อัปโหลดรูปโปรไฟล์ HR
+// ─────────────────────────────────────────────────────────────
+hrRouter.put('/profile-image', hrUpload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'ไม่พบไฟล์รูปภาพ' })
+    }
+
+    const imageUrl = `/uploads/hr_profiles/${req.file.filename}`
+
+    // เช็คว่ามี row ใน hr_profiles มั้ย
+    const [rows] = await db.query(
+      'SELECT user_id FROM hr_profiles WHERE user_id = ?',
+      [Number(req.user.id)]
+    )
+
+    if (rows.length > 0) {
+      await db.query(
+        'UPDATE hr_profiles SET profile_image = ? WHERE user_id = ?',
+        [imageUrl, Number(req.user.id)]
+      )
+    } else {
+      await db.query(
+        'INSERT INTO hr_profiles (user_id, profile_image) VALUES (?, ?)',
+        [Number(req.user.id), imageUrl]
+      )
+    }
+
+    // บันทึก activity
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: Number(req.user.id),
+        text: 'อัปเดตรูปโปรไฟล์เรียบร้อยแล้'
+      }
+    })
+
+    return res.status(200).json({ success: true, imageUrl })
+  } catch (err) {
+    console.error('HR profile-image upload error:', err.message)
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' })
+  }
+})
+
+// ─────────────────────────────────────────────────────────────
+// PUT /hr/cover-image — อัปโหลดรูปปกโปรไฟล์ HR
+// ─────────────────────────────────────────────────────────────
+hrRouter.put('/cover-image', hrUpload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'ไม่พบไฟล์รูปภาพ' })
+    }
+
+    const imageUrl = `/uploads/hr_profiles/${req.file.filename}`
+
+    const [rows] = await db.query(
+      'SELECT user_id FROM hr_profiles WHERE user_id = ?',
+      [Number(req.user.id)]
+    )
+
+    if (rows.length > 0) {
+      await db.query(
+        'UPDATE hr_profiles SET cover_image = ? WHERE user_id = ?',
+        [imageUrl, Number(req.user.id)]
+      )
+    } else {
+      await db.query(
+        'INSERT INTO hr_profiles (user_id, cover_image) VALUES (?, ?)',
+        [Number(req.user.id), imageUrl]
+      )
+    }
+
+    await prisma.hr_activities.create({
+      data: {
+        hr_id: Number(req.user.id),
+        text: 'อัปเดตรูปปกโปรไฟล์เรียบร้อยแล้ว'
+      }
+    })
+
+    return res.status(200).json({ success: true, imageUrl })
+  } catch (err) {
+    console.error('HR cover-image upload error:', err.message)
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปโหลดรูปปก' })
   }
 })
 
