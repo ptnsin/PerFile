@@ -1187,6 +1187,29 @@ function ApplicantsView({ applicants, filterJobId, onClearFilter, openJobs, onIn
   );
 }
 
+// ── Field component (ต้องอยู่นอก InterviewModal เพื่อไม่ให้ re-create ทุก render) ──
+function ModalField({ label, name, type = "text", form, onChange, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 5 }}>{label}</label>
+      {children || (
+        <input
+          name={name} type={type} value={form[name] ?? ""}
+          onChange={onChange}
+          style={{
+            width: "100%", padding: "9px 12px", borderRadius: 10,
+            border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none",
+            fontFamily: "inherit", boxSizing: "border-box",
+            transition: "border-color 0.15s",
+          }}
+          onFocus={e => e.target.style.borderColor = "#3b82f6"}
+          onBlur={e  => e.target.style.borderColor = "#e5e7eb"}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Interview Modal ───────────────────────────────────────────
 function InterviewModal({ open, onClose, onSaved, prefill = null, editData = null, applicants = [] }) {
   const isEdit = !!editData;
@@ -1229,9 +1252,19 @@ function InterviewModal({ open, onClose, onSaved, prefill = null, editData = nul
         setForm({
           candidate_name: editData.candidate    || editData.candidate_name || "",
           job_title:      editData.role         || editData.job_title      || "",
-          interview_date: editData.interview_date
-            ? new Date(editData.interview_date).toISOString().split("T")[0]
-            : "",
+          interview_date: (() => {
+            const raw = editData.interview_date || editData.date || "";
+            if (!raw) return "";
+            // ถ้าเป็น YYYY-MM-DD อยู่แล้ว ใช้เลย ไม่ต้องแปลง (ป้องกัน timezone shift)
+            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+            const d = new Date(raw);
+            if (isNaN(d.getTime())) return "";
+            // แปลงโดยใช้ local date เพื่อไม่ให้ timezone ทำให้วันเลื่อน
+            const yyyy = d.getFullYear();
+            const mm   = String(d.getMonth() + 1).padStart(2, "0");
+            const dd   = String(d.getDate()).padStart(2, "0");
+            return `${yyyy}-${mm}-${dd}`;
+          })(),
           interview_time: editData.interview_time || editData.time || "",
           interview_type: editData.interview_type || editData.type || "Online",
           interviewer:    editData.interviewer   || "",
@@ -1292,26 +1325,6 @@ function InterviewModal({ open, onClose, onSaved, prefill = null, editData = nul
       setSaving(false);
     }
   };
-
-  const Field = ({ label, name, type = "text", children }) => (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 5 }}>{label}</label>
-      {children || (
-        <input
-          name={name} type={type} value={form[name]}
-          onChange={handleChange}
-          style={{
-            width: "100%", padding: "9px 12px", borderRadius: 10,
-            border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none",
-            fontFamily: "inherit", boxSizing: "border-box",
-            transition: "border-color 0.15s",
-          }}
-          onFocus={e => e.target.style.borderColor = "#3b82f6"}
-          onBlur={e  => e.target.style.borderColor = "#e5e7eb"}
-        />
-      )}
-    </div>
-  );
 
   return (
     <>
@@ -1426,12 +1439,16 @@ function InterviewModal({ open, onClose, onSaved, prefill = null, editData = nul
               </div>
             </div>
 
-            <Field label="ตำแหน่งงาน" name="job_title" />
+            <ModalField label="ตำแหน่งงาน" name="job_title" form={form} onChange={handleChange} />
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
               <div>
                 <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:5 }}>วันที่สัมภาษณ์ *</label>
-                <input name="interview_date" type="date" value={form.interview_date} onChange={handleChange}
+                <input
+                  name="interview_date"
+                  type="date"
+                  value={form.interview_date ?? ""}
+                  onChange={e => setForm(f => ({ ...f, interview_date: e.target.value }))}
                   style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:"1.5px solid #e5e7eb", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
                   onFocus={e => e.target.style.borderColor="#3b82f6"}
                   onBlur={e  => e.target.style.borderColor="#e5e7eb"}
@@ -1439,7 +1456,11 @@ function InterviewModal({ open, onClose, onSaved, prefill = null, editData = nul
               </div>
               <div>
                 <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:5 }}>เวลา *</label>
-                <input name="interview_time" type="time" value={form.interview_time} onChange={handleChange}
+                <input
+                  name="interview_time"
+                  type="time"
+                  value={form.interview_time ?? ""}
+                  onChange={e => setForm(f => ({ ...f, interview_time: e.target.value }))}
                   style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:"1.5px solid #e5e7eb", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}
                   onFocus={e => e.target.style.borderColor="#3b82f6"}
                   onBlur={e  => e.target.style.borderColor="#e5e7eb"}
@@ -1462,15 +1483,15 @@ function InterviewModal({ open, onClose, onSaved, prefill = null, editData = nul
               </div>
             </div>
 
-            <Field label="ผู้สัมภาษณ์" name="interviewer" />
-            <Field label={form.interview_type === "Online" ? "ลิงก์ประชุม (Zoom/Meet)" : "สถานที่"} name="location" />
-            <Field label="หมายเหตุ" name="note">
-              <textarea name="note" value={form.note} onChange={handleChange} rows={2}
+            <ModalField label="ผู้สัมภาษณ์" name="interviewer" form={form} onChange={handleChange} />
+            <ModalField label={form.interview_type === "Online" ? "ลิงก์ประชุม (Zoom/Meet)" : "สถานที่"} name="location" form={form} onChange={handleChange} />
+            <ModalField label="หมายเหตุ" name="note" form={form} onChange={handleChange}>
+              <textarea name="note" value={form.note ?? ""} onChange={handleChange} rows={2}
                 style={{ width:"100%", padding:"9px 12px", borderRadius:10, border:"1.5px solid #e5e7eb", fontSize:13, outline:"none", fontFamily:"inherit", boxSizing:"border-box", resize:"vertical" }}
                 onFocus={e => e.target.style.borderColor="#3b82f6"}
                 onBlur={e  => e.target.style.borderColor="#e5e7eb"}
               />
-            </Field>
+            </ModalField>
 
             {error && (
               <div style={{ background:"#fef2f2", border:"1.5px solid #fca5a5", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#dc2626", marginBottom:14 }}>
