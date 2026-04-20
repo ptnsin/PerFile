@@ -3,7 +3,11 @@ import "../styles/HRProfile.css";
 import { useNavigate, useLocation } from "react-router-dom";
 import PostJobModal from "./PostJobModal";
 import JobDetailModal from "./JobDetailModal";
-
+import {
+  LuSearch, LuBell, LuFilter, LuBriefcase,
+  LuPanelLeft, LuPlus, LuBookmark, LuLayoutDashboard, LuUsers,
+  LuMapPin, LuBadgeCheck, LuEllipsisVertical, LuBadgeMinus, LuTrash2, LuBookmarkCheck
+} from "react-icons/lu";
 // ═══════════════════════════════════════════════════════════════
 //  TODO: เชื่อม Backend — แก้ฟังก์ชันด้านล่างให้ fetch จาก API จริง
 //  ตัวอย่าง: const res = await fetch("/api/hr/profile"); return res.json();
@@ -1841,10 +1845,10 @@ export default function HRProfile() {
         <div className="hr-nav-right">
           <div ref={notifRef} style={{ position: "relative" }}>
             <button className="hr-icon-btn" onClick={() => setNotifOpen(v => !v)} style={{ position: "relative" }}>
-              <span>🔔</span>
-              {notifications.filter(n => !n.is_read).length > 0 && (
-                <span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", border: "1.5px solid #fff" }} />
-              )}
+              <LuBell />
+                           {notifications.filter(n => !n.is_read).length > 0 && (
+                             <span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", border: "1.5px solid #fff" }} />
+                           )}
             </button>
             {notifOpen && (
               <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.13)", border: "1px solid #e5e7eb", zIndex: 999, overflow: "hidden" }}>
