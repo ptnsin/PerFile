@@ -27,7 +27,7 @@ export default function UsersFeed() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [myResumes, setMyResumes] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -192,17 +192,15 @@ export default function UsersFeed() {
         (j.title?.toLowerCase() || "").includes(q) ||
         (j.users?.hr_profile?.company?.toLowerCase() || "").includes(q) ||
         (j.location?.toLowerCase() || "").includes(q);
-      const matchCategory = !selectedCategory ||
-        (j.job_type || "Other").toLowerCase().includes(selectedCategory.toLowerCase());
       const matchType = !jobFilter.type || j.job_type === jobFilter.type;
       const matchLocation = !jobFilter.location ||
         (j.location?.toLowerCase() || "").includes(jobFilter.location.toLowerCase());
       const salary = parseFloat(j.salary) || 0;
       const matchMin = !jobFilter.salaryMin || salary >= parseFloat(jobFilter.salaryMin);
       const matchMax = !jobFilter.salaryMax || salary <= parseFloat(jobFilter.salaryMax);
-      return matchSearch && matchCategory && matchType && matchLocation && matchMin && matchMax;
+      return matchSearch && matchType && matchLocation && matchMin && matchMax;
     });
-  }, [jobs, searchTerm, selectedCategory, jobFilter]);
+  }, [jobs, searchTerm, jobFilter]);
 
   // Sidebar Resize Logic
   useEffect(() => {
@@ -269,14 +267,7 @@ export default function UsersFeed() {
     fetchApplied();
   }, []);
 
-  const JOB_CATEGORIES = [
-    { key: "IT", label: "💻 IT & Software" },
-    { key: "Design", label: "🎨 Design" },
-    { key: "Marketing", label: "📣 Marketing" },
-    { key: "Finance", label: "💰 Finance" },
-    { key: "Engineer", label: "⚙️ Engineer" },
-    { key: "Other", label: "📋 Other" },
-  ];
+
 
   // Fetch My Resumes (for sidebar)
   useEffect(() => {
@@ -310,7 +301,9 @@ export default function UsersFeed() {
   }, []);
 
   // Close filter dropdown on tab change
-  useEffect(() => { setIsFilterOpen(false); }, [activeTab]);
+  useEffect(() => {
+    if (isFilterOpen) setIsFilterOpen(false);
+  }, [activeTab, isFilterOpen]);
 
   const initial = userData?.username?.[0]?.toUpperCase() ?? "U";
   const firstName = userData?.fullName?.split(" ")[0] ?? "there";
@@ -518,27 +511,7 @@ export default function UsersFeed() {
           ) : (
             <div className="uf-sub-item" style={{ color: "#9ca3af", fontSize: 11 }}>ยังไม่ได้สมัคร</div>
           )}
-          {/* Job Categories */}
-          <div className="uf-section-label">Job Categories</div>
-          {JOB_CATEGORIES.map(cat => (
-            <div
-              key={cat.key}
-              className="uf-sub-item"
-              style={{
-                cursor: "pointer",
-                fontWeight: selectedCategory === cat.key ? 700 : 400,
-                color: selectedCategory === cat.key ? "#1e3a8a" : undefined,
-                background: selectedCategory === cat.key ? "#eff6ff" : undefined,
-                borderRadius: 6,
-              }}
-              onClick={() => {
-                setSelectedCategory(prev => prev === cat.key ? null : cat.key);
-                setActiveTab("job");
-              }}
-            >
-              {cat.label}
-            </div>
-          ))}
+
           {privateList.length > 0 && (
             <>
               <div className="uf-section-label">Private Resumes</div>
@@ -724,15 +697,6 @@ export default function UsersFeed() {
                 jobs.length > 0 ? (
                   filteredJobs.length > 0 ? (
                     <>
-                      {selectedCategory && (
-                        <div style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, color: "#6b7280" }}>กรองตาม:</span>
-                          <span style={{ background: "#eff6ff", color: "#1e3a8a", borderRadius: 12, padding: "2px 10px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                            {JOB_CATEGORIES.find(c => c.key === selectedCategory)?.label}
-                            <button onClick={() => setSelectedCategory(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#1e3a8a", padding: 0, lineHeight: 1 }}>✕</button>
-                          </span>
-                        </div>
-                      )}
                       {filteredJobs.map((job) => (
                         <JobCard
                           key={job.id}
@@ -751,7 +715,7 @@ export default function UsersFeed() {
                   ) : (
                     <div className="uf-empty">
                       <div className="uf-empty-icon">🔍</div>
-                      <div className="uf-empty-title">ไม่มีงานในหมวด "{selectedCategory}"</div>
+                      <div className="uf-empty-title">ไม่พบงานที่ตรงกับการค้นหา</div>
                     </div>
                   )
                 ) : (

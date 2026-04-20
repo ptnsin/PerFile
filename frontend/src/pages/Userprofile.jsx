@@ -8,7 +8,6 @@ import {
   LuUpload, LuLoader,
 } from "react-icons/lu";
 import { FiHome } from "react-icons/fi";
-import { useResumes } from "./ResumeContext";
 import "../styles/Userprofile.css";
 
 const API = "http://localhost:3000";
@@ -16,7 +15,7 @@ const API = "http://localhost:3000";
 const PROFILE_KEY = "userprofile_local";
 // หมายเหตุ: AVATAR_KEY / COVER_KEY ยังคงไว้เป็น fallback แต่แหล่งข้อมูลหลักคือ backend แล้ว
 const AVATAR_KEY = "userprofile_avatar";
-const COVER_KEY  = "userprofile_cover";
+const COVER_KEY = "userprofile_cover";
 
 const DEFAULT_PROFILE = {
   displayName: "",
@@ -30,8 +29,8 @@ const DEFAULT_PROFILE = {
 
 const TABS = [
   { key: "resumes", label: "Private Resumes" },
-  { key: "jobs",    label: "Public Resumes" },
-  { key: "saved",   label: "Saved" },
+  { key: "jobs", label: "Public Resumes" },
+  { key: "saved", label: "Saved" },
 ];
 
 const ICONS = ["💼", "🎨", "💻", "📊", "🔧", "🏗️", "📱", "🎯", "📝", "⚙️"];
@@ -56,19 +55,49 @@ async function uploadImage(file, type) {
 }
 
 export default function UserProfile() {
-  const [activeTab, setActiveTab]       = useState("resumes");
-  const [sidebarOpen, setSidebarOpen]   = useState(true);
-  const [menuOpen, setMenuOpen]         = useState(false);
-  const [userData, setUserData]         = useState(null);
+  const [activeTab, setActiveTab] = useState("resumes");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [userData, setUserData] = useState(null);
   const [actionMenuId, setActionMenuId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [myResumes, setMyResumes]       = useState([]);
-  const [appliedJobs, setAppliedJobs]   = useState([]);
-  const [savedJobs, setSavedJobs]       = useState([]);
+  const [myResumes, setMyResumes] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
+  const [savedJobs, setSavedJobs] = useState([]);
   const [savedResumes, setSavedResumes] = useState([]);
-  const [savedSubTab, setSavedSubTab]   = useState("jobs");
+  const [savedSubTab, setSavedSubTab] = useState("jobs");
   const [savedLoading, setSavedLoading] = useState(false);
   const [stats, setStats] = useState({ views: "0", score: "0%", interviewing: "0", shortlisted: "0" });
+  // Notification
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API}/notifications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.notifications ?? []);
+        }
+      } catch (err) {
+        console.error("Fetch notifications error:", err);
+      }
+    };
+    fetchNotifs();
+  }, []);
+
+  // Close on outside click
+  useEffect(() => {
+    const close = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
   // ── Profile editable state ──────────────────────────────────────
   const [profile, setProfile] = useState(() => {
@@ -76,44 +105,48 @@ export default function UserProfile() {
     catch { return DEFAULT_PROFILE; }
   });
   const [editingProfile, setEditingProfile] = useState(false);
-  const [profileDraft, setProfileDraft]     = useState(profile);
+  const [profileDraft, setProfileDraft] = useState(profile);
 
   // ── Experience ──────────────────────────────────────────────────
-  const [experiences, setExperiences]   = useState([]);
-  const [expLoading, setExpLoading]     = useState(true);
-  const [expModal, setExpModal]         = useState(false);
-  const [expEditId, setExpEditId]       = useState(null);
-  const [expForm, setExpForm]           = useState({ icon: "💼", title: "", company: "", date: "" });
+  const [experiences, setExperiences] = useState([]);
+  const [expLoading, setExpLoading] = useState(true);
+  const [expModal, setExpModal] = useState(false);
+  const [expEditId, setExpEditId] = useState(null);
+  const [expForm, setExpForm] = useState({ icon: "💼", title: "", company: "", date: "" });
 
   // ── Skills ──────────────────────────────────────────────────────
-  const [skills, setSkills]             = useState([]);
+  const [skills, setSkills] = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(true);
   const [showSkillModal, setShowSkillModal] = useState(false);
-  const [newSkill, setNewSkill]         = useState("");
+  const [newSkill, setNewSkill] = useState("");
 
   // ── Avatar & Cover ───────────────────────────────────────────────
   // แหล่งข้อมูลหลัก: URL จาก backend (เก็บใน state)
   // fallback: base64 ใน localStorage (กรณีไม่มี backend)
   const [avatarUrl, setAvatarUrl] = useState(null);   // URL จาก DB
-  const [coverUrl, setCoverUrl]   = useState(null);   // URL จาก DB
+  const [coverUrl, setCoverUrl] = useState(null);   // URL จาก DB
   const [avatarPreview, setAvatarPreview] = useState(() => localStorage.getItem(AVATAR_KEY) || null);
-  const [coverPreview, setCoverPreview]   = useState(() => localStorage.getItem(COVER_KEY)  || null);
+  const [coverPreview, setCoverPreview] = useState(() => localStorage.getItem(COVER_KEY) || null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [coverUploading, setCoverUploading]   = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
   const avatarInputRef = useRef(null);
-  const coverInputRef  = useRef(null);
-  const sidebarRef     = useRef(null);
+  const coverInputRef = useRef(null);
+  const sidebarRef = useRef(null);
   const savedSectionRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { privateResumes, removePrivate, removeResume, publishPrivate } = useResumes();
 
   // ── auto-save profile to localStorage ─────────────────────────
   useEffect(() => {
-    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { }
+    try {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+
+    } catch (err) {
+      console.error("fetch user error:", err);
+    }
   }, [profile]);
 
   // ── Fetch profile info (รวม avatar + cover_image) ──────────────
@@ -125,14 +158,14 @@ export default function UserProfile() {
           const data = await res.json();
           setProfile(p => ({
             ...p,
-            bio:       data.bio       || p.bio,
-            location:  data.location  || p.location,
+            bio: data.bio || p.bio,
+            location: data.location || p.location,
             portfolio: data.portfolio || p.portfolio,
-            github:    data.github    || p.github,
-            linkedin:  data.linkedin  || p.linkedin,
+            github: data.github || p.github,
+            linkedin: data.linkedin || p.linkedin,
           }));
           // ตั้งค่า URL รูปจาก backend
-          if (data.avatar)      setAvatarUrl(data.avatar);
+          if (data.avatar) setAvatarUrl(data.avatar);
           if (data.cover_image) setCoverUrl(data.cover_image);
         }
       } catch (err) {
@@ -144,7 +177,7 @@ export default function UserProfile() {
 
   // ── Image display: ใช้ URL จาก backend ก่อน ถ้าไม่มีใช้ preview ──
   const displayAvatar = avatarUrl || avatarPreview;
-  const displayCover  = coverUrl  || coverPreview;
+  const displayCover = coverUrl || coverPreview;
 
   // ── Upload Handlers ───────────────────────────────────────────
   const handleAvatarChange = async (e) => {
@@ -157,7 +190,12 @@ export default function UserProfile() {
     const reader = new FileReader();
     reader.onloadend = () => {
       setAvatarPreview(reader.result);
-      try { localStorage.setItem(AVATAR_KEY, reader.result); } catch { }
+      try {
+        localStorage.setItem(AVATAR_KEY, reader.result);
+
+      } catch (err) {
+        console.error("fetch user error:", err);
+      }
     };
     reader.readAsDataURL(file);
 
@@ -186,7 +224,12 @@ export default function UserProfile() {
     const reader = new FileReader();
     reader.onloadend = () => {
       setCoverPreview(reader.result);
-      try { localStorage.setItem(COVER_KEY, reader.result); } catch { }
+      try {
+        localStorage.setItem(COVER_KEY, reader.result);
+
+      } catch (err) {
+        console.error("fetch user error:", err);
+      }
     };
     reader.readAsDataURL(file);
 
@@ -214,11 +257,11 @@ export default function UserProfile() {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({
-          bio:       profileDraft.bio,
-          location:  profileDraft.location,
+          bio: profileDraft.bio,
+          location: profileDraft.location,
           portfolio: profileDraft.portfolio,
-          github:    profileDraft.github,
-          linkedin:  profileDraft.linkedin,
+          github: profileDraft.github,
+          linkedin: profileDraft.linkedin,
         }),
       });
     } catch (err) {
@@ -280,32 +323,32 @@ export default function UserProfile() {
   // ── Fetch skills / stats / experiences ────────────────────────
   useEffect(() => {
     fetch(`${API}/profile/skills`, { headers: authHeader() })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d) setSkills(d.skills); }).catch(() => {}).finally(() => setSkillsLoading(false));
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setSkills(d.skills); }).catch(() => { }).finally(() => setSkillsLoading(false));
   }, []);
   useEffect(() => {
     fetch(`${API}/profile/stats`, { headers: authHeader() })
       .then(r => r.ok ? r.json() : null).then(d => {
         if (d) setStats({ views: d.views?.toString() || "0", score: (d.profile_score || "0") + "%", interviewing: d.interview_count?.toString() || "0", shortlisted: d.shortlisted_count?.toString() || "0" });
-      }).catch(() => {});
+      }).catch(() => { });
   }, []);
   useEffect(() => {
     fetch(`${API}/profile/experiences`, { headers: authHeader() })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d) setExperiences(d.experiences); }).catch(() => {}).finally(() => setExpLoading(false));
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setExperiences(d.experiences); }).catch(() => { }).finally(() => setExpLoading(false));
   }, []);
 
   // ── fetch resumes ─────────────────────────────────────────────
   useEffect(() => {
     fetch(`${API}/resumes/my`, { headers: authHeader() })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d) setMyResumes(d.resumes ?? []); }).catch(() => {});
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setMyResumes(d.resumes ?? []); }).catch(() => { });
   }, []);
 
   const privateList = myResumes.filter(r => r.visibility === "private");
-  const publicList  = myResumes.filter(r => r.visibility === "public");
+  const publicList = myResumes.filter(r => r.visibility === "public");
 
   // ── fetch applied jobs ────────────────────────────────────────
   useEffect(() => {
     fetch(`${API}/applications/my`, { headers: authHeader() })
-      .then(r => r.ok ? r.json() : null).then(d => { if (d) setAppliedJobs(d.applications ?? []); }).catch(() => {});
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setAppliedJobs(d.applications ?? []); }).catch(() => { });
   }, []);
 
   // ── fetch saved jobs + resumes ────────────────────────────────
@@ -313,7 +356,7 @@ export default function UserProfile() {
     if (activeTab !== "saved") return;
     setSavedLoading(true);
     Promise.all([
-      fetch(`${API}/saved/jobs`,    { headers: authHeader() }).then(r => r.ok ? r.json() : null),
+      fetch(`${API}/saved/jobs`, { headers: authHeader() }).then(r => r.ok ? r.json() : null),
       fetch(`${API}/saved/resumes`, { headers: authHeader() }).then(r => r.ok ? r.json() : null),
     ]).then(([j, r]) => {
       if (j) setSavedJobs(j.savedJobs ?? []);
@@ -322,7 +365,7 @@ export default function UserProfile() {
   }, [activeTab]);
 
   // ── unsave handlers ───────────────────────────────────────────
-  const handleUnsaveJob    = async (id) => { const r = await fetch(`${API}/saved/jobs/${id}`,    { method: "DELETE", headers: authHeader() }); if (r.ok) setSavedJobs(p => p.filter(j => j.job_id !== id)); };
+  const handleUnsaveJob = async (id) => { const r = await fetch(`${API}/saved/jobs/${id}`, { method: "DELETE", headers: authHeader() }); if (r.ok) setSavedJobs(p => p.filter(j => j.job_id !== id)); };
   const handleUnsaveResume = async (id) => { const r = await fetch(`${API}/saved/resumes/${id}`, { method: "DELETE", headers: authHeader() }); if (r.ok) setSavedResumes(p => p.filter(r => r.resume_id !== id)); };
 
   // ── fetch user ────────────────────────────────────────────────
@@ -337,7 +380,9 @@ export default function UserProfile() {
           setUserData(u);
           setProfile(p => ({ ...p, email: p.email || u?.email || "", displayName: p.displayName || u?.fullName || "" }));
         } else localStorage.removeItem("token");
-      } catch { }
+      } catch (err) {
+        console.error("fetch user error:", err);
+      }
     })();
   }, []);
 
@@ -355,12 +400,12 @@ export default function UserProfile() {
     let drag = false, startX = 0, startW = 0;
     const down = (e) => { drag = true; startX = e.clientX; startW = sidebar.offsetWidth; document.body.style.userSelect = "none"; document.addEventListener("mousemove", move); document.addEventListener("mouseup", up); };
     const move = (e) => { if (!drag) return; sidebar.style.width = Math.min(340, Math.max(80, startW + (e.clientX - startX))) + "px"; };
-    const up   = () => { drag = false; document.body.style.userSelect = ""; document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+    const up = () => { drag = false; document.body.style.userSelect = ""; document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
     handle.addEventListener("mousedown", down);
     return () => handle.removeEventListener("mousedown", down);
   }, []);
 
-  const initial  = userData?.username?.[0]?.toUpperCase() ?? "U";
+  const initial = userData?.username?.[0]?.toUpperCase() ?? "U";
   const fullName = profile.displayName || userData?.fullName || "Unknown";
   const toggleSidebar = () => { if (sidebarOpen && sidebarRef.current) sidebarRef.current.style.width = ""; setSidebarOpen(v => !v); };
   const handleTabClick = (key) => { setActiveTab(key); if (key === "saved" && savedSectionRef.current) setTimeout(() => savedSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
@@ -405,9 +450,9 @@ export default function UserProfile() {
               ))}
             </div>
             {[
-              { key: "title",   label: "ตำแหน่งงาน",      ph: "เช่น Frontend Developer" },
-              { key: "company", label: "บริษัท / องค์กร",  ph: "เช่น Tech Startup Co." },
-              { key: "date",    label: "ช่วงเวลา",          ph: "เช่น 2022 – ปัจจุบัน" },
+              { key: "title", label: "ตำแหน่งงาน", ph: "เช่น Frontend Developer" },
+              { key: "company", label: "บริษัท / องค์กร", ph: "เช่น Tech Startup Co." },
+              { key: "date", label: "ช่วงเวลา", ph: "เช่น 2022 – ปัจจุบัน" },
             ].map(f => (
               <div key={f.key} style={{ marginBottom: 10, textAlign: "left" }}>
                 <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 3 }}>{f.label}</label>
@@ -450,7 +495,88 @@ export default function UserProfile() {
           <div className="uf-search"><LuSearch /><input type="text" placeholder="ค้นหา Username หรือ Company..." /></div>
         </div>
         <div className="uf-nav-right">
-          <button className="uf-icon-btn"><LuBell /></button>
+          <div ref={notifRef} style={{ position: "relative" }}>
+            <button className="uf-icon-btn" title="Notifications" onClick={() => setNotifOpen(v => !v)}
+              style={{ position: "relative" }}>
+              <LuBell />
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span style={{
+                  position: "absolute", top: 4, right: 4,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#ef4444", border: "1.5px solid #fff",
+                }} />
+              )}
+            </button>
+            {notifOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                width: 320, background: "#fff", borderRadius: 12,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.13)", border: "1px solid #e5e7eb",
+                zIndex: 999, overflow: "hidden",
+              }}>
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>แจ้งเตือน</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {notifications.filter(n => !n.is_read).length > 0 && (
+                      <>
+                        <span style={{ background: "#eff6ff", color: "#1e3a8a", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>
+                          {notifications.filter(n => !n.is_read).length} ใหม่
+                        </span>
+                        <button onClick={async () => {
+                          const token = localStorage.getItem("token");
+                          await fetch(`${API}/notifications/read-all`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+                          setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
+                        }} style={{ fontSize: 11, color: "#1e3a8a", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}>
+                          อ่านทั้งหมด
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                  {notifications.length > 0 ? notifications.map((n, i) => (
+                    <div key={n.id ?? i}
+                      onClick={async () => {
+                        if (!n.is_read) {
+                          const token = localStorage.getItem("token");
+                          await fetch(`${API}/notifications/${n.id}/read`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+                          setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: 1 } : x));
+                        }
+                      }}
+                      style={{
+                        padding: "10px 16px", borderBottom: "1px solid #f9fafb",
+                        background: n.is_read ? "#fff" : "#f0f7ff",
+                        display: "flex", gap: 10, alignItems: "flex-start",
+                        cursor: n.is_read ? "default" : "pointer",
+                      }}>
+                      <div style={{ fontSize: 18, flexShrink: 0 }}>
+                        {n.type === "save_resume" ? "📌" : "🔔"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {n.title && <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 2 }}>{n.title}</div>}
+                        <div style={{ fontSize: 13, color: "#111827", fontWeight: n.is_read ? 400 : 600 }}>{n.message ?? n.title}</div>
+                        {n.created_at && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{new Date(n.created_at).toLocaleDateString("th-TH")}</div>}
+                      </div>
+                      {!n.is_read && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#1e3a8a", flexShrink: 0, marginTop: 4 }} />}
+                    </div>
+                  )) : (
+                    <div style={{ padding: 24, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>ยังไม่มีแจ้งเตือน</div>
+                  )}
+                </div>
+                {notifications.length > 0 && (
+                  <div style={{ padding: "10px 16px", borderTop: "1px solid #f3f4f6", textAlign: "center" }}>
+                    <button onClick={async () => {
+                      const token = localStorage.getItem("token");
+                      await fetch(`${API}/notifications/clear`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                      setNotifications([]);
+                    }} style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                      ลบทั้งหมด
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="uf-user-area" style={{ position: "relative" }}>
             <div className="uf-user-chip" onClick={() => setMenuOpen(v => !v)}>
               <div className="uf-avatar">
@@ -490,9 +616,10 @@ export default function UserProfile() {
           </div>
           {appliedJobs.length > 0 ? appliedJobs.slice(0, 5).map(a => (
             <div key={a.id} className="uf-sub-item" style={{ cursor: "default" }}>
-              <span style={{ display: "inline-block", marginRight: 5, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
+              <span style={{
+                display: "inline-block", marginRight: 5, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6,
                 background: a.status === "accepted" ? "#dcfce7" : a.status === "rejected" ? "#fee2e2" : "#fef9c3",
-                color:      a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
+                color: a.status === "accepted" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#ca8a04",
               }}>
                 {a.status === "accepted" ? "✓" : a.status === "rejected" ? "✕" : "⏳"}
               </span>
@@ -618,12 +745,12 @@ export default function UserProfile() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: 10 }}>
                     {[
-                      { key: "displayName", label: "ชื่อ-นามสกุล",          ph: "ชื่อที่แสดง" },
-                      { key: "email",       label: "อีเมล",                   ph: "your@email.com" },
-                      { key: "location",    label: "ที่อยู่",                 ph: "Bangkok, Thailand" },
-                      { key: "portfolio",   label: "เว็บไซต์ / Portfolio",   ph: "portfolio.dev" },
-                      { key: "github",      label: "GitHub",                  ph: "github.com/username" },
-                      { key: "linkedin",    label: "LinkedIn",                ph: "linkedin.com/in/username" },
+                      { key: "displayName", label: "ชื่อ-นามสกุล", ph: "ชื่อที่แสดง" },
+                      { key: "email", label: "อีเมล", ph: "your@email.com" },
+                      { key: "location", label: "ที่อยู่", ph: "Bangkok, Thailand" },
+                      { key: "portfolio", label: "เว็บไซต์ / Portfolio", ph: "portfolio.dev" },
+                      { key: "github", label: "GitHub", ph: "github.com/username" },
+                      { key: "linkedin", label: "LinkedIn", ph: "linkedin.com/in/username" },
                     ].map(f => (
                       <div key={f.key}>
                         <label style={{ fontSize: 10, color: "#6b7280", fontWeight: 600, display: "block", marginBottom: 2 }}>{f.label}</label>
@@ -654,9 +781,9 @@ export default function UserProfile() {
                     <div className="up-profile-handle">@{userData?.username || "unknown"} · PerFile</div>
                     <div className="up-profile-bio">{profile.bio}</div>
                     <div className="up-profile-meta">
-                      {profile.location  && <span className="up-meta-item"><LuMapPin size={11} /> {profile.location}</span>}
+                      {profile.location && <span className="up-meta-item"><LuMapPin size={11} /> {profile.location}</span>}
                       {profile.portfolio && <a href={`https://${profile.portfolio.replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer" className="up-meta-link"><LuLink size={11} /> {profile.portfolio}</a>}
-                      {profile.email     && <span className="up-meta-item"><LuMail size={11} /> {profile.email}</span>}
+                      {profile.email && <span className="up-meta-item"><LuMail size={11} /> {profile.email}</span>}
                     </div>
                     <div className="up-social-row">
                       {profile.github ? (
@@ -686,10 +813,10 @@ export default function UserProfile() {
           {/* Stats */}
           <div className="up-stats-row">
             {[
-              { num: stats.views,        label: "VIEWS",         color: "#1e3a8a" },
-              { num: stats.score,        label: "PROFILE SCORE", color: "#4f46e5" },
-              { num: stats.interviewing, label: "INTERVIEWING",  color: "#1e3a8a" },
-              { num: stats.shortlisted,  label: "SHORTLISTED",   color: "#1e3a8a" },
+              { num: stats.views, label: "VIEWS", color: "#1e3a8a" },
+              { num: stats.score, label: "PROFILE SCORE", color: "#4f46e5" },
+              { num: stats.interviewing, label: "INTERVIEWING", color: "#1e3a8a" },
+              { num: stats.shortlisted, label: "SHORTLISTED", color: "#1e3a8a" },
             ].map(s => (
               <div key={s.label} className="up-stat-card">
                 <div className="up-stat-num" style={{ color: s.color }}>{s.num}</div>
@@ -724,24 +851,24 @@ export default function UserProfile() {
             </div>
             {expLoading ? <p style={{ color: "#9ca3af", fontSize: 13 }}>กำลังโหลด...</p>
               : experiences.length === 0 ? <p style={{ color: "#9ca3af", fontSize: 13 }}>ยังไม่มีประสบการณ์ กด "+ เพิ่ม"</p>
-              : experiences.map(e => (
-                <div key={e.id} className="up-exp-item" style={{ position: "relative" }}>
-                  <div className="up-exp-dot">{e.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div className="up-exp-title">{e.title}</div>
-                    <div className="up-exp-sub">{e.company}</div>
-                    <div className="up-exp-date">{e.date}</div>
+                : experiences.map(e => (
+                  <div key={e.id} className="up-exp-item" style={{ position: "relative" }}>
+                    <div className="up-exp-dot">{e.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div className="up-exp-title">{e.title}</div>
+                      <div className="up-exp-sub">{e.company}</div>
+                      <div className="up-exp-date">{e.date}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                      <button onClick={() => openEditExp(e)} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#6b7280", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
+                        <LuPencil size={11} /> แก้ไข
+                      </button>
+                      <button onClick={() => deleteExp(e.id)} style={{ background: "none", border: "1px solid #fecaca", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#ef4444", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
+                        <LuTrash2 size={11} /> ลบ
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                    <button onClick={() => openEditExp(e)} style={{ background: "none", border: "1px solid #e5e7eb", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#6b7280", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
-                      <LuPencil size={11} /> แก้ไข
-                    </button>
-                    <button onClick={() => deleteExp(e.id)} style={{ background: "none", border: "1px solid #fecaca", borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: "#ef4444", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}>
-                      <LuTrash2 size={11} /> ลบ
-                    </button>
-                  </div>
-                </div>
-              ))
+                ))
             }
           </div>
 
@@ -752,7 +879,7 @@ export default function UserProfile() {
                 <button key={t.key} className={`uf-tab${activeTab === t.key ? " active" : ""}`} onClick={() => handleTabClick(t.key)}>
                   {t.label}
                   {t.key === "resumes" && privateList.length > 0 && <span className="uf-tab-badge">{privateList.length}</span>}
-                  {t.key === "jobs"    && publicList.length > 0  && <span className="uf-tab-badge" style={{ background: "#16a34a" }}>{publicList.length}</span>}
+                  {t.key === "jobs" && publicList.length > 0 && <span className="uf-tab-badge" style={{ background: "#16a34a" }}>{publicList.length}</span>}
                 </button>
               ))}
               <button className="uf-filter-btn" style={{ marginLeft: "auto", background: "#1e3a8a", color: "#fff", border: "none", whiteSpace: "nowrap" }} onClick={() => navigate("/resume")}>
@@ -853,13 +980,14 @@ export default function UserProfile() {
               <div ref={savedSectionRef}>
                 <div style={{ display: "flex", gap: 8, padding: "12px 16px 0" }}>
                   {[
-                    { key: "jobs",    label: "งานที่บันทึก",      count: savedJobs.length },
-                    { key: "resumes", label: "Resume ที่บันทึก",  count: savedResumes.length },
+                    { key: "jobs", label: "งานที่บันทึก", count: savedJobs.length },
+                    { key: "resumes", label: "Resume ที่บันทึก", count: savedResumes.length },
                   ].map(st => (
                     <button key={st.key} onClick={() => setSavedSubTab(st.key)}
-                      style={{ padding: "6px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13,
+                      style={{
+                        padding: "6px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13,
                         background: savedSubTab === st.key ? "#1e3a8a" : "#f1f5f9",
-                        color:      savedSubTab === st.key ? "#fff"    : "#64748b",
+                        color: savedSubTab === st.key ? "#fff" : "#64748b",
                         display: "flex", alignItems: "center", gap: 6, transition: "all .15s",
                       }}>
                       {st.label}

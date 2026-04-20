@@ -1,6 +1,9 @@
 import { Router } from 'express'
 import db from '../config/db.js'
 import { authMiddleware } from '../middleware/authMiddleware.js'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
 
 const profileRouter = Router()
 
@@ -17,7 +20,7 @@ profileRouter.get('/stats', authMiddleware, async (req, res) => {
 
     // ดึงข้อมูลทั้งหมดพร้อมกัน
     const [[profileRow], [resumeRow], [skillRow], [expRow], [userRow]] = await Promise.all([
-      db.query('SELECT views, bio, location, portfolio, github, linkedin, avatar FROM seeker_profiles WHERE user_id = ?', [userId]),
+      db.query('SELECT views, bio, location, portfolio, github, linkedin, avatar, cover_image FROM seeker_profiles WHERE user_id = ?', [userId]),
       db.query('SELECT COUNT(*) as count FROM resumes WHERE user_id = ?', [userId]),
       db.query('SELECT COUNT(*) as count FROM user_skills WHERE user_id = ?', [userId]),
       db.query('SELECT COUNT(*) as count FROM user_experiences WHERE user_id = ?', [userId]),
@@ -29,22 +32,24 @@ profileRouter.get('/stats', authMiddleware, async (req, res) => {
 
     // คำนวณ Profile Score
     let score = 0;
-    if (avatar)           score += 20;  // รูปโปรไฟล์
-    if (p.bio)            score += 20;  // bio
-    if (p.location)       score += 10;  // location
-    if (p.portfolio)      score += 10;  // portfolio
-    if (p.github)         score += 10;  // github
-    if (p.linkedin)       score += 10;  // linkedin
-    if (skillRow[0]?.count > 0)  score += 10;  // มี skill
-    if (expRow[0]?.count > 0)    score += 10;  // มี experience
+    if (avatar) score += 20;  // รูปโปรไฟล์
+    if (p.bio) score += 20;  // bio
+    if (p.location) score += 10;  // location
+    if (p.portfolio) score += 10;  // portfolio
+    if (p.github) score += 10;  // github
+    if (p.linkedin) score += 10;  // linkedin
+    if (skillRow[0]?.count > 0) score += 10;  // มี skill
+    if (expRow[0]?.count > 0) score += 10;  // มี experience
 
     res.json({
-      views:            profileRow[0]?.views || 0,
-      resumes:          resumeRow[0]?.count  || 0,
-      profile_score:    score,
-      interview_count:  0,
+      views: profileRow[0]?.views || 0,
+      resumes: resumeRow[0]?.count || 0,
+      profile_score: score,
+      interview_count: 0,
       shortlisted_count: 0,
-    });
+      cover_image: profileRow[0]?.cover_image || null,  // ✅ เพิ่มตรงนี้
+      avatar: avatar || null,                       // ✅ เพิ่มตรงนี้
+    })
   } catch (err) {
     console.error('GET stats error:', err.message);
     res.status(500).json({ message: 'Internal server error' });
@@ -188,11 +193,11 @@ profileRouter.delete('/experiences/:id', authMiddleware, async (req, res) => {
 profileRouter.get('/info', authMiddleware, async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT bio, location, portfolio, github, linkedin FROM seeker_profiles WHERE user_id = ?',
+      'SELECT bio, location, portfolio, github, linkedin, avatar, cover_image FROM seeker_profiles WHERE user_id = ?',
       [req.user.id]
     )
     if (rows.length === 0) {
-      return res.json({ bio: '', location: '', portfolio: '', github: '', linkedin: '' })
+      return res.json({ bio: '', location: '', portfolio: '', github: '', linkedin: '', avatar: null, cover_image: null })
     }
     res.json(rows[0])
   } catch (err) {
@@ -291,6 +296,54 @@ profileRouter.get('/hr/:userId', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// ─────────────────────────────────────────────────────────────
+// UPLOAD IMAGE (avatar / cover)
+// ─────────────────────────────────────────────────────────────
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'uploads/'
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    cb(null, dir)
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`)
+  }
+})
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } })
+
+profileRouter.post('/upload-image', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'ไม่มีไฟล์' })
+
+    const type = req.body.type // "avatar" | "cover"
+    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+
+    // อัปเดต column ใน seeker_profiles
+    const column = type === 'avatar' ? 'avatar' : 'cover_image'
+    const [existing] = await db.query(
+      'SELECT user_id FROM seeker_profiles WHERE user_id = ?', [req.user.id]
+    )
+    if (existing.length === 0) {
+      await db.query(
+        `INSERT INTO seeker_profiles (user_id, ${column}) VALUES (?, ?)`,
+        [req.user.id, url]
+      )
+    } else {
+      await db.query(
+        `UPDATE seeker_profiles SET ${column} = ? WHERE user_id = ?`,
+        [url, req.user.id]
+      )
+    }
+
+    res.json({ url })
+  } catch (err) {
+    console.error('upload-image error:', err.message)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
 
 // ✅ export default อยู่ท้ายสุด
 export default profileRouter
