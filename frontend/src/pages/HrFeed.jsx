@@ -35,10 +35,10 @@ export default function HrFeed() {
   }).length;
 
   const STATS = [
-    { num: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString(), label: "ตำแหน่งเปิดรับ" },
-    { num: applicants.length.toString(),   label: "ผู้สมัครทั้งหมด" },
-    { num: interviewsThisMonth.toString(), label: "สัมภาษณ์เดือนนี้" },
-    { num: "94%", label: "อัตราตอบรับ" },
+    { num: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString(), label: "ตำแหน่งเปิดรับ", icon: <LuBriefcase />, color: "#1d4ed8", bg: "#eff6ff" },
+    { num: applicants.length.toString(),   label: "ผู้สมัครทั้งหมด", icon: <LuUsers />, color: "#15803d", bg: "#f0fdf4" },
+    { num: interviewsThisMonth.toString(), label: "สัมภาษณ์เดือนนี้", icon: <LuBadgeCheck />, color: "#a855f7", bg: "#faf5ff" },
+    { num: "94%", label: "อัตราตอบรับ", icon: <LuBadgeCheck />, color: "#f97316", bg: "#fff7ed" },
   ];
 
   const TABS = [
@@ -373,6 +373,9 @@ const handleUpdateStatus = async (jobId, newStatus) => {
       <JobDetailModal
         open={!!selectedJob}
         job={selectedJob}
+        applicantCount={selectedJob ? applicants.filter(
+          (a) => String(a.job_id ?? a.jobId ?? a.jobID) === String(selectedJob.id)
+        ).length : 0}
         onClose={() => setSelectedJob(null)}
         onViewApplicants={(job) => { setSelectedJob(null); handleViewApplicants(job.id); }}
       />
@@ -498,9 +501,19 @@ const handleUpdateStatus = async (jobId, newStatus) => {
           {/* Stats */}
           <div className="hrf-stats">
             {STATS.map((s) => (
-              <div key={s.label} className="hrf-stat-card">
-                <div className="hrf-stat-num">{s.num}</div>
-                <div className="hrf-stat-label">{s.label}</div>
+              <div key={s.label} className="hrf-stat-card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                  background: s.bg, color: s.color,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 20,
+                }}>
+                  {s.icon}
+                </div>
+                <div>
+                  <div className="hrf-stat-num" style={{ color: s.color }}>{s.num}</div>
+                  <div className="hrf-stat-label">{s.label}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -562,17 +575,22 @@ const handleUpdateStatus = async (jobId, newStatus) => {
               ) : (
                 jobs
                   .filter((job) => job.status !== "ปิดแล้ว")
-                  .map((job) => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    onClick={() => setSelectedJob(job)} 
-                    onUpdateStatus={handleUpdateStatus}
-                    isSaved={savedJobIds.includes(String(job.id))}
-                    onSave={handleSaveJob}
-                    onViewApplicants={handleViewApplicants}
-                  />
-                ))
+                  .map((job) => {
+                    const jobApplicantCount = applicants.filter(
+                      (a) => String(a.job_id ?? a.jobId ?? a.jobID) === String(job.id)
+                    ).length;
+                    return (
+                      <JobCard 
+                        key={job.id} 
+                        job={{ ...job, applicantCount: jobApplicantCount }} 
+                        onClick={() => setSelectedJob(job)} 
+                        onUpdateStatus={handleUpdateStatus}
+                        isSaved={savedJobIds.includes(String(job.id))}
+                        onSave={handleSaveJob}
+                        onViewApplicants={handleViewApplicants}
+                      />
+                    );
+                  })
               )}
             </div>
           </div>
@@ -615,92 +633,203 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
     }
   };
 
+  const salary =
+    job.salaryMin && job.salaryMax
+      ? `฿${Number(job.salaryMin).toLocaleString()} – ฿${Number(job.salaryMax).toLocaleString()}`
+      : job.salaryMin
+      ? `฿${Number(job.salaryMin).toLocaleString()}+`
+      : job.salaryMax
+      ? `≤ ฿${Number(job.salaryMax).toLocaleString()}`
+      : job.salary || null;
+
+  const isOpen = job.status !== "ปิดแล้ว";
+
+  // colour accent per category
+  const CATEGORY_COLORS = {
+    "Design":     { bg: "#fdf4ff", accent: "#a855f7", light: "#f3e8ff" },
+    "Marketing":  { bg: "#fff7ed", accent: "#f97316", light: "#ffedd5" },
+    "Engineering":{ bg: "#eff6ff", accent: "#3b82f6", light: "#dbeafe" },
+    "Finance":    { bg: "#f0fdf4", accent: "#22c55e", light: "#dcfce7" },
+    "HR":         { bg: "#fef9c3", accent: "#eab308", light: "#fef9c3" },
+  };
+  const col = CATEGORY_COLORS[job.category] || { bg: "#f8fafc", accent: "#1d4ed8", light: "#eff6ff" };
+
   return (
     <div
-      className="hrf-job-card"
+      className="hrf-job-card hrf-job-card-v2"
       onClick={onClick}
-      style={{ cursor: "pointer", position: "relative", overflow: "visible" }}
+      style={{ cursor: "pointer", position: "relative", overflow: "visible", padding: 0 }}
     >
+      {/* Backdrop */}
       {menuOpen && (
-        <div 
+        <div
           onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
-          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 90, background: "transparent" }}
+          style={{ position: "fixed", inset: 0, zIndex: 90, background: "transparent" }}
         />
       )}
 
-      {/* ── 3-dot button — absolute top-right ── */}
-      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 100 }}>
-        <button
-          onClick={handleMenuClick}
-          style={{
-            width: 30, height: 30,
-            background: menuOpen ? "#e0e7ff" : "rgba(255,255,255,0.9)",
-            border: "1.5px solid " + (menuOpen ? "#a5b4fc" : "#e4e4e7"),
-            borderRadius: "50%",
-            cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: menuOpen ? "#4f46e5" : "#64748b",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-            transition: "all 0.15s",
-          }}
-        >
-          <LuEllipsisVertical size={16} />
-        </button>
+      {/* ── Coloured top strip ── */}
+      <div style={{
+        height: 5, borderRadius: "14px 14px 0 0",
+        background: `linear-gradient(90deg, ${col.accent}, ${col.accent}aa)`,
+      }} />
 
-        {menuOpen && (
+      <div style={{ padding: "16px 16px 14px" }}>
+
+        {/* Top row: icon + badges + 3-dot */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
+          {/* Icon */}
           <div style={{
-            position: "absolute", top: "calc(100% + 6px)", right: 0,
-            background: "#fff", border: "1px solid #e4e4e7", borderRadius: "12px",
-            width: "185px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            padding: "6px", zIndex: 101,
+            width: 42, height: 42, borderRadius: 11, flexShrink: 0,
+            background: col.light, border: `1.5px solid ${col.accent}33`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: col.accent, fontSize: 18,
           }}>
-            <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onClick?.(); }} style={dropdownItemStyle}>
-              <LuBriefcase size={14} /> ดูรายละเอียด
+            <LuBriefcase />
+          </div>
+
+          {/* Badges */}
+          <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 5, paddingTop: 2 }}>
+            <span style={{
+              background: isOpen ? "#f0fdf4" : "#fef2f2",
+              color: isOpen ? "#15803d" : "#dc2626",
+              border: `1px solid ${isOpen ? "#bbf7d0" : "#fecaca"}`,
+              borderRadius: 99, padding: "2px 9px", fontSize: 10, fontWeight: 700,
+            }}>
+              ● {isOpen ? "เปิดรับ" : "ปิดแล้ว"}
+            </span>
+            {job.job_type && (
+              <span style={{
+                background: col.light, color: col.accent,
+                border: `1px solid ${col.accent}44`,
+                borderRadius: 99, padding: "2px 9px", fontSize: 10, fontWeight: 700,
+              }}>
+                {job.job_type}
+              </span>
+            )}
+            {isSaved && (
+              <span style={{
+                background: "#eff6ff", color: "#1d4ed8",
+                border: "1px solid #bfdbfe",
+                borderRadius: 99, padding: "2px 9px", fontSize: 10, fontWeight: 700,
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                <LuBookmarkCheck size={9} /> Saved
+              </span>
+            )}
+          </div>
+
+          {/* 3-dot */}
+          <div style={{ position: "relative", zIndex: 100, flexShrink: 0 }}>
+            <button
+              onClick={handleMenuClick}
+              style={{
+                width: 28, height: 28,
+                background: menuOpen ? "#e0e7ff" : "rgba(248,250,252,0.9)",
+                border: "1.5px solid " + (menuOpen ? "#a5b4fc" : "#e4e4e7"),
+                borderRadius: "50%", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: menuOpen ? "#4f46e5" : "#94a3b8",
+                transition: "all 0.15s",
+              }}
+            >
+              <LuEllipsisVertical size={14} />
             </button>
-            <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onViewApplicants?.(job.id); }} style={dropdownItemStyle}>
-              <LuUsers size={14} /> ดูผู้สมัคร
-            </button>
-            <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
-            <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onUpdateStatus(job.id, job.status === "เปิดรับสมัคร" ? "ปิดแล้ว" : "เปิดรับสมัคร"); }} style={dropdownItemStyle}>
-              <LuBadgeMinus size={14} /> {job.status === "ปิดแล้ว" ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
-            </button>
-            <button onClick={deleteJob} style={{ ...dropdownItemStyle, color: "#ef4444" }}>
-              <LuTrash2 size={14} /> ลบโพสงาน
-            </button>
+            {menuOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0,
+                background: "#fff", border: "1px solid #e4e4e7", borderRadius: "12px",
+                width: "185px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                padding: "6px", zIndex: 101,
+              }}>
+                <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onClick?.(); }} style={dropdownItemStyle}>
+                  <LuBriefcase size={14} /> ดูรายละเอียด
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onViewApplicants?.(job.id); }} style={dropdownItemStyle}>
+                  <LuUsers size={14} /> ดูผู้สมัคร
+                </button>
+                <div style={{ height: 1, background: "#f4f4f5", margin: "4px 0" }} />
+                <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onUpdateStatus(job.id, job.status === "เปิดรับสมัคร" ? "ปิดแล้ว" : "เปิดรับสมัคร"); }} style={dropdownItemStyle}>
+                  <LuBadgeMinus size={14} /> {job.status === "ปิดแล้ว" ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
+                </button>
+                <button onClick={deleteJob} style={{ ...dropdownItemStyle, color: "#ef4444" }}>
+                  <LuTrash2 size={14} /> ลบโพสงาน
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Title */}
+        <div style={{ fontWeight: 800, fontSize: "1rem", color: "#0f172a", lineHeight: 1.3, marginBottom: 4 }}>
+          {job.title}
+        </div>
+
+        {/* Company */}
+        {job.company && (
+          <div style={{ fontSize: 12, color: col.accent, fontWeight: 600, display: "flex", alignItems: "center", gap: 4, marginBottom: 10 }}>
+            <LuBadgeCheck size={11} /> {job.company}
           </div>
         )}
-      </div>
 
-      {/* ── Header: icon + job type ── */}
-      <div className="hrf-job-header" style={{ marginBottom: "12px", paddingRight: 28 }}>
-        <div className="hrf-job-icon"><LuBriefcase /></div>
-        <span className="hrf-job-type" style={{ marginTop: 8 }}>{job.job_type || "ไม่ระบุ"}</span>
-      </div>
+        {/* Divider */}
+        <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0" }} />
 
-      <div className="hrf-job-title" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{job.title}</div>
-      {job.company && (
-        <div style={{
-          fontSize: 12, color: "#6366f1", fontWeight: 600,
-          display: "flex", alignItems: "center", gap: 4, marginTop: 4,
-        }}>
-          <LuBadgeCheck size={12} /> {job.company}
+        {/* Meta pills row */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {job.category && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "3px 8px", fontWeight: 600 }}>
+              <LuBadgeCheck size={10} style={{ color: col.accent }} /> {job.category}
+            </span>
+          )}
+          {job.location && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "3px 8px", fontWeight: 600 }}>
+              <LuMapPin size={10} style={{ color: "#f97316" }} /> {job.location}
+            </span>
+          )}
+          {job.experience && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "3px 8px", fontWeight: 600 }}>
+              <LuUsers size={10} style={{ color: "#8b5cf6" }} /> {job.experience}
+            </span>
+          )}
         </div>
-      )}
-      <div className="hrf-job-meta" style={{ marginTop: "8px" }}>
-        {job.category && <span><LuBadgeCheck /> {job.category}</span>}
-        {job.location  && <span><LuMapPin /> {job.location}</span>}
-      </div>
 
-      {isSaved && (
-        <div style={{
-          position: "absolute", top: 10, left: 12,
-          background: "#eff6ff", color: "#1d4ed8",
-          borderRadius: 99, fontSize: 10, fontWeight: 700,
-          padding: "2px 8px", display: "flex", alignItems: "center", gap: 4,
-        }}>
-          <LuBookmarkCheck size={10} /> Saved
+        {/* Salary bar */}
+        {salary && (
+          <div style={{
+            marginTop: 10, padding: "8px 10px",
+            background: `linear-gradient(135deg, ${col.light}, #fff)`,
+            border: `1px solid ${col.accent}33`,
+            borderRadius: 9,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: col.accent }}>{salary}</span>
+            <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 500 }}>/ เดือน</span>
+          </div>
+        )}
+
+        {/* Description snippet */}
+        {job.description && (
+          <div style={{
+            marginTop: 10, fontSize: 11.5, color: "#64748b", lineHeight: 1.55,
+            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+          }}>
+            {job.description}
+          </div>
+        )}
+
+        {/* Footer: applicants + posted */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 99, padding: "3px 10px" }}>
+            <LuUsers size={10} /> {job.applicantCount ?? 0} ผู้สมัคร
+          </div>
+          {job.time && (
+            <div style={{ fontSize: 10.5, color: "#94a3b8", fontWeight: 500 }}>
+              {job.time}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
