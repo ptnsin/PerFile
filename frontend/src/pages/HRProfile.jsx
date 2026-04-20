@@ -44,6 +44,7 @@ async function getHrProfile() {
       role: profile.hr_profile?.role || "HR Recruiter",
       handle: profile.username ? `@${profile.username}` : "@username",
       profile_image: profile.hr_profile?.profile_image || profile.profile_image || null,
+      cover_image: profile.hr_profile?.cover_image || profile.cover_image || null,
     };
   } catch (err) {
     console.error(err);
@@ -437,18 +438,11 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, cl
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const coverInputRef = useRef(null);
-  const [profileImage, setProfileImage] = useState(null);
-  const [coverImage, setCoverImage] = useState(null);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
-  useEffect(() => {
-    if (hr?.profile_image) setProfileImage(hr.profile_image);
-  }, [hr?.profile_image]);
-
-  useEffect(() => {
-    if (hr?.cover_image) setCoverImage(hr.cover_image);
-  }, [hr?.cover_image]);
+  // ใช้ hr?.profile_image / hr?.cover_image โดยตรง ไม่ต้องมี local state แยก
+  // เพื่อให้รูปยังอยู่หลัง refresh (ดึงจาก parent hr state ที่โหลดจาก API)
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -463,9 +457,15 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, cl
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
+      // ตรวจสอบก่อนว่า response เป็น JSON จริง ถ้า 500 จะได้ไม่ crash
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error("Upload error (profile-image):", res.status, text.slice(0, 200));
+        return;
+      }
       const data = await res.json();
       if (data.imageUrl) {
-        setProfileImage(data.imageUrl);
         setHr(prev => ({ ...prev, profile_image: data.imageUrl }));
       }
     } catch (err) {
@@ -489,9 +489,14 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, cl
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error("Upload error (cover-image):", res.status, text.slice(0, 200));
+        return;
+      }
       const data = await res.json();
       if (data.imageUrl) {
-        setCoverImage(data.imageUrl);
         setHr(prev => ({ ...prev, cover_image: data.imageUrl }));
       }
     } catch (err) {
@@ -503,19 +508,12 @@ function ProfileView({ hr, setHr, aboutItems, setAboutItems, stats, openJobs, cl
   };
 
   // ใน ProfileView
-const updateHr = (key) => (val) => {
-  const updated = { ...(hr || {}), [key]: val };
-  setHr(updated);
-  
-  // ✅ ต้อง Map ชื่อ Key ให้ตรงกับที่ Backend PUT คาดหวัง
-  // เช่น ถ้าส่ง "name" มา ต้องเปลี่ยนเป็น "fullName" ก่อนส่งไป API
-  const payloadKey = key === "name" ? "fullName" : key;
-  saveHrProfile({ [payloadKey]: val });
-};
-
-// ใน CompanyView (ตรวจสอบชื่อตัวแปรที่ส่งไปบันทึก)
-<EditableField value={hr?.companyDesc} onChange={updateHr("companyDesc")} multiline />
-// ตัว updateHr จะส่ง { companyDesc: val } ซึ่งใน Backend PUT ผมแก้ให้รับค่านี้แล้ว
+  const updateHr = (key) => (val) => {
+    const updated = { ...(hr || {}), [key]: val };
+    setHr(updated);
+    const payloadKey = key === "name" ? "fullName" : key;
+    saveHrProfile({ [payloadKey]: val });
+  };
 
   const updateAbout = (idx, key) => (val) => {
     const updated = aboutItems.map((item, i) => i === idx ? { ...item, [key]: val } : item);
@@ -536,11 +534,11 @@ const updateHr = (key) => (val) => {
       {/* Profile Card */}
       <div className="hr-card">
         <div className="hr-cover" style={{
-          backgroundImage: coverImage ? `url(http://localhost:3000${coverImage})` : undefined,
+          backgroundImage: hr?.cover_image ? `url(http://localhost:3000${hr.cover_image})` : undefined,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}>
-          {!coverImage && <div className="hr-cover-pattern" />}
+          {!hr?.cover_image && <div className="hr-cover-pattern" />}
           <button className="hr-cover-edit" onClick={() => coverInputRef.current.click()} disabled={uploadingCover}>
             {uploadingCover ? "⏳ กำลังอัปโหลด..." : "✏️ แก้ไขปก"}
           </button>
@@ -560,9 +558,9 @@ const updateHr = (key) => (val) => {
               title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
               style={{ position: "relative", cursor: "pointer", overflow: "hidden", borderRadius: "50%" }}
             >
-              {profileImage ? (
+              {hr?.profile_image ? (
                 <img
-                  src={`http://localhost:3000${profileImage}`}
+                  src={`http://localhost:3000${hr.profile_image}`}
                   alt="profile"
                   style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", display: "block" }}
                 />

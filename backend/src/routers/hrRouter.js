@@ -22,12 +22,27 @@ const hrStorage = multer.diskStorage({
 
 const hrUpload = multer({
   storage: hrStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp']
     cb(null, allowed.includes(file.mimetype))
   }
 })
+
+// middleware จับ MulterError โดยเฉพาะ (file too large ฯลฯ)
+function hrUploadHandler(field) {
+  return (req, res, next) => {
+    hrUpload.single(field)(req, res, (err) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ message: 'ไฟล์รูปต้องมีขนาดไม่เกิน 10MB' })
+        }
+        return res.status(400).json({ message: err.message })
+      }
+      next()
+    })
+  }
+}
 
 const hrRouter = Router()
 
@@ -564,19 +579,22 @@ hrRouter.post('/contact/:resumeId', async (req, res) => {
  */
 hrRouter.get('/profile', async (req, res) => {
   try {
-    const userWithProfile = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        hr_profile: true 
-      }
-    });
+    // ใช้ db.query แทน Prisma เพื่อให้ได้ทุก column รวม profile_image/cover_image
+    const [[user]] = await db.query(
+      'SELECT * FROM users WHERE id = ?',
+      [Number(req.user.id)]
+    );
+    if (!user) return res.status(404).json({ message: 'ไม่พบโปรไฟล์' });
 
-    if (!userWithProfile) return res.status(404).json({ message: 'ไม่พบโปรไฟล์' });
+    const [[hrProfile]] = await db.query(
+      'SELECT * FROM hr_profiles WHERE user_id = ?',
+      [Number(req.user.id)]
+    );
 
-    const { hr_profile, ...userData } = userWithProfile;
     const formattedProfile = {
-      ...userData,
-      ...(hr_profile || {}) 
+      ...user,
+      ...(hrProfile || {}),
+      hr_profile: hrProfile || null,
     };
 
     return res.status(200).json({ profile: formattedProfile });
@@ -1351,7 +1369,7 @@ hrRouter.delete('/notifications/clear', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // PUT /hr/profile-image — อัปโหลดรูปโปรไฟล์ HR
 // ─────────────────────────────────────────────────────────────
-hrRouter.put('/profile-image', hrUpload.single('image'), async (req, res) => {
+hrRouter.put('/profile-image', hrUploadHandler('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'ไม่พบไฟล์รูปภาพ' })
@@ -1377,13 +1395,17 @@ hrRouter.put('/profile-image', hrUpload.single('image'), async (req, res) => {
       )
     }
 
-    // บันทึก activity
-    await prisma.hr_activities.create({
-      data: {
-        hr_id: Number(req.user.id),
-        text: 'อัปเดตรูปโปรไฟล์เรียบร้อยแล้'
-      }
-    })
+    // บันทึก activity — แยก try/catch ไม่ให้ crash ทั้ง route ถ้าตารางยังไม่มี
+    try {
+      await prisma.hr_activities.create({
+        data: {
+          hr_id: Number(req.user.id),
+          text: 'อัปเดตรูปโปรไฟล์เรียบร้อยแล้ว'
+        }
+      })
+    } catch (actErr) {
+      console.warn('hr_activities insert skipped:', actErr.message)
+    }
 
     return res.status(200).json({ success: true, imageUrl })
   } catch (err) {
@@ -1395,7 +1417,7 @@ hrRouter.put('/profile-image', hrUpload.single('image'), async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // PUT /hr/cover-image — อัปโหลดรูปปกโปรไฟล์ HR
 // ─────────────────────────────────────────────────────────────
-hrRouter.put('/cover-image', hrUpload.single('image'), async (req, res) => {
+hrRouter.put('/cover-image', hrUploadHandler('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'ไม่พบไฟล์รูปภาพ' })
@@ -1420,12 +1442,17 @@ hrRouter.put('/cover-image', hrUpload.single('image'), async (req, res) => {
       )
     }
 
-    await prisma.hr_activities.create({
-      data: {
-        hr_id: Number(req.user.id),
-        text: 'อัปเดตรูปปกโปรไฟล์เรียบร้อยแล้ว'
-      }
-    })
+    // บันทึก activity — แยก try/catch ไม่ให้ crash ทั้ง route ถ้าตารางยังไม่มี
+    try {
+      await prisma.hr_activities.create({
+        data: {
+          hr_id: Number(req.user.id),
+          text: 'อัปเดตรูปปกโปรไฟล์เรียบร้อยแล้ว'
+        }
+      })
+    } catch (actErr) {
+      console.warn('hr_activities insert skipped:', actErr.message)
+    }
 
     return res.status(200).json({ success: true, imageUrl })
   } catch (err) {

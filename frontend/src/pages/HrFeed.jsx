@@ -118,11 +118,17 @@ export default function HrFeed() {
       try {
         const token = localStorage.getItem("token");
         if (!token) return navigate("/hr-login");
-        const res = await fetch("http://localhost:3000/auth/me", {
+        const res = await fetch("http://localhost:3000/hr/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (res.ok) setUserData((await res.json()).user);
-        else navigate("/hr-login");
+        if (res.ok) {
+          const data = await res.json();
+          const p = data.profile;
+          setUserData({
+            ...p,
+            avatar: p.hr_profile?.profile_image || p.profile_image || p.avatar || null,
+          });
+        } else navigate("/hr-login");
       } catch (err) {
         console.error(err);
       }
@@ -552,10 +558,14 @@ const handleUpdateStatus = async (jobId, newStatus) => {
             <div className="hrf-user-chip" onClick={() => setMenuOpen((v) => !v)}>
               <div className="hrf-avatar">
                 {userData?.avatar
-                  ? <img src={userData.avatar} alt="avatar" />
+                  ? <img
+                      src={userData.avatar.startsWith("http") ? userData.avatar : `http://localhost:3000${userData.avatar}`}
+                      alt="avatar"
+                      style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+                    />
                   : initial}
               </div>
-              <span>{userData?.fullName ?? "Loading..."}</span>
+              <span>{userData?.fullName ?? userData?.username ?? "Loading..."}</span>
             </div>
 
             {menuOpen && (
@@ -870,7 +880,7 @@ function JobCard({ job, onClick, onUpdateStatus, isSaved, onSave, onViewApplican
         background: `linear-gradient(90deg, ${col.accent}, ${col.accent}aa)`,
       }} />
 
-      <div style={{ padding: "4px 16px 14px", display: "flex", flexDirection: "column", flex: 1 }}>
+      <div style={{ padding: "16px 16px 14px", display: "flex", flexDirection: "column", flex: 1 }}>
 
         {/* Top row: icon + badges + 3-dot */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
@@ -1082,7 +1092,6 @@ function CandidateCard({ resume, onView, isSaved, onSave }) {
         position: "relative",
         transition: "box-shadow 0.2s",
         boxShadow: hovered ? "0 8px 28px rgba(30,58,138,0.13)" : undefined,
-        
       }}
     >
       {/* Backdrop ปิด dropdown */}
