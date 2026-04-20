@@ -55,7 +55,7 @@ export default function HrFeed() {
 
   const TABS = [
     { key: "candidates", label: " Public Resume", icon: <LuUsers />, count: publicResumes.length },
-    { key: "jobs",       label: "JobPost", icon: <LuBriefcase />, count: jobs.length },
+    { key: "jobs",       label: "JobPost", icon: <LuBriefcase />, count: jobs.filter(j => j.status !== "ปิดแล้ว").length.toString() },
   ];
 
   // Fetch HR Notifications
