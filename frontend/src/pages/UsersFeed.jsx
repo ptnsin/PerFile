@@ -302,8 +302,8 @@ export default function UsersFeed() {
 
   // Close filter dropdown on tab change
   useEffect(() => {
-    if (isFilterOpen) setIsFilterOpen(false);
-  }, [activeTab, isFilterOpen]);
+    setIsFilterOpen(false);
+  }, [activeTab]);
 
   const initial = userData?.username?.[0]?.toUpperCase() ?? "U";
   const firstName = userData?.fullName?.split(" ")[0] ?? "there";

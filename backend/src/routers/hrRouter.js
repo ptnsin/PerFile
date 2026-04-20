@@ -840,7 +840,6 @@ hrRouter.get('/activities', async (req, res) => {
   }
 });
 
-export default hrRouter
 // ─────────────────────────────────────────────────────────────
 // DELETE /hr/jobs/:id — ลบประกาศงาน
 hrRouter.delete('/jobs/:id', async (req, res) => {
@@ -1226,3 +1225,69 @@ hrRouter.get('/report', async (req, res) => {
     res.status(500).json({ message: "Error fetching report" });
   }
 });
+// ─────────────────────────────────────────────────────────────
+// NOTIFICATIONS (HR)
+// ─────────────────────────────────────────────────────────────
+
+// GET /hr/notifications
+hrRouter.get('/notifications', async (req, res) => {
+  try {
+    const [notifications] = await db.query(
+      `SELECT id, type, title, body as message, is_read, created_at
+       FROM admin_notifications
+       WHERE admin_id = ?
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [req.user.id]
+    )
+    const unread = notifications.filter(n => !n.is_read).length
+    res.json({ notifications, unread })
+  } catch (err) {
+    console.error('GET /hr/notifications error:', err.message)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// PATCH /hr/notifications/read-all — ต้องอยู่ก่อน /:id/read
+hrRouter.patch('/notifications/read-all', async (req, res) => {
+  try {
+    await db.query(
+      'UPDATE admin_notifications SET is_read = 1 WHERE admin_id = ?',
+      [req.user.id]
+    )
+    res.json({ message: 'ok' })
+  } catch (err) {
+    console.error('PATCH /hr/notifications/read-all error:', err.message)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// PATCH /hr/notifications/:id/read
+hrRouter.patch('/notifications/:id/read', async (req, res) => {
+  try {
+    await db.query(
+      'UPDATE admin_notifications SET is_read = 1 WHERE id = ? AND admin_id = ?',
+      [req.params.id, req.user.id]
+    )
+    res.json({ message: 'ok' })
+  } catch (err) {
+    console.error('PATCH /hr/notifications/:id/read error:', err.message)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// DELETE /hr/notifications/clear
+hrRouter.delete('/notifications/clear', async (req, res) => {
+  try {
+    await db.query(
+      'DELETE FROM admin_notifications WHERE admin_id = ?',
+      [req.user.id]
+    )
+    res.json({ message: 'ok' })
+  } catch (err) {
+    console.error('DELETE /hr/notifications/clear error:', err.message)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+export default hrRouter

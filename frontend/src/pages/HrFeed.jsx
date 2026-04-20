@@ -27,6 +27,11 @@ export default function HrFeed() {
   const [interviews, setInterviews]         = useState([]);
   const [savedResumeMap, setSavedResumeMap] = useState({});
   const sidebarRef = useRef(null);
+
+  // Notification
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notifRef = useRef(null);
   const navigate   = useNavigate();
 
   const now = new Date();
@@ -47,9 +52,34 @@ export default function HrFeed() {
     { key: "jobs",       label: "JobPost", icon: <LuBriefcase /> },
   ];
 
+  // Fetch HR Notifications
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch("http://localhost:3000/hr/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.notifications ?? []);
+        }
+      } catch (err) {
+        console.error("Fetch HR notifications error:", err);
+      }
+    };
+    fetchNotifs();
+  }, []);
+
+  useEffect(() => {
+    const close = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
   /* ── Resizable sidebar ── */
   useEffect(() => {
-    const sidebar = sidebarRef.current;
     if (!sidebar) return;
     const handle = sidebar.querySelector(".hrf-resize-handle");
     if (!handle) return;
@@ -410,7 +440,73 @@ const handleUpdateStatus = async (jobId, newStatus) => {
         </div>
 
         <div className="hrf-nav-right">
-          <button className="hrf-icon-btn" title="Notifications"><LuBell /></button>
+          <div ref={notifRef} style={{ position: "relative" }}>
+            <button className="hrf-icon-btn" title="Notifications" onClick={() => setNotifOpen(v => !v)} style={{ position: "relative" }}>
+              <LuBell />
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", border: "1.5px solid #fff" }} />
+              )}
+            </button>
+            {notifOpen && (
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.13)", border: "1px solid #e5e7eb", zIndex: 999, overflow: "hidden" }}>
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>แจ้งเตือน</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {notifications.filter(n => !n.is_read).length > 0 && (
+                      <>
+                        <span style={{ background: "#eff6ff", color: "#1e3a8a", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>
+                          {notifications.filter(n => !n.is_read).length} ใหม่
+                        </span>
+                        <button onClick={async () => {
+                          const token = localStorage.getItem("token");
+                          await fetch("http://localhost:3000/hr/notifications/read-all", { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+                          setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
+                        }} style={{ fontSize: 11, color: "#1e3a8a", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}>
+                          อ่านทั้งหมด
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                  {notifications.length > 0 ? notifications.map((n, i) => (
+                    <div key={n.id ?? i}
+                      onClick={async () => {
+                        if (!n.is_read) {
+                          const token = localStorage.getItem("token");
+                          await fetch(`http://localhost:3000/hr/notifications/${n.id}/read`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+                          setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: 1 } : x));
+                        }
+                      }}
+                      style={{ padding: "10px 16px", borderBottom: "1px solid #f9fafb", background: n.is_read ? "#fff" : "#f0f7ff", display: "flex", gap: 10, alignItems: "flex-start", cursor: n.is_read ? "default" : "pointer" }}>
+                      <div style={{ fontSize: 18, flexShrink: 0 }}>
+                        {n.type === "new_application" ? "📋" : n.type === "NEW_RESUME" ? "📄" : "🔔"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {n.title && <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 2 }}>{n.title}</div>}
+                        <div style={{ fontSize: 13, color: "#111827", fontWeight: n.is_read ? 400 : 600 }}>{n.message ?? n.title}</div>
+                        {n.created_at && <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{new Date(n.created_at).toLocaleDateString("th-TH")}</div>}
+                      </div>
+                      {!n.is_read && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#1e3a8a", flexShrink: 0, marginTop: 4 }} />}
+                    </div>
+                  )) : (
+                    <div style={{ padding: 24, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>ยังไม่มีแจ้งเตือน</div>
+                  )}
+                </div>
+                {notifications.length > 0 && (
+                  <div style={{ padding: "10px 16px", borderTop: "1px solid #f3f4f6", textAlign: "center" }}>
+                    <button onClick={async () => {
+                      const token = localStorage.getItem("token");
+                      await fetch("http://localhost:3000/hr/notifications/clear", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                      setNotifications([]);
+                    }} style={{ fontSize: 12, color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                      ลบทั้งหมด
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="hrf-user-area" style={{ position: "relative" }}>
             <div className="hrf-user-chip" onClick={() => setMenuOpen((v) => !v)}>
