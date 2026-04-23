@@ -37,7 +37,13 @@ export default function AdminDashboard() {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const adminMenuRef = useRef(null);
   const settingsRef = useRef(null);
-  const [settings, setSettings] = useState({ maxFileSize: 10485760, maintenanceMode: false });
+  const [settings, setSettings] = useState({ 
+  maxFileSize: 10485760, 
+  maintenanceMode: false,
+  maxResumesPerUser: 5,     
+  allowRegistration: true,   
+  autoApproveHr: false       
+});
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState("");
   const navigate = useNavigate();

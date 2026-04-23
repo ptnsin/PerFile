@@ -75,7 +75,7 @@ router.get('/my', authMiddleware, async (req, res) => {
     const result = applications.map(a => ({
       id: a.id,
       status: a.status,
-      appliedAt: a.applied_at,       // ✅
+      appliedAt: a.applied_at,      
       jobId: a.job.id,
       jobTitle: a.job.title,
       location: a.job.location,

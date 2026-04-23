@@ -63,27 +63,26 @@ const swaggerSpec = swaggerJsdoc({
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 // ───────────────────────────────────────────────
 
-// -------- 67118401 ปฏิภาณ 8 API ---------
+// -------- 67118401 ปฏิภาณ  ---------
 app.use('/auth', authRouter)
 
-// -------- 67122203 ศิววงศ์ 9 API ---------
+// -------- 67122203 ศิววงศ์  ---------
 app.use('/admin', adminRouter)
-
-
-// -------- 67114610 กองทัพ 8 API ---------
- app.use('/resumes', resumeRouter)
-
-// -------- 67162470 พงศกร 6 API ---------
-app.use('/files', fileRouter)
-
-// -------- 67178847 ภัทรนันท์ 12 API---------
-app.use('/social', socialRouter)
 app.use('/hr', hrRouter)
 app.use('/jobs', jobRouter)
+
+// -------- 67114610 กองทัพ  ---------
+ app.use('/resumes', resumeRouter)
+
+// -------- 67162470 พงศกร  ---------
+app.use('/files', fileRouter)
+
+// -------- 67178847 ภัทรนันท์ ---------
+app.use('/social', socialRouter)
 app.use('/applications', applicationsRouter)
 app.use('/saved', savedRouter)
 
-// -------- 67162470 พงศกร 4 API ---------
+// -------- 67162470 พงศกร  ---------
 app.use('/notifications', notificationRouter)
 
 app.use('/profile', profileRouter) // ---67114610 กองทัพ (GET,POST,PUT,DELETE)
